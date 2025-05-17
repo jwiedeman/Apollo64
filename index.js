@@ -1,17 +1,19 @@
 const puppeteer = require('puppeteer');
 
 async function goToNextPage(page){
-    await page.click('button[aria-lael=" Next page "]')
+    // Click the "Next page" navigation button.
+    await page.click('button[aria-label=" Next page "]');
     await page.waitForNetworkIdle();
 }
 
 async function hasNextPage(page){
     const element = await page.$('button[aria-label=" Next page "]')
     if(!element){
-        throw new Error('Next page elemement is awol')
+        throw new Error('Next page element is missing')
     }
 
-    const disabled = await page.evaluate((el)=> el.getAttribute('disabled'),element )
+    // Determine if the "Next page" button is disabled.
+    const disabled = await page.evaluate((el) => el.getAttribute('disabled'), element)
     if(disabled){
         console.log('The next page button is disabled')
     }
