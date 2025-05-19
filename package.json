@@ -1,9 +1,10 @@
 {
-  "name": "gmapsscaper",
+  "name": "gmaps-scraper",
   "version": "1.0.0",
-  "description": "",
+  "description": "Proof of concept Google Maps scraper using Puppeteer",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

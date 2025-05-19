@@ -74,4 +74,4 @@ async function parsePlaces(page){
     console.log('asd',places)
 })
 
-console.log('test')
+
