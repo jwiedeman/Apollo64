@@ -1,29 +1,17 @@
-# GmapsScraper
+# Apollo 11 Real-Time Mission Simulator
 
-This project contains a simple proof-of-concept Google Maps scraper built with [Puppeteer](https://github.com/puppeteer/puppeteer). It scrolls through search results, navigates pages and collects place names from the results list.
+This repository has been reset to develop a real-time Apollo 11 mission simulator that can run both as a browser-based proof of concept and, eventually, as a Nintendo 64 experience. All design goals and roadmap details live in [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md).
 
-## Prerequisites
+## Repository Layout
+- `js/` – Workspace for the JavaScript/Web prototype that will validate the mission model and user experience.
+- `n64/` – Workspace for the libdragon-powered Nintendo 64 port that inherits the proven systems from the web build.
+- `docs/` – Planning and reference material for the project, including the current mission and technology plan.
 
-- Node.js (tested with `v22`)
-- A modern version of npm
+## Immediate Priorities
+1. Build out documentation and data ingestion (Flight Plan, Flight Journal, Mission Operations Report).
+2. Prototype the deterministic mission scheduler, resource models, and PTC control loop in the JS build.
+3. Use the prototype to tune event windows, failure cascades, and HUD feedback before targeting the N64 platform.
 
-## Installation
-
-```bash
-npm install
-```
-
-## Running the scraper
-
-The main entry point is `index.js`. You can start the scraper with:
-
-```bash
-npm start
-```
-
-By default the script opens a non-headless Chromium window and navigates to a sample food search around a hard coded location. Adjust the URL in `index.js` to change the search query.
-
-## Caveats
-
-This scraper is only a minimal demonstration and may break if Google changes the page structure. Use responsibly and follow the Google Maps terms of service.
-
+## Contribution Notes
+- Follow the guidelines in [`AGENTS.md`](AGENTS.md) for documentation structure and future implementation phases.
+- Document any manual verification performed until automated tests are introduced.
