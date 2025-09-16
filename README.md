@@ -8,7 +8,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - `docs/` – Planning and reference material for the project, including the current mission and technology plan.
 
 ## Current Progress
-- Milestone M0 datasets now cover launch through the first midcourse correction, capturing Passive Thermal Control maintenance, MCC-1 PAD review/execution, and consumables tracking for the translunar coast slice.
+- Milestone M0 datasets now cover launch through the MCC-2 evaluation window, capturing Passive Thermal Control maintenance, navigation realignments (P52/P23), MCC-1 PAD review/execution, and the MCC-2 go/no-go flow for the translunar coast slice.
 
 ## Immediate Priorities
 1. Complete Milestone M0 by transforming the Flight Plan, Flight Journal, and Mission Operations Report into normalized CSV packs as outlined in [`docs/milestones/M0_DATA_INGESTION.md`](docs/milestones/M0_DATA_INGESTION.md).
