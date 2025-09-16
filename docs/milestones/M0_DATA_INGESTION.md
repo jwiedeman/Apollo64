@@ -87,6 +87,11 @@ Milestone M0 bootstraps the simulator with structured mission data extracted fro
 
 Each CSV should include a header row, adhere to UTF-8, and avoid Excel artifacts (smart quotes, tabs). `provenance.md` lists each dataset row range with citations (Flight Plan page, Journal entry time).
 
+### Current Dataset Status
+- Launch through Passive Thermal Control (GET ≤ 005:00:00) populated across all CSV packs with representative data.
+- Autopilot JSON assets live under `docs/data/autopilots/` and are referenced by the metadata CSV.
+- Provenance log documents the specific Flight Plan, Flight Journal, and Mission Operations Report sections leveraged so far.
+
 ## Tooling Recommendations
 - Use a lightweight Python ingestion script (`scripts/ingest/` to be created later) to convert annotated spreadsheets into CSV, preserving GET formatting and verifying dependencies.
 - Adopt unit-style checks that confirm: monotonically increasing GET within phases, valid references between events/checklists/failures, and PAD times falling inside corresponding event windows.

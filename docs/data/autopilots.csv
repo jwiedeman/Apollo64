@@ -1,0 +1,2 @@
+autopilot_id,description,script_path,entry_conditions,termination_conditions,tolerances
+PGM_06_TLI,S-IVB translunar injection burn profile,autopilots/PGM_06_TLI.json,"CSM/LM stack docked; GET ≥ 002:44:14; IMU aligned","Δv accumulated ≥ 3150 ft/s OR GET ≥ 002:50:01","{\"delta_v_ft_s\": 0.5, \"attitude_error_deg\": 1.5}"

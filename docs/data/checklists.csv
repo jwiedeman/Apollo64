@@ -1,0 +1,19 @@
+checklist_id,title,GET_nominal,crew_role,step_number,action,expected_response,reference
+FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,1,Monitor ignition sequence,All five S-IC engines show stable chamber pressure,Flight Plan p. 2-5
+FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,2,Call roll program,Rocket rolls to 90° per guidance cue,Flight Plan p. 2-6
+FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,3,Confirm max-Q acknowledgement,Guidance reports GO at max dynamic pressure,Flight Plan p. 2-7
+FP_2-16_ORBIT,Orbit Verification,000:11:39,CMP,1,Read S-IVB orbit solution,Perigee 98 nm ±2 nm,Flight Plan p. 2-16
+FP_2-16_ORBIT,Orbit Verification,000:11:39,CMP,2,Confirm apogee from guidance,Apogee 118 nm ±2 nm,Flight Plan p. 2-16
+FP_2-16_ORBIT,Orbit Verification,000:11:39,CDR,3,Check S-IVB restart config,DCS switch positions match PAD,Flight Plan p. 2-17
+FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,Joint,1,Align IMU per P52,Platform torqued and gimbal angles nulled,Flight Plan p. 3-10
+FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,CMP,2,Load TLI PAD to AGC,Programs 11/12 updated with TIG and Δv,Flight Plan p. 3-11
+FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,CDR,3,Verify S-IVB ullage command,Ullage arm green,Flight Plan p. 3-12
+FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,Joint,1,Initiate Program 11,CSM throttle displays zero prior to ignition,Flight Plan p. 3-12
+FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,CMP,2,Start burn clock,Burn timer running,Flight Plan p. 3-13
+FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,CDR,3,Confirm shutdown cue,Δv achieved within ±0.2 ft/s,Flight Plan p. 3-14
+FP_3-18_TD,Transposition Docking,003:20:00,CMP,1,Separation maneuver completed,S-IVB clearance achieved,Flight Plan p. 3-18
+FP_3-18_TD,Transposition Docking,003:20:00,CDR,2,Perform docking approach,LM capture latches engage,Flight Plan p. 3-19
+FP_3-18_TD,Transposition Docking,003:20:00,Joint,3,Extract LM from SLA,LM hard docked and clear of panels,Flight Plan p. 3-20
+FP_4-04_PTC,Passive Thermal Control,004:45:00,CMP,1,Select roll attitude,PITCH 0° YAW 0° per Flight Plan,Flight Plan p. 4-4
+FP_4-04_PTC,Passive Thermal Control,004:45:00,CDR,2,Initiate roll thruster pulses,Roll rate trending to 0.3°/s,Flight Plan p. 4-5
+FP_4-04_PTC,Passive Thermal Control,004:45:00,Joint,3,Verify thermal trending,Cryo tank boiloff stabilizing,Flight Plan p. 4-6
