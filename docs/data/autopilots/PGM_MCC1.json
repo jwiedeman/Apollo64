@@ -1,0 +1,13 @@
+{
+  "id": "PGM_MCC1",
+  "title": "Apollo 11 Midcourse Correction 1",
+  "dt": 0.5,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 29, "yaw_deg": 0}},
+    {"time": 5, "command": "ullage_fire", "duration": 2},
+    {"time": 7, "command": "throttle", "level": 0.65},
+    {"time": 22, "command": "throttle", "level": 0.0},
+    {"time": 26, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Shaped from Apollo 11 Mission Operations Report midcourse correction profile and Flight Journal residuals."
+}
