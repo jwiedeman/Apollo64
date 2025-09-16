@@ -90,8 +90,10 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - Design-side unit tests for PAD logic and failure cascades.
 
 ## 11. Milestones
-1. **M0:** Historical ingestion and event CSV creation.
-2. **M1:** Core engine (loop, scheduler, resources, PTC).
+Supporting details for each milestone live in [`docs/milestones/`](milestones).
+
+1. **M0:** Historical ingestion and event CSV creation (see [`milestones/M0_DATA_INGESTION.md`](milestones/M0_DATA_INGESTION.md)).
+2. **M1:** Core engine (loop, scheduler, resources, PTC) documented in [`milestones/M1_CORE_SYSTEMS.md`](milestones/M1_CORE_SYSTEMS.md).
 3. **M2:** Guidance and RCS (burn execution, docking minigame).
 4. **M3:** UI/HUD and audio.
 5. **M4:** N64 port and performance tuning.
