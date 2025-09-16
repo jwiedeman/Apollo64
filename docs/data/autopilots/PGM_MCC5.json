@@ -1,0 +1,13 @@
+{
+  "id": "PGM_MCC5",
+  "title": "Apollo 11 MCC-5 Correction",
+  "dt": 1.0,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}},
+    {"time": 5, "command": "ullage_fire", "duration": 2},
+    {"time": 8, "command": "throttle", "level": 0.4},
+    {"time": 18, "command": "throttle", "level": 0.0},
+    {"time": 20, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Derived from Apollo 11 Mission Operations Report MCC-5 budget and Flight Journal Day 6 execution notes."
+}
