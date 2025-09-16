@@ -1,0 +1,6 @@
+failure_id,classification,trigger,immediate_effect,ongoing_penalty,recovery_actions,source_ref
+FAIL_ORBIT_NO_CAPTURE,Hard,Parking orbit apogee < 90 nm or perigee < 80 nm,CSM state vector unsafe for TLI,Abort sequence initiates,Flight Plan p. 2-18
+FAIL_TLI_PAD_LATE,Recoverable,TLI checklist incomplete at GET 002:44:00,TLI burn starts without updated PAD,Δv margin reduced by 10 m/s,Execute MCC-1 earlier; uplink revised PAD,Flight Journal Day 1 002:44 GET
+FAIL_TLI_UNDERBURN,Recoverable,Δv shortfall > 10 m/s at TLI shutdown,S-IVB sep with insufficient velocity,MCC-1 Δv requirement +25 m/s,Plan corrective burn at next communications window,Mission Operations Report Sec. 3.2
+FAIL_DOCK_INCOMPLETE,Recoverable,LM hard dock not confirmed by GET 003:45:00,LM remains partially latched,RCS prop usage +10 lb/hr while redocking,Recycle docking sequence; verify capture latches,Flight Journal Day 1 003:30 GET
+FAIL_THERMAL_PTC_LATE,Recoverable,PTC not established by GET 005:00:00,Cryo boiloff trending +0.5 lb/hr per tank,Power margin -5%,Engage PTC and shed non-critical loads,Flight Journal Day 1 004:45 GET

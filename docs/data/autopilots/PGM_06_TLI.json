@@ -1,0 +1,14 @@
+{
+  "id": "PGM_06_TLI",
+  "title": "Apollo 11 Translunar Injection",
+  "dt": 1.0,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}},
+    {"time": 8, "command": "ullage_fire", "duration": 4},
+    {"time": 12, "command": "throttle", "level": 1.0},
+    {"time": 330, "command": "throttle", "level": 0.2},
+    {"time": 345, "command": "throttle", "level": 0.0},
+    {"time": 348, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Derived from Apollo 11 Flight Journal Day 1 timeline and TLI PAD data."
+}

@@ -16,6 +16,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) – High-level scope, pillars, and mission milestones.
 - [`docs/milestones/M0_DATA_INGESTION.md`](docs/milestones/M0_DATA_INGESTION.md) – Historical data ingestion workflow and schemas.
 - [`docs/milestones/M1_CORE_SYSTEMS.md`](docs/milestones/M1_CORE_SYSTEMS.md) – Core engine, scheduler, and Passive Thermal Control specification.
+- [`docs/data/README.md`](docs/data/README.md) – Normalized mission datasets produced during Milestone M0 (currently covering launch through early translunar coast).
 
 ## Contribution Notes
 - Follow the guidelines in [`AGENTS.md`](AGENTS.md) for documentation structure and future implementation phases.
