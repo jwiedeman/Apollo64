@@ -134,3 +134,35 @@ FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,Joint,3,Monitor ascent residua
 FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CMP,1,Compute TPI and maneuver burns,CSM maneuver plan updated,Flight Plan p. 7-32
 FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CDR,2,Fly terminal phase and docking,Range rate 0.1 ft/s closing,Flight Journal Day 5 128:00 GET
 FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,Joint,3,Verify hard dock and pressure equalization,Tunnel pressure equalized,Flight Journal Day 5 128:20 GET
+FP_7-34_LM_JETT,LM Jettison,128:50:00,Joint,1,Safeguard LM cabin and close hatches,Hatches latched and vented,Flight Plan p. 7-34
+FP_7-34_LM_JETT,LM Jettison,128:50:00,CMP,2,Configure CSM RCS and tunnel valves for separation,Forward hatch indicators barber pole,Flight Plan p. 7-34
+FP_7-34_LM_JETT,LM Jettison,128:50:00,Joint,3,Command LM jettison and confirm separation,Relative range rate increasing,Flight Journal Day 5 128:55 GET
+FP_8-04_TEI_PAD,TEI PAD Review,131:30:00,CMP,1,Read TEI PAD and confirm TIG/time,Guidance displays TIG 135:23:42,Flight Plan p. 8-4
+FP_8-04_TEI_PAD,TEI PAD Review,131:30:00,Joint,2,Load return trajectory parameters into Program 30,P30 registers updated,Flight Journal Day 6 130:00 GET
+FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,CMP,1,Align SPS gimbals and set engine valves,SPS gimbals track per PAD,Flight Plan p. 8-6
+FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,Joint,2,Configure RCS jets and optics for burn,Optics track stars 40/41,Flight Plan p. 8-6
+FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,CMP,3,Arm EMS and set entry monitoring cues,EMS delta-V set to TEI residual limit,Flight Plan p. 8-8
+FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,CMP,1,Ignite SPS at TIG and hold attitude,Thrust rise within 2 s,Flight Journal Day 6 135:23 GET
+FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,Joint,2,Monitor Δv and throttle to residual under 1 ft/s,Residual velocity < 1 ft/s,Flight Journal Day 6 135:26 GET
+FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,Joint,3,Confirm guidance returns to Passive Thermal Control attitude,P30 residuals within tolerance,Flight Plan p. 8-8
+FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,CMP,1,Update state vector with TEI tracking data,Δv residual logged < 1 ft/s,Flight Journal Day 6 135:40 GET
+FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,Joint,2,Report return trajectory solution to MCC,Return time copy read back,Flight Plan p. 8-10
+FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,CMP,1,Roll to Passive Thermal Control rate 0.3°/s,RCS trim pulses nominal,Flight Plan p. 8-12
+FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,Joint,2,Log cryo boiloff and thermal status,Heat balance trend stabilized,Flight Journal Day 6 137:00 GET
+FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,CMP,1,Read MCC-5 PAD and confirm TIG,Guidance updates TIG 138:58:00,Flight Plan p. 8-14
+FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,Joint,2,Load burn targets into Program 30,P30 register 1 matches PAD,Flight Journal Day 6 138:30 GET
+FP_8-16_MCC5_EXEC,MCC-5 Execution,138:55:00,CMP,1,Fire SPS per PAD and monitor Δv,Δv achieved within 0.5 ft/s,Flight Journal Day 6 138:59 GET
+FP_8-16_MCC5_EXEC,MCC-5 Execution,138:55:00,Joint,2,Verify residuals and reinitiate Passive Thermal Control,RCS trim < 1 lb,Flight Plan p. 8-16
+FP_8-18_MCC5_EVAL,MCC-5 Evaluation,139:10:00,CMP,1,Update trajectory solution post-burn,Entry corridor centerline regained,Flight Journal Day 6 139:15 GET
+FP_8-18_MCC5_EVAL,MCC-5 Evaluation,139:10:00,Joint,2,Report MCC concurrence to Mission Control,MCC acknowledges no further corrections,Flight Plan p. 8-18
+FP_8-20_ENTRY_PAD,Entry PAD Update,170:30:00,Joint,1,Copy entry PAD and verify corridor angles,Entry angle -6.53° confirmed,Flight Plan p. 8-20
+FP_8-20_ENTRY_PAD,Entry PAD Update,170:30:00,CMP,2,Load EMS and G&N with entry targets,EMS set to 7.35 g,Flight Journal Day 7 170:45 GET
+FP_8-22_ENTRY_ALIGN,Pre-Entry Alignment,188:30:00,CMP,1,Perform P52 option 3 alignment,IMU residuals < 0.3°,Flight Plan p. 8-22
+FP_8-22_ENTRY_ALIGN,Pre-Entry Alignment,188:30:00,Joint,2,Verify star angle difference and optics track,SAD within 0.02°,Flight Journal Day 7 188:45 GET
+FP_9-04_SM_SEP,Service Module Jettison,194:50:00,Joint,1,Configure CM pyros and circuit breakers,PYRO ARM lights on,Flight Plan p. 9-4
+FP_9-04_SM_SEP,Service Module Jettison,194:50:00,CMP,2,Fire SM separation and monitor rates,Delta-V counter zeroed,Flight Journal Day 8 194:55 GET
+FP_9-06_ENTRY_MON,Entry Monitoring,195:05:00,CMP,1,Arm EMS and start event timer,EMS chads set and running,Flight Plan p. 9-6
+FP_9-06_ENTRY_MON,Entry Monitoring,195:05:00,Joint,2,Track horizon and G-meter through entry interface,Peak G 6.7 achieved,Flight Journal Day 8 195:16 GET
+FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,1,Deploy drogues then main chutes,Drogues at 195:21 GET; mains reefed,Flight Journal Day 8 195:22 GET
+FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,2,Switch CM to post-landing powerdown,Main bus ties off,Flight Plan p. 9-8
+FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,3,Activate recovery beacons and confirm sea state,Recovery beacon GO,Flight Journal Day 8 195:24 GET

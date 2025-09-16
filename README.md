@@ -8,10 +8,10 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - `docs/` – Planning and reference material for the project, including the current mission and technology plan.
 
 ## Current Progress
-- Milestone M0 datasets now cover launch through LM ascent rendezvous, capturing extended Passive Thermal Control maintenance, MCC-1/2/3/4 PAD workflows, LOI-focused navigation realignments, DOI planning, LM separation, powered descent and landing safing, and the ascent/docking evaluation loop.
+- Milestone M0 datasets now cover launch through splashdown, capturing extended Passive Thermal Control maintenance, MCC-1/2/3/4 PAD workflows, LOI-focused navigation realignments, DOI planning, LM separation, powered descent and landing safing, ascent/docking evaluation, TEI preparation and execution, MCC-5 return corrections, entry PAD alignment, service module jettison, and recovery procedures.
 
 ## Immediate Priorities
-1. Continue Milestone M0 by transforming the Flight Plan, Flight Journal, and Mission Operations Report into normalized CSV packs as outlined in [`docs/milestones/M0_DATA_INGESTION.md`](docs/milestones/M0_DATA_INGESTION.md), marching toward LM descent and surface operations.
+1. Continue Milestone M0 by transforming the Flight Plan, Flight Journal, and Mission Operations Report into normalized CSV packs as outlined in [`docs/milestones/M0_DATA_INGESTION.md`](docs/milestones/M0_DATA_INGESTION.md), focusing on surface EVA expansions, transearth communications, and validation tooling.
 2. Stand up Milestone M1 core systems—scheduler, resource models, and Passive Thermal Control loop—per [`docs/milestones/M1_CORE_SYSTEMS.md`](docs/milestones/M1_CORE_SYSTEMS.md).
 3. Use the JS prototype to tune event windows, failure cascades, and HUD feedback before targeting the N64 platform.
 
@@ -19,7 +19,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) – High-level scope, pillars, and mission milestones.
 - [`docs/milestones/M0_DATA_INGESTION.md`](docs/milestones/M0_DATA_INGESTION.md) – Historical data ingestion workflow and schemas.
 - [`docs/milestones/M1_CORE_SYSTEMS.md`](docs/milestones/M1_CORE_SYSTEMS.md) – Core engine, scheduler, and Passive Thermal Control specification.
-- [`docs/data/README.md`](docs/data/README.md) – Normalized mission datasets produced during Milestone M0 (currently covering launch through lunar orbit insertion).
+- [`docs/data/README.md`](docs/data/README.md) – Normalized mission datasets produced during Milestone M0 (currently covering launch through splashdown).
 
 ## Contribution Notes
 - Follow the guidelines in [`AGENTS.md`](AGENTS.md) for documentation structure and future implementation phases.

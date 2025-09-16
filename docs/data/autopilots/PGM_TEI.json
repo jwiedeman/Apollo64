@@ -1,0 +1,14 @@
+{
+  "id": "PGM_TEI",
+  "title": "Apollo 11 Trans-Earth Injection",
+  "dt": 1.0,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 180, "yaw_deg": 0}},
+    {"time": 6, "command": "ullage_fire", "duration": 4},
+    {"time": 10, "command": "throttle", "level": 1.0},
+    {"time": 140, "command": "throttle", "level": 0.25},
+    {"time": 150, "command": "throttle", "level": 0.0},
+    {"time": 154, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 180, "yaw_deg": 0}}
+  ],
+  "notes": "Profile based on Apollo 11 Flight Plan Section 8 TEI PAD data and Flight Journal Day 6 burn transcript."
+}

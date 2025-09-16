@@ -9,3 +9,6 @@ PAD_LOI2_001,LOI-2 Burn,079:45:00,"{\"TIG\": \"080:11:20\", \"delta_v_ft_s\": 75
 PAD_DOI_001,Descent Orbit Insertion,099:50:00,"{\"TIG\": \"100:38:36\", \"delta_v_ft_s\": 27, \"burn_duration_s\": 12, \"attitude\": \"R000/P180/Y000\"}",101:00:00,Flight Plan p. 7-10
 PAD_PDI_001,Powered Descent Initiation,101:50:00,"{\"TIG\": \"102:33:05\", \"delta_v_ft_s\": 2600, \"burn_duration_s\": 720, \"attitude\": \"R000/P346/Y000\"}",102:50:00,Flight Plan p. 7-18
 PAD_ASCENT_001,LM Ascent to Rendezvous,123:50:00,"{\"TIG\": \"124:22:00\", \"delta_v_ft_s\": 4550, \"burn_duration_s\": 435, \"attitude\": \"R000/P090/Y000\"}",124:40:00,Flight Plan p. 7-28
+PAD_TEI_001,Trans-Earth Injection Burn,131:30:00,"{\"TIG\": \"135:23:42\", \"delta_v_ft_s\": 3050, \"burn_duration_s\": 150, \"attitude\": \"R000/P180/Y000\"}",135:30:00,Flight Plan p. 8-6
+PAD_MCC5_001,Midcourse Correction 5,138:15:00,"{\"TIG\": \"138:58:00\", \"delta_v_ft_s\": 3, \"burn_duration_s\": 20, \"attitude\": \"R000/P000/Y000\"}",139:30:00,Mission Operations Report Sec. 3.7
+PAD_ENTRY_001,Entry Update,170:30:00,"{\"entry_interface_get\": \"195:11:40\", \"flight_path_angle_deg\": -6.53, \"range_to_target_nm\": 2150}",195:10:00,Flight Plan p. 8-20

@@ -13,6 +13,9 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `LM_PREP_001`–`LM_DESCENT_002`: Apollo 11 Flight Plan Section 7 (pp. 7-4 to 7-16) for LM activation, DOI planning, and separation procedures, supplemented by Flight Journal Day 5 timeline entries covering DOI execution and undocking status.
 - `LM_DESCENT_010`–`LM_DESCENT_013`: Apollo 11 Flight Plan Section 7 (pp. 7-18 to 7-24) for PDI targeting, landing guidance, and post-landing safing, with Flight Journal Day 5 commentary providing manual descent cues.
 - `LM_ASCENT_020`–`LM_ASCENT_030`: Apollo 11 Flight Plan Section 7 (pp. 7-28 to 7-36) and Flight Journal Day 5 rendezvous logs for ascent preparation, ignition, and docking events.
+- `RETURN_001`–`RETURN_014`: Apollo 11 Flight Plan Section 7 (p. 7-34 LM jettison) and Section 8 (pp. 8-4 to 8-12) for TEI PAD preparation, burn execution, and Passive Thermal Control return, supplemented by Flight Journal Day 6 TEI callouts.
+- `RETURN_020`–`RETURN_031`: Apollo 11 Flight Plan Section 8 (pp. 8-14 to 8-22) covering MCC-5, entry PAD updates, and pre-entry alignments, with Mission Operations Report Section 3.7 for MCC-5 dispersions and Flight Journal Day 6–7 transcripts for evaluation notes.
+- `ENTRY_001`–`ENTRY_003`: Apollo 11 Flight Plan Section 9 (pp. 9-4 to 9-8) for service module jettison, entry monitoring, and splashdown procedures, along with Flight Journal Day 8 reentry timeline entries.
 
 ## `checklists.csv`
 - `FP_2-5_LAUNCH`, `FP_2-16_ORBIT`: Apollo 11 Flight Plan pages 2-5 through 2-17.
@@ -25,6 +28,8 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `FP_6-02_MCC3_PAD` – `FP_6-12_MCC4_EXEC`: Flight Plan Section 6 (pages 6-2 through 6-12) for MCC-3/4 checklists, Apollo 11 Mission Operations Report Section 3.4 for Δv budgets, and Flight Journal Day 3 entries for evaluation notes.
 - `FP_6-14_LOI_PAD` – `FP_6-26_LOI2_EVAL`: Flight Plan Section 6 (pages 6-14 through 6-26) for LOI PAD loading, configuration, execution, and evaluation steps, supplemented by Flight Journal Day 4 transcripts and Mission Operations Report Section 3.4 performance summaries.
 - `FP_7-04_LM_ACTIVATE` – `FP_7-32_RNDZ_DOCK`: Apollo 11 Flight Plan Section 7 (pages 7-4 through 7-32) for LM activation, DOI setup, separation, powered descent, landing safing, ascent preparation, and rendezvous procedures, supplemented by Flight Journal Day 5 commentary and Mission Operations Report Sections 3.5–3.6 for performance notes.
+- `FP_7-34_LM_JETT`, `FP_8-04_TEI_PAD` – `FP_8-22_ENTRY_ALIGN`: Apollo 11 Flight Plan Section 7 LM jettison checklist and Section 8 (pages 8-4 through 8-22) for TEI preparation, burn execution, MCC-5, entry PAD updates, and pre-entry alignments, corroborated by Flight Journal Day 6–7 transcripts.
+- `FP_9-04_SM_SEP` – `FP_9-08_RECOVERY`: Apollo 11 Flight Plan Section 9 (pages 9-4 through 9-8) for service module separation, entry monitoring, and post-landing procedures with Flight Journal Day 8 recovery notes.
 
 ## `autopilots.csv` & autopilot JSON
 - `PGM_06_TLI`: Derived from the TLI PAD on Flight Plan page 3-14 and the Apollo 11 Flight Journal burn summary (002:44:14 GET start, 347-second duration).
@@ -33,6 +38,7 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `PGM_MCC3`, `PGM_MCC4`: Built from Apollo 11 Mission Operations Report Section 3.4 midcourse correction budgets and Flight Plan Section 6 MCC-3/4 execution cues.
 - `PGM_LOI1`, `PGM_LOI2`: Derived from Apollo 11 Flight Plan Section 6 LOI PAD data and Flight Journal Day 4 burn transcripts, with Mission Operations Report Section 3.4 providing performance references.
 - `PGM_DOI`, `PGM_LM_PDI`, `PGM_LM_ASCENT`: Based on Apollo 11 Flight Plan Section 7 PAD tables for DOI, powered descent, and ascent, along with Flight Journal Day 5 transcripts describing burn timelines and throttle management.
+- `PGM_TEI`, `PGM_MCC5`: Informed by Apollo 11 Flight Plan Section 8 TEI and MCC-5 PAD tables, Mission Operations Report Section 3.7 correction budgets, and Flight Journal Day 6 burn commentary.
 
 ## `failures.csv`
 - Failure triggers and effects reference the Apollo 11 Mission Operations Report Section 3 (trajectory dispersions) and Flight Journal Day 1 commentary on docking retries and PTC thermal management.
@@ -40,6 +46,7 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - MCC-2 evaluation and burn contingencies leverage Apollo 11 Flight Plan Section 5 guidance, Mission Operations Report Section 3.3 dispersions, and Flight Journal Day 2–3 coverage of the go/no-go decision.
 - MCC-3/4 and LOI-related failure hooks draw from Apollo 11 Flight Plan Section 6 procedures, Mission Operations Report Section 3.4 dispersion analyses, and Flight Journal Day 3–4 commentary on LOI preparation and execution.
 - LM activation, DOI, powered descent, landing, ascent, and rendezvous failure definitions cite Apollo 11 Flight Plan Section 7 procedures, Flight Journal Day 5 commentary, and Mission Operations Report Sections 3.5–3.6 for dispersion impacts.
+- TEI, transearth coast, entry, and recovery failure hooks cite Apollo 11 Flight Plan Sections 8–9 for procedural thresholds, Mission Operations Report Sections 3.7–3.9 for dispersion analyses, and Flight Journal Day 6–8 entries for execution outcomes.
 
 ## `pads.csv`
 - `PAD_TLI_002`: Flight Plan page 3-14 (TLI PAD parameters).
@@ -50,3 +57,4 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `PAD_DOI_001`: Apollo 11 Flight Plan Section 7 DOI PAD data with supporting timing from Flight Journal Day 5.
 - `PAD_PDI_001`: Apollo 11 Flight Plan Section 7 PDI targeting tables and Flight Journal Day 5 descent transcript for throttle cues.
 - `PAD_ASCENT_001`: Apollo 11 Flight Plan Section 7 ascent PAD data supplemented by Flight Journal Day 5 ascent and rendezvous updates.
+- `PAD_TEI_001`, `PAD_MCC5_001`, `PAD_ENTRY_001`: Apollo 11 Flight Plan Section 8 TEI and entry PAD tables, Mission Operations Report Section 3.7 MCC-5 budgets, and Flight Journal Day 6–8 commentary for timing and parameter verification.
