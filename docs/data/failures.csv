@@ -4,3 +4,8 @@ FAIL_TLI_PAD_LATE,Recoverable,TLI checklist incomplete at GET 002:44:00,TLI burn
 FAIL_TLI_UNDERBURN,Recoverable,Δv shortfall > 10 m/s at TLI shutdown,S-IVB sep with insufficient velocity,MCC-1 Δv requirement +25 m/s,Plan corrective burn at next communications window,Mission Operations Report Sec. 3.2
 FAIL_DOCK_INCOMPLETE,Recoverable,LM hard dock not confirmed by GET 003:45:00,LM remains partially latched,RCS prop usage +10 lb/hr while redocking,Recycle docking sequence; verify capture latches,Flight Journal Day 1 003:30 GET
 FAIL_THERMAL_PTC_LATE,Recoverable,PTC not established by GET 005:00:00,Cryo boiloff trending +0.5 lb/hr per tank,Power margin -5%,Engage PTC and shed non-critical loads,Flight Journal Day 1 004:45 GET
+FAIL_THERMAL_PTC_DRIFT,Recoverable,PTC roll rate deviates for >30 min,Cryo tank boiloff +0.3 lb/hr,Power margin -3%,Re-trim PTC and shed loads,Flight Plan p. 5-5
+FAIL_MCC1_PAD_MISSED,Recoverable,MCC-1 PAD not verified before burn window,Burn executed with stale targets,Δv margin -15 m/s,Request updated PAD at next comm window,Flight Journal Day 2 009:50 GET
+FAIL_MCC1_SKIPPED,Recoverable,MCC-1 burn not executed by GET 010:10,Trajectory dispersions accumulate,MCC-2 Δv requirement +25 m/s,Plan MCC-2 with larger budget,Mission Operations Report Sec. 3.3
+FAIL_NAV_STATE_DRIFT,Recoverable,State vector not updated after MCC-1,Navigation residuals exceed limits,Additional tracking passes required,Perform P23 and uplink vector,Flight Journal Day 2 010:30 GET
+FAIL_CONSUMABLES_LOG_MISSED,Recoverable,Consumables check not logged by GET 013:00,Consumables trending unmonitored,Cabin CO2 tracking uncertain,Repeat log and verify LiOH status,Flight Plan p. 5-3

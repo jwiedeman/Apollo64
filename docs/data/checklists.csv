@@ -17,3 +17,21 @@ FP_3-18_TD,Transposition Docking,003:20:00,Joint,3,Extract LM from SLA,LM hard d
 FP_4-04_PTC,Passive Thermal Control,004:45:00,CMP,1,Select roll attitude,PITCH 0° YAW 0° per Flight Plan,Flight Plan p. 4-4
 FP_4-04_PTC,Passive Thermal Control,004:45:00,CDR,2,Initiate roll thruster pulses,Roll rate trending to 0.3°/s,Flight Plan p. 4-5
 FP_4-04_PTC,Passive Thermal Control,004:45:00,Joint,3,Verify thermal trending,Cryo tank boiloff stabilizing,Flight Plan p. 4-6
+FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,1,Verify roll rate trending to 0.3°/s,Rate meter 0.30°/s ±0.05°/s,Flight Plan p. 4-6
+FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,2,Check cryo tank temperatures,All cryo tank temps within band,Flight Plan p. 4-7
+FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,3,Record PTC status with MCC,MCC logs confirm PTC nominal,Flight Journal Day 1 005:20 GET
+FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,Joint,1,Load MCC-1 PAD into AGC,Program 41 registers updated,Flight Plan p. 4-12
+FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,CMP,2,Verify TIG and Δv values,TIG 009:44:00 Δv 20 ft/s,Mission Operations Report Sec. 3.3
+FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,CDR,3,Confirm attitude target,Pitch 29° yaw 0° per PAD,Flight Plan p. 4-13
+FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,Joint,1,Initiate Program 41,SPS gimbal trim tracks target,Flight Plan p. 4-14
+FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,CMP,2,Start burn timer,Timer running for 15 s,Flight Journal Day 2 009:44 GET
+FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,CDR,3,Verify shutdown residuals,Δv residual < 0.2 ft/s,Mission Operations Report Sec. 3.3
+FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,Joint,1,Update state vector with P23,Residuals trending toward zero,Flight Plan p. 4-16
+FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,CMP,2,Downlink tracking residuals,MCC receives updated vector,Flight Journal Day 2 010:05 GET
+FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,CDR,3,Assess SPS prop usage,Prop usage within plan,Mission Operations Report Sec. 3.3
+FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,Joint,1,Review fuel cell reactant pressures,O2/H2 pressures within limits,Flight Plan p. 5-2
+FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,CMP,2,Update consumables log,Log entries transmitted to MCC,Flight Plan p. 5-3
+FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,CDR,3,Check cabin CO2 level,CO2 < 3.0 mm Hg,Flight Journal Day 2 012:30 GET
+FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,Joint,1,Select trim attitude,Roll reference 0° relative to sun,Flight Plan p. 5-4
+FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CDR,2,Pulse RCS jets,Roll rate stabilized at 0.3°/s,Flight Plan p. 5-5
+FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CMP,3,Monitor cryo tank boiloff,Boiloff trending nominal,Flight Plan p. 5-5

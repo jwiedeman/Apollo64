@@ -3,11 +3,11 @@
 This directory contains the structured mission datasets produced during Milestone M0. They translate the Apollo 11 Flight Plan, Flight Journal, and Mission Operations Report into machine-readable packs that the simulation engine can load without revisiting the raw sources.
 
 ## Current Coverage
-- Launch through Passive Thermal Control activation (GET 000:00:00 → 005:00:00).
-- Representative records for events, checklists, PADs, autopilot scripts, and failure definitions aligned with the schema in [`../milestones/M0_DATA_INGESTION.md`](../milestones/M0_DATA_INGESTION.md).
+- Launch through Midcourse Correction 1 and coast maintenance tasks (GET 000:00:00 → 015:30:00).
+- Passive Thermal Control monitoring, MCC-1 PAD/burn/post-burn evaluations, consumables logs, and associated failure hooks captured in the events, checklists, PADs, and autopilot packs defined by [`../milestones/M0_DATA_INGESTION.md`](../milestones/M0_DATA_INGESTION.md).
 - Provenance log linking each record to the primary reference used.
 
-Future updates will extend the timeline deeper into translunar coast and add validation notebooks under `scripts/ingest/` as described in the milestone plan.
+Future updates will drive the timeline toward LOI preparation and add validation notebooks under `scripts/ingest/` as described in the milestone plan.
 
 ## File Inventory
 - `events.csv` – Mission beat definitions with prerequisites, windows, and resource effects.

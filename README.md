@@ -7,6 +7,9 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - `n64/` – Workspace for the libdragon-powered Nintendo 64 port that inherits the proven systems from the web build.
 - `docs/` – Planning and reference material for the project, including the current mission and technology plan.
 
+## Current Progress
+- Milestone M0 datasets now cover launch through the first midcourse correction, capturing Passive Thermal Control maintenance, MCC-1 PAD review/execution, and consumables tracking for the translunar coast slice.
+
 ## Immediate Priorities
 1. Complete Milestone M0 by transforming the Flight Plan, Flight Journal, and Mission Operations Report into normalized CSV packs as outlined in [`docs/milestones/M0_DATA_INGESTION.md`](docs/milestones/M0_DATA_INGESTION.md).
 2. Stand up Milestone M1 core systems—scheduler, resource models, and Passive Thermal Control loop—per [`docs/milestones/M1_CORE_SYSTEMS.md`](docs/milestones/M1_CORE_SYSTEMS.md).
