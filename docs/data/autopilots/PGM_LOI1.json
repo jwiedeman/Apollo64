@@ -1,0 +1,14 @@
+{
+  "id": "PGM_LOI1",
+  "title": "Apollo 11 Lunar Orbit Insertion 1",
+  "dt": 1.0,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 180, "yaw_deg": 0}},
+    {"time": 10, "command": "ullage_fire", "duration": 3},
+    {"time": 13, "command": "throttle", "level": 1.0},
+    {"time": 350, "command": "throttle", "level": 0.2},
+    {"time": 356, "command": "throttle", "level": 0.0},
+    {"time": 360, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Constructed from Apollo 11 Flight Plan LOI PAD data and Flight Journal Day 4 burn transcript."
+}

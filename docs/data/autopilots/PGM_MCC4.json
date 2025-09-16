@@ -1,0 +1,13 @@
+{
+  "id": "PGM_MCC4",
+  "title": "Apollo 11 Midcourse Correction 4",
+  "dt": 0.5,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 10, "yaw_deg": 0}},
+    {"time": 4, "command": "ullage_fire", "duration": 1.0},
+    {"time": 5, "command": "throttle", "level": 0.25},
+    {"time": 12, "command": "throttle", "level": 0.0},
+    {"time": 15, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Based on Apollo 11 Flight Plan LOI-5 hour correction outline and Mission Operations Report MCC-4 budget."
+}

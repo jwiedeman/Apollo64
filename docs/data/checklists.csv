@@ -18,6 +18,51 @@ FP_4-04_PTC,Passive Thermal Control,004:45:00,CMP,1,Select roll attitude,PITCH 0
 FP_4-04_PTC,Passive Thermal Control,004:45:00,CDR,2,Initiate roll thruster pulses,Roll rate trending to 0.3°/s,Flight Plan p. 4-5
 FP_4-04_PTC,Passive Thermal Control,004:45:00,Joint,3,Verify thermal trending,Cryo tank boiloff stabilizing,Flight Plan p. 4-6
 FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,1,Verify roll rate trending to 0.3°/s,Rate meter 0.30°/s ±0.05°/s,Flight Plan p. 4-6
+FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,CMP,1,Review cryogenic tank temperatures,Trends within ±2°F,Flight Plan p. 5-18
+FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,CDR,2,Confirm roll rate stability,Rate 0.30°/s ±0.05°/s,Flight Plan p. 5-18
+FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,Joint,3,Log thermal trend to onboard recorder,Entry captured for downlink,Flight Plan p. 5-18
+FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,CMP,1,Read fuel cell currents,Currents balanced within ±5 A,Flight Plan p. 5-20
+FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,CDR,2,Check cryogenic quantity gauges,Quantities within PAD band,Flight Plan p. 5-20
+FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,Joint,3,Record cabin CO₂ level,mmHg trending nominal,Flight Plan p. 5-20
+FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,CMP,1,Read MCC-3 PAD with MCC,Key TIG/Δv elements confirmed,Flight Plan p. 6-2
+FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,CDR,2,Load PAD parameters into AGC,Program 37 updated,Flight Plan p. 6-3
+FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,Joint,3,Copy PAD to DSE log,PAD archived for playback,Flight Journal Day 3 053:20 GET
+FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,CMP,1,Compare tracking residuals to limits,Residuals within decision band,Flight Plan p. 6-4
+FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,CDR,2,Report go/no-go to MCC,MCC acknowledges decision,Flight Journal Day 3 053:50 GET
+FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,Joint,3,Annotate platform drift estimate,Entry recorded in log,Flight Plan p. 6-5
+FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,CMP,1,Set SPS gimbal trim per PAD,Trim values match PAD,Flight Plan p. 6-6
+FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,CDR,2,Monitor SPS burn parameters,Δv within ±0.3 ft/s,Flight Plan p. 6-7
+FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,Joint,3,Log post-burn residuals,Residuals <0.2 ft/s,Flight Journal Day 3 055:05 GET
+FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,CMP,1,Initiate P52 Option 3,Star pair accepted,Flight Plan p. 6-8
+FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,CDR,2,Verify IMU torquing complete,Angles nulled,Flight Plan p. 6-8
+FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,Joint,3,Record coarse alignment delta,Entry transmitted to MCC,Flight Plan p. 6-9
+FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,CMP,1,Read MCC-4 PAD with MCC,TIG/Δv verified,Flight Plan p. 6-10
+FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,CDR,2,Load PAD parameters into AGC,Program 37 updated,Flight Plan p. 6-10
+FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,Joint,3,Record MCC-4 requirement status,Go/skip logged for shift handover,Flight Journal Day 3 070:10 GET
+FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,CMP,1,Align CSM to PAD attitude,Attitude within ±2°,Flight Plan p. 6-12
+FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,CDR,2,Pulse SPS per PAD timing,Δv near 1.5 ft/s,Mission Operations Report Sec. 3.4
+FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,Joint,3,Report burn residual to MCC,Residual <0.2 ft/s,Flight Journal Day 3 071:12 GET
+FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,CMP,1,Read LOI-1 PAD with MCC,TIG/Δv verified,Flight Plan p. 6-14
+FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,CDR,2,Load LOI target into Program 41,AGC target accepted,Flight Plan p. 6-15
+FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,Joint,3,Archive PAD copy to DSE,Entry tagged for playback,Flight Journal Day 3 072:40 GET
+FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,CDR,1,Arm SPS banks and talkback,Indicators bright,Flight Plan p. 6-16
+FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,CMP,2,Configure RCS for ullage,QSMC in AUTO,Flight Plan p. 6-16
+FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,Joint,3,Verify LM tunnel secure,Latching indicators closed,Flight Journal Day 3 073:30 GET
+FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,CMP,1,Start burn clock,Burn timer running,Flight Plan p. 6-18
+FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,CDR,2,Monitor SPS chamber pressure,Chamber pressure nominal,Flight Journal Day 4 075:50 GET
+FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,Joint,3,Call shutdown cue,Δv within ±1 ft/s,Mission Operations Report Sec. 3.4
+FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,CMP,1,Read AGC residuals,Residuals <2 ft/s,Flight Plan p. 6-20
+FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,CDR,2,Update state vector with ground copy,Program 52 updated,Flight Plan p. 6-20
+FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,Joint,3,Report orbit parameters to MCC,MCC copy acknowledged,Flight Journal Day 4 075:58 GET
+FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,CMP,1,Review LOI-2 PAD with MCC,Δv/time confirmed,Flight Plan p. 6-22
+FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,CDR,2,Load LOI-2 target into AGC,Program 41 updated,Flight Plan p. 6-22
+FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,Joint,3,Confirm go for circularization,MCC acknowledges go,Flight Journal Day 4 079:50 GET
+FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,CMP,1,Align to LOI-2 attitude,Attitude within ±1°,Flight Plan p. 6-24
+FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,CDR,2,Initiate SPS for trim burn,Δv on schedule,Flight Journal Day 4 080:11 GET
+FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,Joint,3,Call shutdown cue,Δv within ±0.3 ft/s,Mission Operations Report Sec. 3.4
+FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,CMP,1,Verify orbit period,127 min ±1,Flight Plan p. 6-26
+FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,CDR,2,Update navigation charts,Navigation solution posted,Flight Plan p. 6-26
+FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,Joint,3,Log handover summary for MCC,Entry transmitted to MCC,Flight Journal Day 4 080:22 GET
 FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,2,Check cryo tank temperatures,All cryo tank temps within band,Flight Plan p. 4-7
 FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,3,Record PTC status with MCC,MCC logs confirm PTC nominal,Flight Journal Day 1 005:20 GET
 FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,Joint,1,Load MCC-1 PAD into AGC,Program 41 registers updated,Flight Plan p. 4-12
