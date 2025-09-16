@@ -1,3 +1,4 @@
 pad_id,purpose,GET_delivery,parameters,valid_until,source_ref
 PAD_TLI_002,Translunar Injection Burn,002:20:00,"{\"TIG\": \"002:44:14\", \"delta_v_ft_s\": 10037, \"burn_duration_s\": 347, \"attitude\": \"R180/P000/Y000\"}",002:50:00,Flight Plan p. 3-14
 PAD_MCC1_001,Midcourse Correction 1,008:30:00,"{\"TIG\": \"009:44:00\", \"delta_v_ft_s\": 20, \"burn_duration_s\": 15, \"attitude\": \"P029/Y000\"}",012:00:00,Mission Operations Report Sec. 3.3
+PAD_MCC2_001,Midcourse Correction 2,023:45:00,"{\"TIG\": \"026:44:00\", \"delta_v_ft_s\": 5, \"burn_duration_s\": 12, \"attitude\": \"P018/Y000\"}",030:00:00,Mission Operations Report Sec. 3.3

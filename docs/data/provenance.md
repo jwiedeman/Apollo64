@@ -7,6 +7,7 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `TLI_001`–`TLI_003`: Apollo 11 Flight Plan, Section 3 (pp. 3-10 to 3-20) and Flight Journal Day 1 timeline annotations.
 - `COAST_001`: Flight Journal Day 1 (004:45 GET Passive Thermal Control entry) for timing and effects.
 - `COAST_002`–`COAST_021`: Apollo 11 Flight Plan Section 4 (pp. 4-6 to 5-5) for PTC maintenance and consumables tracking, Apollo 11 Mission Operations Report Section 3.3 for MCC-1 scheduling, and Flight Journal Day 2 commentary for execution notes.
+- `COAST_022`–`COAST_032`: Apollo 11 Flight Plan Section 5 (pp. 5-6 to 5-16) for navigation realignments and MCC-2 procedures, Apollo 11 Mission Operations Report Section 3.3 for MCC-2 targeting, and Flight Journal Day 2–3 commentary for the go/no-go decision.
 
 ## `checklists.csv`
 - `FP_2-5_LAUNCH`, `FP_2-16_ORBIT`: Apollo 11 Flight Plan pages 2-5 through 2-17.
@@ -14,15 +15,19 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `FP_4-04_PTC`: Flight Plan Section 4 (pages 4-4 through 4-6) Passive Thermal Control procedures.
 - `FP_4-06_PTC_MON`, `FP_4-12_MCC1_PAD`, `FP_4-14_MCC1_EXEC`, `FP_4-16_MCC1_EVAL`: Flight Plan pages 4-6 through 4-16 and Apollo 11 Mission Operations Report Section 3.3 for MCC-1 references, supplemented by Flight Journal Day 2 notes.
 - `FP_5-02_CONS_CHECK`, `FP_5-04_PTC_TRIM`: Flight Plan Section 5 (pages 5-2 through 5-5) for coast-phase consumables and thermal maintenance.
+- `FP_5-06_P52_REALIGN`, `FP_5-08_P23_NAV`, `FP_5-12_MCC2_PAD`, `FP_5-14_MCC2_EVAL`, `FP_5-16_MCC2_EXEC`: Flight Plan Section 5 (pages 5-6 through 5-16) for navigation updates and MCC-2 procedures, Apollo 11 Mission Operations Report Section 3.3 for targeting context, and Flight Journal Day 2–3 commentary for execution and skip rationale.
 
-## `autopilots.csv` & `autopilots/PGM_06_TLI.json`
-- Derived from the TLI PAD on Flight Plan page 3-14 and the Apollo 11 Flight Journal burn summary (002:44:14 GET start, 347-second duration).
+## `autopilots.csv` & autopilot JSON
+- `PGM_06_TLI`: Derived from the TLI PAD on Flight Plan page 3-14 and the Apollo 11 Flight Journal burn summary (002:44:14 GET start, 347-second duration).
 - `PGM_MCC1`: Timed profile synthesized from the Apollo 11 Mission Operations Report Section 3.3 (MCC-1 targeting) and Flight Journal Day 2 descriptions of burn duration and ullage usage.
+- `PGM_MCC2`: Profile drafted from the Apollo 11 Mission Operations Report Section 3.3 planned MCC-2 solution with contextual timing from Flight Journal Day 3 (evaluation and skip notes).
 
 ## `failures.csv`
 - Failure triggers and effects reference the Apollo 11 Mission Operations Report Section 3 (trajectory dispersions) and Flight Journal Day 1 commentary on docking retries and PTC thermal management.
 - Additional failure hooks for MCC-1 prep/execution, PTC drift, and consumables logging cite Apollo 11 Flight Plan Sections 4–5, Mission Operations Report Section 3.3, and Flight Journal Day 2 timeline callouts.
+- MCC-2 evaluation and burn contingencies leverage Apollo 11 Flight Plan Section 5 guidance, Mission Operations Report Section 3.3 dispersions, and Flight Journal Day 2–3 coverage of the go/no-go decision.
 
 ## `pads.csv`
 - `PAD_TLI_002`: Flight Plan page 3-14 (TLI PAD parameters).
 - `PAD_MCC1_001`: Apollo 11 Mission Operations Report Section 3.3 (Midcourse Correction 1 planning).
+- `PAD_MCC2_001`: Apollo 11 Mission Operations Report Section 3.3 (Midcourse Correction 2 planning) with timing context from Flight Journal Day 3.

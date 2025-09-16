@@ -1,0 +1,13 @@
+{
+  "id": "PGM_MCC2",
+  "title": "Apollo 11 Midcourse Correction 2",
+  "dt": 0.5,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 18, "yaw_deg": 0}},
+    {"time": 3, "command": "ullage_fire", "duration": 1.5},
+    {"time": 5, "command": "throttle", "level": 0.35},
+    {"time": 15, "command": "throttle", "level": 0.0},
+    {"time": 18, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Constructed from Apollo 11 Mission Operations Report planned MCC-2 profile and Flight Journal Day 3 evaluation notes."
+}

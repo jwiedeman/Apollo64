@@ -35,3 +35,18 @@ FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,CDR,3,Check cabin CO2 lev
 FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,Joint,1,Select trim attitude,Roll reference 0° relative to sun,Flight Plan p. 5-4
 FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CDR,2,Pulse RCS jets,Roll rate stabilized at 0.3°/s,Flight Plan p. 5-5
 FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CMP,3,Monitor cryo tank boiloff,Boiloff trending nominal,Flight Plan p. 5-5
+FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CMP,1,Initialize Program 52 option 1,IMU torquing routine active,Flight Plan p. 5-6
+FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CMP,2,Mark star pair per PAD,Optics marks accepted by AGC,Flight Plan p. 5-7
+FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CDR,3,Verify platform alignment,Residuals < 0.5°,Flight Journal Day 2 016:10 GET
+FP_5-08_P23_NAV,P23 Optics Update,017:20:00,CMP,1,Call up Program 23,Star table displayed,Flight Plan p. 5-8
+FP_5-08_P23_NAV,P23 Optics Update,017:20:00,CMP,2,Perform sextant marks on designated stars,Marks recorded with acceptable residuals,Flight Plan p. 5-8
+FP_5-08_P23_NAV,P23 Optics Update,017:20:00,Joint,3,Downlink residuals to MCC,MCC confirms data received,Flight Journal Day 2 017:45 GET
+FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,Joint,1,Load MCC-2 PAD into AGC,Program 41 updated with TIG and Δv,Flight Plan p. 5-12
+FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,CMP,2,Verify PAD parameters,TIG/Δv match MCC read-up,Mission Operations Report Sec. 3.3
+FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,CDR,3,Confirm attitude target for burn,PITCH 18° yaw 0° set,Flight Plan p. 5-13
+FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,Joint,1,Review tracking residuals against limits,Residuals within ±0.2°,Mission Operations Report Sec. 3.3
+FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,CDR,2,Record GO/NO GO decision in log,Decision relayed to MCC,Flight Journal Day 3 024:55 GET
+FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,CMP,3,Update mission rule status board,Board reflects MCC-2 disposition,Flight Plan p. 5-14
+FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,Joint,1,Arm Program 41 for SPS burn,SPS gimbals track commanded attitude,Flight Plan p. 5-16
+FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CMP,2,Start burn timer if burn GO,Timer counts for 10 s,Mission Operations Report Sec. 3.3
+FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CDR,3,Verify shutdown residuals or log skip,Residuals < 0.2 ft/s or skip noted,Flight Journal Day 3 026:00 GET
