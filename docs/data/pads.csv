@@ -2,3 +2,7 @@ pad_id,purpose,GET_delivery,parameters,valid_until,source_ref
 PAD_TLI_002,Translunar Injection Burn,002:20:00,"{\"TIG\": \"002:44:14\", \"delta_v_ft_s\": 10037, \"burn_duration_s\": 347, \"attitude\": \"R180/P000/Y000\"}",002:50:00,Flight Plan p. 3-14
 PAD_MCC1_001,Midcourse Correction 1,008:30:00,"{\"TIG\": \"009:44:00\", \"delta_v_ft_s\": 20, \"burn_duration_s\": 15, \"attitude\": \"P029/Y000\"}",012:00:00,Mission Operations Report Sec. 3.3
 PAD_MCC2_001,Midcourse Correction 2,023:45:00,"{\"TIG\": \"026:44:00\", \"delta_v_ft_s\": 5, \"burn_duration_s\": 12, \"attitude\": \"P018/Y000\"}",030:00:00,Mission Operations Report Sec. 3.3
+PAD_MCC3_001,Midcourse Correction 3,052:30:00,"{\"TIG\": \"054:53:00\", \"delta_v_ft_s\": 3, \"burn_duration_s\": 10, \"attitude\": \"P012/Y000\"}",056:00:00,Mission Operations Report Sec. 3.4
+PAD_MCC4_001,Midcourse Correction 4,069:45:00,"{\"TIG\": \"070:58:00\", \"delta_v_ft_s\": 1.5, \"burn_duration_s\": 8, \"attitude\": \"P010/Y000\"}",072:00:00,Mission Operations Report Sec. 3.4
+PAD_LOI1_001,LOI-1 Burn,072:40:00,"{\"TIG\": \"075:49:50\", \"delta_v_ft_s\": 2960, \"burn_duration_s\": 352, \"attitude\": \"R000/P180/Y000\"}",075:56:00,Flight Plan p. 6-14
+PAD_LOI2_001,LOI-2 Burn,079:45:00,"{\"TIG\": \"080:11:20\", \"delta_v_ft_s\": 75, \"burn_duration_s\": 17, \"attitude\": \"R000/P180/Y000\"}",080:20:00,Flight Plan p. 6-22

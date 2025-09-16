@@ -1,0 +1,13 @@
+{
+  "id": "PGM_LOI2",
+  "title": "Apollo 11 Lunar Orbit Insertion 2",
+  "dt": 0.5,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 180, "yaw_deg": 0}},
+    {"time": 4, "command": "ullage_fire", "duration": 1.0},
+    {"time": 6, "command": "throttle", "level": 0.35},
+    {"time": 18, "command": "throttle", "level": 0.0},
+    {"time": 22, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Shaped from Apollo 11 Mission Operations Report LOI-2 trim profile and Flight Journal Day 4 commentary."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "PGM_MCC3",
+  "title": "Apollo 11 Midcourse Correction 3",
+  "dt": 0.5,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 12, "yaw_deg": 0}},
+    {"time": 4, "command": "ullage_fire", "duration": 1.5},
+    {"time": 6, "command": "throttle", "level": 0.4},
+    {"time": 16, "command": "throttle", "level": 0.0},
+    {"time": 20, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Synthesized from Apollo 11 Flight Plan LOI approach guidance and Mission Operations Report MCC-3 contingency budget."
+}
