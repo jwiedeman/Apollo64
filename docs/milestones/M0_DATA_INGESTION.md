@@ -88,9 +88,9 @@ Milestone M0 bootstraps the simulator with structured mission data extracted fro
 Each CSV should include a header row, adhere to UTF-8, and avoid Excel artifacts (smart quotes, tabs). `provenance.md` lists each dataset row range with citations (Flight Plan page, Journal entry time).
 
 ### Current Dataset Status
-- Launch through LOI-2 circularization (GET ≤ 081:00:00) populated across all CSV packs with representative data.
-- Autopilot JSON assets under `docs/data/autopilots/` now cover TLI, MCC-1/2/3/4, and LOI-1/2 and are referenced by the metadata CSV.
-- Provenance log documents the specific Flight Plan, Flight Journal, and Mission Operations Report sections leveraged to date.
+- Launch through LM ascent and rendezvous (GET ≤ 128:30:00) populated across all CSV packs with DOI targeting, LM separation, powered descent, landing safing, and ascent docking flows.
+- Autopilot JSON assets under `docs/data/autopilots/` now cover TLI, MCC-1/2/3/4, LOI-1/2, DOI, LM powered descent, and LM ascent and are referenced by the metadata CSV.
+- Provenance log documents the specific Flight Plan, Flight Journal, and Mission Operations Report sections leveraged to date, including the Section 7 LM operations references.
 
 ## Tooling Recommendations
 - Use a lightweight Python ingestion script (`scripts/ingest/` to be created later) to convert annotated spreadsheets into CSV, preserving GET formatting and verifying dependencies.

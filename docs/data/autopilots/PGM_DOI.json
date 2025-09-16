@@ -1,0 +1,13 @@
+{
+  "id": "PGM_DOI",
+  "title": "Apollo 11 DOI SPS Burn",
+  "dt": 1.0,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 180, "yaw_deg": 0}},
+    {"time": 5, "command": "ullage_fire", "duration": 3},
+    {"time": 8, "command": "throttle", "level": 1.0},
+    {"time": 20, "command": "throttle", "level": 0.0},
+    {"time": 24, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Constructed from Apollo 11 Flight Plan DOI PAD data and Flight Journal Day 5 burn log."
+}

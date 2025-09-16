@@ -95,3 +95,42 @@ FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,CMP,3,Update mission rule status bo
 FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,Joint,1,Arm Program 41 for SPS burn,SPS gimbals track commanded attitude,Flight Plan p. 5-16
 FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CMP,2,Start burn timer if burn GO,Timer counts for 10 s,Mission Operations Report Sec. 3.3
 FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CDR,3,Verify shutdown residuals or log skip,Residuals < 0.2 ft/s or skip noted,Flight Journal Day 3 026:00 GET
+FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,LMP,1,Close LM activation circuit breakers,LGC buses energized,Flight Plan p. 7-4
+FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,CDR,2,Verify ECS modes set to AUTO,Cabin temperature 70°F ±5,Flight Plan p. 7-5
+FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,Joint,3,Report LM power status to MCC,MCC acknowledges LM powered,Flight Journal Day 5 095:20 GET
+FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,LMP,1,Arm descent engine valves per chart,Prop feed pressures within green band,Flight Plan p. 7-8
+FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,CDR,2,Set DPS thrust control to AUTO,Throttle command tracks inputs,Flight Plan p. 7-9
+FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,Joint,3,Log helium tank temperatures with MCC,Readings within limits,Flight Journal Day 5 096:10 GET
+FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,CMP,1,Load DOI TIG and Δv into AGC,Program 41 updated,Flight Plan p. 7-10
+FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,CDR,2,Confirm SPS attitude targets,FDAI matches PAD angles,Flight Plan p. 7-11
+FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,Joint,3,Acknowledge GO for DOI with MCC,GO recorded in log,Flight Journal Day 5 100:10 GET
+FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,CMP,1,Configure CSM RCS and docking ring,Ring retract talkback gray,Flight Plan p. 7-12
+FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,CDR,2,Set LM guidance to AGS STANDBY,AGS status indicates ready,Flight Plan p. 7-12
+FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,Joint,3,Verify LM and CSM comm link,VHF and S-band crosslink nominal,Flight Journal Day 5 099:50 GET
+FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,CMP,1,Initiate SPS ullage and ignition,Burn timer running,Flight Plan p. 7-14
+FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,CDR,2,Monitor Δv residuals during DOI,Residual < 1 ft/s,Mission Operations Report Sec. 3.5
+FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,Joint,3,Call DOI cutoff and log results,Δv logged with MCC,Flight Journal Day 5 100:39 GET
+FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,CMP,1,Command docking latches open,Talkbacks transition to gray,Flight Plan p. 7-16
+FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,CDR,2,Pulse LM RCS for separation,Range rate 0.2 ft/s receding,Flight Journal Day 5 101:05 GET
+FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,Joint,3,Report separation status to MCC,MCC copies LM free flight,Flight Journal Day 5 101:10 GET
+FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,LMP,1,Load P63 and descent targeting,PDI data displayed on DSKY,Flight Plan p. 7-18
+FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,CDR,2,Align LM to PDI attitude,Attitude within ±2°,Flight Plan p. 7-19
+FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,Joint,3,Confirm landing radar self-test,Radar BIT GO,Flight Journal Day 5 102:15 GET
+FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,LMP,1,Modulate throttle to track descent cues,Vertical velocity on profile,Flight Journal Day 5 102:36 GET
+FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,CDR,2,Call out critical altitude gates,Crew synchronized with AGC cues,Flight Journal Day 5 102:39 GET
+FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,Joint,3,Monitor PGNS and AGS agreement,Δv disagreement < 5 ft/s,Mission Operations Report Sec. 3.5
+FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,CDR,1,Hand fly to targeted landing point,Horizontal velocity < 1 ft/s,Flight Journal Day 5 102:42 GET
+FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,LMP,2,Call altitudes and fuel remaining,Fuel 5% at 60 ft,Flight Journal Day 5 102:44 GET
+FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,Joint,3,Arm engine stop cue,Descent engine off at contact,Flight Plan p. 7-22
+FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,CDR,1,Shut down descent engine and valves,Descent engine valves closed,Flight Plan p. 7-24
+FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,LMP,2,Configure ECS to POST-LAND mode,Cabin pressure stable 4.8 psi,Flight Plan p. 7-24
+FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,Joint,3,Transmit stay or no-stay decision,MCC concurs with stay,Flight Journal Day 5 102:50 GET
+FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,LMP,1,Load ascent PAD into AGC and AGS,P12 displays updated TIG,Flight Plan p. 7-28
+FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CDR,2,Align platform with P52 option 3,IMU residuals < 0.3°,Flight Plan p. 7-29
+FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CMP,3,Verify CSM rendezvous plan,CSM state vector uplinked,Flight Journal Day 5 123:55 GET
+FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,LMP,1,Initiate ascent engine ignition,Thrust confirmed on gauges,Flight Journal Day 5 124:22 GET
+FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,CDR,2,Call staging and attitude cues,Pitch program on schedule,Flight Plan p. 7-30
+FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,Joint,3,Monitor ascent residuals,Δv within ±10 ft/s at cutoff,Mission Operations Report Sec. 3.6
+FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CMP,1,Compute TPI and maneuver burns,CSM maneuver plan updated,Flight Plan p. 7-32
+FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CDR,2,Fly terminal phase and docking,Range rate 0.1 ft/s closing,Flight Journal Day 5 128:00 GET
+FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,Joint,3,Verify hard dock and pressure equalization,Tunnel pressure equalized,Flight Journal Day 5 128:20 GET

@@ -6,3 +6,6 @@ PAD_MCC3_001,Midcourse Correction 3,052:30:00,"{\"TIG\": \"054:53:00\", \"delta_
 PAD_MCC4_001,Midcourse Correction 4,069:45:00,"{\"TIG\": \"070:58:00\", \"delta_v_ft_s\": 1.5, \"burn_duration_s\": 8, \"attitude\": \"P010/Y000\"}",072:00:00,Mission Operations Report Sec. 3.4
 PAD_LOI1_001,LOI-1 Burn,072:40:00,"{\"TIG\": \"075:49:50\", \"delta_v_ft_s\": 2960, \"burn_duration_s\": 352, \"attitude\": \"R000/P180/Y000\"}",075:56:00,Flight Plan p. 6-14
 PAD_LOI2_001,LOI-2 Burn,079:45:00,"{\"TIG\": \"080:11:20\", \"delta_v_ft_s\": 75, \"burn_duration_s\": 17, \"attitude\": \"R000/P180/Y000\"}",080:20:00,Flight Plan p. 6-22
+PAD_DOI_001,Descent Orbit Insertion,099:50:00,"{\"TIG\": \"100:38:36\", \"delta_v_ft_s\": 27, \"burn_duration_s\": 12, \"attitude\": \"R000/P180/Y000\"}",101:00:00,Flight Plan p. 7-10
+PAD_PDI_001,Powered Descent Initiation,101:50:00,"{\"TIG\": \"102:33:05\", \"delta_v_ft_s\": 2600, \"burn_duration_s\": 720, \"attitude\": \"R000/P346/Y000\"}",102:50:00,Flight Plan p. 7-18
+PAD_ASCENT_001,LM Ascent to Rendezvous,123:50:00,"{\"TIG\": \"124:22:00\", \"delta_v_ft_s\": 4550, \"burn_duration_s\": 435, \"attitude\": \"R000/P090/Y000\"}",124:40:00,Flight Plan p. 7-28
