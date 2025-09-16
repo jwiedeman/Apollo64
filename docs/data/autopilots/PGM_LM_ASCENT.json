@@ -1,0 +1,12 @@
+{
+  "id": "PGM_LM_ASCENT",
+  "title": "Apollo 11 LM Ascent to Rendezvous Orbit",
+  "dt": 1.0,
+  "sequence": [
+    {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 80, "yaw_deg": 0}},
+    {"time": 1, "command": "throttle", "level": 1.0},
+    {"time": 480, "command": "throttle", "level": 0.0},
+    {"time": 485, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
+  ],
+  "notes": "Modeled after Apollo 11 ascent ignition and cutoff data in the Flight Journal."
+}
