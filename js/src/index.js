@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 import path from 'path';
 import { DATA_DIR } from './config/paths.js';
-import { loadMissionData } from './data/missionDataLoader.js';
 import { MissionLogger } from './logging/missionLogger.js';
 import { ManualActionRecorder } from './logging/manualActionRecorder.js';
-import { EventScheduler } from './sim/eventScheduler.js';
-import { ChecklistManager } from './sim/checklistManager.js';
-import { ResourceSystem } from './sim/resourceSystem.js';
-import { ManualActionQueue } from './sim/manualActionQueue.js';
-import { Simulation } from './sim/simulation.js';
-import { AutopilotRunner } from './sim/autopilotRunner.js';
+import { createSimulationContext } from './sim/simulationContext.js';
 import { formatGET, parseGET } from './utils/time.js';
 
 async function main() {
@@ -23,48 +17,15 @@ async function main() {
 
   const manualActionRecorder = args.recordManualScriptPath ? new ManualActionRecorder() : null;
 
-  const missionData = await loadMissionData(DATA_DIR, { logger });
-
-  const checklistManager = new ChecklistManager(missionData.checklists, logger, {
-    autoAdvance: args.autoChecklists,
-    defaultStepDurationSeconds: args.checklistStepSeconds,
-    manualActionRecorder,
-  });
-  const resourceSystem = new ResourceSystem(logger, {
-    logIntervalSeconds: args.logIntervalSeconds,
-    consumables: missionData.consumables,
-  });
-  const autopilotRunner = new AutopilotRunner(resourceSystem, logger);
-
-  let manualActions = null;
-  if (args.manualScriptPath) {
-    const scriptPath = path.resolve(args.manualScriptPath);
-    manualActions = await ManualActionQueue.fromFile(scriptPath, {
-      logger,
-      checklistManager,
-      resourceSystem,
-    });
-  }
-  const scheduler = new EventScheduler(
-    missionData.events,
-    missionData.autopilots,
-    resourceSystem,
-    logger,
-    { 
-      checklistManager,
-      failures: missionData.failures,
-      autopilotRunner,
-    },
-  );
-
-  const simulation = new Simulation({
-    scheduler,
-    resourceSystem,
-    checklistManager,
-    autopilotRunner,
-    manualActionQueue: manualActions,
+  const { simulation } = await createSimulationContext({
+    dataDir: DATA_DIR,
     logger,
     tickRate: args.tickRate,
+    logIntervalSeconds: args.logIntervalSeconds,
+    autoAdvanceChecklists: args.autoChecklists,
+    checklistStepSeconds: args.checklistStepSeconds,
+    manualActionScriptPath: args.manualScriptPath,
+    manualActionRecorder,
   });
 
   const untilSeconds = args.untilSeconds ?? parseGET('015:00:00');

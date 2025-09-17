@@ -26,6 +26,22 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `--manual-script <path>` – Path to a manual action script JSON file to replay during the run.
 - `--record-manual-script <path>` – Capture auto crew acknowledgements into a manual action script for deterministic parity testing.
 
+## Manual vs. Auto Parity Harness
+
+Run the automated comparison workflow with:
+
+```
+npm run parity -- --until 015:00:00 --verbose
+```
+
+The harness executes an auto-advance baseline run, records the resulting manual action script, replays it with auto-advance disabled, and reports any divergence in event counts, resource snapshots, or autopilot metrics. Useful flags:
+
+- `--output <path>` – Persist a JSON parity report for CI/regression review.
+- `--tolerance <value>` – Override the numeric comparison tolerance (default `1e-6`).
+- `--quiet` / `--verbose` – Control mission log verbosity during the paired runs (quiet by default).
+
+Parity runs consume the same script format documented under [`docs/data/manual_scripts/README.md`](../docs/data/manual_scripts/README.md).
+
 ## Module Overview
 - `src/index.js` – CLI entrypoint that wires the loader, scheduler, resource model, and simulation loop.
 - `src/data/missionDataLoader.js` – CSV/JSON ingestion with autopilot duration estimation and checklist/failure maps.
@@ -34,7 +50,7 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `src/utils/` – Helpers for GET parsing and CSV decoding without external dependencies.
 
 ## Next Steps
-- Exercise the manual action queue with parity tests that compare recorder-generated scripts vs. auto-driven checklists and ensure deterministic replay.
+- Integrate the parity harness into automated regression checks, expanding comparisons beyond end-state snapshots to cover mission logs and manual action diffs.
 - Expand the resource model to ingest PAD-driven consumable deltas and publish propellant/power summaries for HUD integration.
 - Surface the scheduler/resource state through a browser HUD per Milestone M3, keeping the CLI loop as a regression harness.
 - Calibrate the autopilot runner against PAD timelines by validating propellant mass-flow assumptions, logging Δv proxies, and wiring failure thresholds that surface when burns diverge from historical tolerances.
