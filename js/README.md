@@ -6,6 +6,7 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 - Loads `docs/data/*.csv` and autopilot JSON packs into typed runtime structures (`src/data/missionDataLoader.js`).
 - Runs a fixed-step (20 Hz by default) mission loop that arms, activates, and completes events based on prerequisites and GET windows (`src/sim/eventScheduler.js`, `src/sim/simulation.js`).
 - Applies success/failure effects into a lightweight resource model with thermal drift modelling for PTC coverage (`src/sim/resourceSystem.js`).
+- Tracks checklist-driven events with automatic or manual step acknowledgement scheduling so crew procedures gate event completion (`src/sim/checklistManager.js`).
 - Streams mission log messages with GET stamps for later HUD/audio wiring (`src/logging/missionLogger.js`).
 
 ## Running the Prototype
@@ -17,6 +18,8 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `--tick-rate <hz>` – Override the simulation frequency (default `20`).
 - `--log-interval <seconds>` – How often to emit aggregate resource snapshots (default `3600`).
 - `--quiet` – Suppress per-event logging while still printing the final summary.
+- `--checklist-step-seconds <seconds>` – Configure how long the auto-advance crew spends on each checklist step (default `15`).
+- `--manual-checklists` – Disable auto-advance so external tools or manual operators can acknowledge steps.
 
 ## Module Overview
 - `src/index.js` – CLI entrypoint that wires the loader, scheduler, resource model, and simulation loop.
@@ -26,7 +29,7 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `src/utils/` – Helpers for GET parsing and CSV decoding without external dependencies.
 
 ## Next Steps
-- Integrate manual/checklist inputs so non-autopilot events respect crew acknowledgement instead of auto-completing.
+- Wire manual input queues so human or scripted operators can acknowledge checklist steps when auto-advance is disabled.
 - Expand the resource model to differentiate SPS, RCS, and electrical budgets, wiring in PAD-driven consumable deltas.
 - Surface the scheduler/resource state through a browser HUD per Milestone M3, keeping the CLI loop as a regression harness.
 - Add deterministic log replay tests that validate event ordering, PTC drift divergence, and failure propagation.
