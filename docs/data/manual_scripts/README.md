@@ -112,3 +112,18 @@ npm start -- --until 015:00:00 --record-manual-script out/auto_checklists.json
 ```
 
 While the auto crew acknowledges checklist steps, the recorder captures each acknowledgement (and associated GET) into `out/auto_checklists.json`. The exported file includes metadata plus an `actions` array ready to feed back into the CLI with `--manual-script`. This enables deterministic parity tests by replaying the recorded script with `--manual-checklists` to confirm manual vs. auto runs stay in sync.
+
+## Automated Parity Runner
+
+To validate parity without managing scripts manually, use the bundled harness:
+
+```bash
+npm run parity -- --until 015:00:00 --output out/parity.json
+```
+
+The tool performs two back-to-back simulations (auto-advance followed by manual replay), compares event status counts, resource snapshots, and autopilot metrics, and prints a PASS/FAIL summary. The optional `--output` flag captures the JSON diff report for archival or CI gating. Additional options:
+
+- `--tolerance <value>` – Adjust numeric comparison tolerance.
+- `--quiet` / `--verbose` – Toggle mission log verbosity during the paired runs.
+
+Parity reports summarize the recorded manual action script, making it easy to drop the same actions into bespoke regression scenarios.

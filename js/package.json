@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node ./src/index.js",
-    "check": "node --check ./src/index.js"
+    "check": "node --check ./src/index.js",
+    "parity": "node ./src/tools/runParityCheck.js"
   },
   "engines": {
     "node": ">=18"
