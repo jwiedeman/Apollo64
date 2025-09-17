@@ -1,0 +1,316 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "NAV_DEFAULT",
+      "name": "Navigation View",
+      "description": "Baseline navigation layout prioritizing trajectory planning and upcoming maneuvers.",
+      "viewport": {
+        "minWidth": 1280,
+        "minHeight": 720,
+        "hudPinned": true
+      },
+      "tiles": [
+        {
+          "id": "trajectory",
+          "window": "trajectoryCanvas",
+          "x": 0,
+          "y": 0,
+          "width": 0.58,
+          "height": 0.65,
+          "constraints": {
+            "minWidth": 0.5,
+            "minHeight": 0.45,
+            "aspectRatio": 1.4
+          }
+        },
+        {
+          "id": "navball",
+          "window": "navball",
+          "x": 0.58,
+          "y": 0,
+          "width": 0.42,
+          "height": 0.4,
+          "constraints": {
+            "aspectRatio": 1,
+            "minWidth": 0.3,
+            "minHeight": 0.3
+          }
+        },
+        {
+          "id": "stateVector",
+          "window": "stateVector",
+          "x": 0.58,
+          "y": 0.4,
+          "width": 0.42,
+          "height": 0.25,
+          "constraints": {
+            "minHeight": 0.2
+          }
+        },
+        {
+          "id": "timeline",
+          "window": "timelineRibbon",
+          "x": 0,
+          "y": 0.65,
+          "width": 1,
+          "height": 0.15,
+          "constraints": {
+            "minHeight": 0.12
+          }
+        }
+      ],
+      "tileMode": {
+        "snap": 16,
+        "grid": [12, 8],
+        "focus": {
+          "retainHud": true,
+          "animationMs": 250
+        }
+      }
+    },
+    {
+      "id": "DOCKING",
+      "name": "Docking Ops",
+      "description": "LM rendezvous workspace emphasizing docking overlays, manual queue, and propellant usage.",
+      "viewport": {
+        "minWidth": 1280,
+        "minHeight": 720,
+        "hudPinned": true
+      },
+      "tiles": [
+        {
+          "id": "docking",
+          "window": "dockingOverlay",
+          "x": 0,
+          "y": 0,
+          "width": 0.55,
+          "height": 0.6,
+          "constraints": {
+            "minWidth": 0.45,
+            "minHeight": 0.45,
+            "aspectRatio": 1.1
+          }
+        },
+        {
+          "id": "manualQueue",
+          "window": "manualActionMonitor",
+          "x": 0.55,
+          "y": 0,
+          "width": 0.45,
+          "height": 0.25,
+          "constraints": {
+            "minHeight": 0.18
+          }
+        },
+        {
+          "id": "propellant",
+          "window": "propellantOverview",
+          "x": 0.55,
+          "y": 0.25,
+          "width": 0.45,
+          "height": 0.25,
+          "panelFocus": "CSM_SPS_PROPULSION",
+          "constraints": {
+            "minHeight": 0.22
+          }
+        },
+        {
+          "id": "comms",
+          "window": "commsTracker",
+          "x": 0.55,
+          "y": 0.5,
+          "width": 0.45,
+          "height": 0.2,
+          "constraints": {
+            "minHeight": 0.18
+          }
+        },
+        {
+          "id": "checklist",
+          "window": "checklistLane",
+          "x": 0,
+          "y": 0.6,
+          "width": 0.55,
+          "height": 0.25,
+          "constraints": {
+            "minHeight": 0.2
+          }
+        }
+      ],
+      "tileMode": {
+        "snap": 16,
+        "grid": [12, 8],
+        "focus": {
+          "retainHud": true,
+          "animationMs": 250
+        }
+      }
+    },
+    {
+      "id": "SYSTEMS_NIGHT",
+      "name": "Systems Night Watch",
+      "description": "Overnight monitoring layout tracking power, thermal trends, and fault breadcrumbs.",
+      "viewport": {
+        "minWidth": 1280,
+        "minHeight": 720,
+        "hudPinned": true
+      },
+      "tiles": [
+        {
+          "id": "power",
+          "window": "powerMatrix",
+          "x": 0,
+          "y": 0,
+          "width": 0.45,
+          "height": 0.45,
+          "panelFocus": "CSM_ELECTRICAL_POWER",
+          "constraints": {
+            "minWidth": 0.4,
+            "minHeight": 0.35
+          }
+        },
+        {
+          "id": "thermal",
+          "window": "thermalTrends",
+          "x": 0.45,
+          "y": 0,
+          "width": 0.55,
+          "height": 0.35,
+          "constraints": {
+            "minHeight": 0.28
+          }
+        },
+        {
+          "id": "faults",
+          "window": "faultLog",
+          "x": 0,
+          "y": 0.45,
+          "width": 0.6,
+          "height": 0.3,
+          "constraints": {
+            "minHeight": 0.24
+          }
+        },
+        {
+          "id": "checklists",
+          "window": "checklistLane",
+          "x": 0.6,
+          "y": 0.45,
+          "width": 0.4,
+          "height": 0.3,
+          "constraints": {
+            "minHeight": 0.24
+          }
+        },
+        {
+          "id": "trends",
+          "window": "resourceTrends",
+          "x": 0,
+          "y": 0.75,
+          "width": 1,
+          "height": 0.2,
+          "constraints": {
+            "minHeight": 0.18
+          }
+        }
+      ],
+      "tileMode": {
+        "snap": 16,
+        "grid": [12, 8],
+        "focus": {
+          "retainHud": true,
+          "animationMs": 250
+        }
+      }
+    },
+    {
+      "id": "ENTRY",
+      "name": "Entry Corridor",
+      "description": "Reentry-focused layout highlighting corridor tracking, comms, and resource gauges.",
+      "viewport": {
+        "minWidth": 1280,
+        "minHeight": 720,
+        "hudPinned": true
+      },
+      "tiles": [
+        {
+          "id": "entryOverlay",
+          "window": "entryCorridor",
+          "x": 0,
+          "y": 0,
+          "width": 0.6,
+          "height": 0.55,
+          "constraints": {
+            "minWidth": 0.5,
+            "minHeight": 0.45,
+            "aspectRatio": 1.2
+          }
+        },
+        {
+          "id": "timeline",
+          "window": "timelineRibbon",
+          "x": 0,
+          "y": 0.55,
+          "width": 0.6,
+          "height": 0.2,
+          "constraints": {
+            "minHeight": 0.18
+          }
+        },
+        {
+          "id": "resourceGauges",
+          "window": "resourceGauges",
+          "x": 0.6,
+          "y": 0,
+          "width": 0.4,
+          "height": 0.35,
+          "constraints": {
+            "minHeight": 0.28
+          }
+        },
+        {
+          "id": "comms",
+          "window": "commsTracker",
+          "x": 0.6,
+          "y": 0.35,
+          "width": 0.4,
+          "height": 0.2,
+          "constraints": {
+            "minHeight": 0.18
+          }
+        },
+        {
+          "id": "faults",
+          "window": "faultLog",
+          "x": 0.6,
+          "y": 0.55,
+          "width": 0.4,
+          "height": 0.2,
+          "constraints": {
+            "minHeight": 0.18
+          }
+        },
+        {
+          "id": "checklist",
+          "window": "checklistLane",
+          "x": 0,
+          "y": 0.75,
+          "width": 1,
+          "height": 0.2,
+          "constraints": {
+            "minHeight": 0.18
+          }
+        }
+      ],
+      "tileMode": {
+        "snap": 16,
+        "grid": [12, 8],
+        "focus": {
+          "retainHud": true,
+          "animationMs": 250
+        }
+      }
+    }
+  ]
+}
