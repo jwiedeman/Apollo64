@@ -149,7 +149,24 @@ Mirrors `ManualActionQueue.stats()` with counts for scheduled, pending, executed
 
 - `warnings[]`: Resource or failure conditions in warning state (e.g., low SPS propellant, cryo boil-off exceeding thresholds).
 - `cautions[]`: Advisory conditions approaching warning levels.
-- `failures[]`: Failure IDs currently latched in the resource system.
+- `failures[]`: Failure summaries (id, classification, trigger, immediate/ongoing penalties, recovery guidance, first/last GET stamps, occurrences, sources, notes) mirrored from the `ResourceSystem` failure registry.
+
+#### `alerts.failures[]`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | Failure identifier from `docs/data/failures.csv`. |
+| `classification` | string&#124;null | Taxonomy classification (Recoverable, Hard, Technical). |
+| `trigger` | string&#124;null | Summary of the condition that latched the failure. |
+| `immediateEffect` | string&#124;null | Immediate effect text pulled from the taxonomy or triggering effect metadata. |
+| `ongoingPenalty` | string&#124;null | Ongoing penalty description when present. |
+| `recoveryActions` | string&#124;null | Recommended recovery actions for the crew. |
+| `firstTriggered` | string&#124;null | GET label for the first time the failure latched during the run. |
+| `lastTriggered` | string&#124;null | GET label for the most recent occurrence. |
+| `occurrences` | number&#124;null | Count of how many times the failure has been latched this run. |
+| `sources[]` | array | Event IDs or subsystems that produced the failure. |
+| `notes[]` | array | Additional notes captured by the resource system when the failure latched. |
+| `metadata` | object&#124;null | Raw metadata object recorded with the failure (e.g., manual override details). |
 
 ## Customization Hooks
 

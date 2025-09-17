@@ -111,7 +111,7 @@ export class UiFrameBuilder {
     const alerts = {
       warnings: [],
       cautions: [],
-      failures: Array.isArray(snapshot.failures) ? [...snapshot.failures] : [],
+      failures: this.#summarizeFailures(snapshot.failures),
     };
 
     for (const key of this.options.propellantKeys ?? []) {
@@ -363,6 +363,47 @@ export class UiFrameBuilder {
       stepsRemaining: Math.max(0, selected.totalSteps - selected.completedSteps),
       autoAdvancePending: selected.autoAdvancePending,
     };
+  }
+
+  #summarizeFailures(entries) {
+    if (!Array.isArray(entries)) {
+      return [];
+    }
+
+    const summaries = [];
+    for (const entry of entries) {
+      if (!entry) {
+        continue;
+      }
+      if (typeof entry === 'object') {
+        const summary = {
+          id: entry.id ?? null,
+          classification: entry.classification ?? entry.class ?? null,
+          trigger: entry.trigger ?? entry.reason ?? null,
+          immediateEffect: entry.immediateEffect ?? entry.immediate_effect ?? null,
+          ongoingPenalty: entry.ongoingPenalty ?? entry.ongoing_penalty ?? null,
+          recoveryActions: entry.recoveryActions ?? entry.recovery_actions ?? null,
+          sourceRef: entry.sourceRef ?? entry.source_ref ?? null,
+          firstTriggered: entry.firstTriggered ?? entry.first_triggered ?? null,
+          firstTriggeredSeconds: entry.firstTriggeredSeconds ?? entry.first_triggered_seconds ?? null,
+          lastTriggered: entry.lastTriggered ?? entry.last_triggered ?? null,
+          lastTriggeredSeconds: entry.lastTriggeredSeconds ?? entry.last_triggered_seconds ?? null,
+          occurrences: entry.occurrences ?? entry.count ?? null,
+          lastSource: entry.lastSource ?? null,
+          lastType: entry.lastType ?? null,
+          sources: Array.isArray(entry.sources) ? [...entry.sources] : [],
+          notes: Array.isArray(entry.notes) ? [...entry.notes] : [],
+        };
+        if (entry.metadata && typeof entry.metadata === 'object') {
+          summary.metadata = { ...entry.metadata };
+        }
+        summaries.push(summary);
+      } else {
+        summaries.push({ id: entry });
+      }
+    }
+
+    return summaries;
   }
 
   #resolvePropellantStatus({ currentKg, initialKg, reserveKg }) {

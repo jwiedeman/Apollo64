@@ -69,7 +69,7 @@ vectors, high-frequency attitude data).
 | Propellant Deck | `frame.resources.propellant.tanks`, `frame.autopilot.propellantKgByTank`, `resourceHistory.propellant` | Shows percent remaining, kg totals, burn history. Reserve threshold shading derived from budgets. | Toggle switches between % and kg. Selecting tank pins history overlay; `Export` button dumps JSON slice for debugging. |
 | Thermal Panel | `frame.resources.thermal`, `resourceHistory.thermal`, `missionLog` (thermal faults) | Graph overlays PTC state transitions, cryo boiloff, glycol pump states. | Range selector chooses 30 min / 2 hr / mission window. Clicking PTC badge toggles manual queue action to adjust PTC mode (future autopilot tie-in). |
 | Comms Tracker | `frame.resources.communications.current/next`, `resourceHistory.communications`, `missionLog` (PAD deliveries) | Visual timeline of DSN passes, current station, handover countdown. | `Remind` button pins upcoming pass chip to Always-On HUD. Conflict warnings highlight overlapping burns; clicking opens timeline ribbon at conflict event. |
-| Trends & Fault Log | `missionLog` (failure breadcrumbs), `frame.alerts.failures`, `resourceHistory` metrics | Entries include severity, cause chain, recommended checklist. | Filters by subsystem; selecting entry jumps to associated panel/checklist and logs ack in mission log. |
+| Trends & Fault Log | `missionLog` (failure breadcrumbs), `frame.alerts.failures`, `resourceHistory` metrics | Entries include classification, trigger text, first/last GET, cause chain, and recommended checklist. | Filters by subsystem; selecting entry jumps to associated panel/checklist and logs ack in mission log. |
 
 ## Tile Mode & Workspace Bindings
 
