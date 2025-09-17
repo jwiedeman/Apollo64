@@ -24,6 +24,8 @@ The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/inge
 - `autopilots.csv` – High-level metadata for automation scripts, each pointing to a JSON profile under `autopilots/` and
   defining `propulsion` JSON payloads that capture tank assignments, mass-flow rates, and optional ullage usage for the
   resource model.
+- `autopilot_scripts.md` – Authoring guide for the CSV/JSON autopilot packs, command schema, propulsion metadata, and
+  validation workflow.
 - `failures.csv` – Recoverable and hard failure hooks tied to mission logic.
 - `pads.csv` – Uplink cards for burns and corrections.
 - `provenance.md` – Source citations for every record range.
