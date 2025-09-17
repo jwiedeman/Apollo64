@@ -127,7 +127,7 @@ The panel pack enumerates switch layouts, state machines, and dependencies for b
 
 ## 3. `workspaces.json`
 
-Workspace packs define preset tile arrangements for the three primary views and tile mode presets. Layouts are resolution-agnostic by using relative sizing and aspect hints.
+Workspace packs define preset tile arrangements for the three primary views and tile mode presets. Layouts are resolution-agnostic by using relative sizing and aspect hints. The first preset bundle ships in [`workspaces.json`](workspaces.json) and covers Navigation, Docking Ops, Systems Night Watch, and Entry Corridor layouts described in the HUD specification.
 
 ```json
 {

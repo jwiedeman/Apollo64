@@ -82,6 +82,8 @@ Tile mode allows power users to reconfigure panes while the Always-On HUD stays 
 | `SYSTEMS_NIGHT` | Overnight monitoring of consumables. | Power matrix, thermal trends, fault log, checklist lane (read-only). |
 | `ENTRY` | Reentry corridor checks. | Entry overlay, PTC indicator, communications timeline, resource gauges expanded. |
 
+The preset layouts above are serialized for tooling and runtime loaders in [`workspaces.json`](workspaces.json).
+
 ### Tile Mode Rules
 - **Grid & Snapping:** Snap to 12×8 grid; minimum tile 2×2 units. Dragging shows ghost outline; releasing triggers smooth animation to final slot.
 - **Focus Mode:** Double-click tile to enter focus; Always-On HUD shrinks to 32 px but remains interactive. ESC exits.
