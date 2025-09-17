@@ -23,6 +23,22 @@ The recommended execution order keeps downstream dependencies satisfied:
 
 Running notebooks in this sequence ensures that event windows, checklists, PADs, autopilot metadata, and failure hooks stay synchronized before communications and consumables analytics recalculate their derivatives.
 
+## Shared Notebook Helpers
+
+The helper package under [`scripts/ingest/ingestlib/`](../../scripts/ingest/ingestlib) centralizes GET conversions, typed record objects, dataset loaders, validation routines, and provenance table builders. Import these modules directly from notebooks so the ingestion flow stays aligned with the JS validator and future automation.
+
+```python
+# Ensure PYTHONPATH includes scripts/ingest when running this snippet outside the notebook environment.
+from pathlib import Path
+from ingestlib import load_mission_data, validate_mission_data
+
+mission = load_mission_data(Path('..') / '..' / 'docs' / 'data')
+issues = validate_mission_data(mission)
+print(f"Validation issues: {len(issues)}")
+```
+
+Use `ProvenanceBuilder` from the same package to append table rows to `docs/data/provenance.md` when exporting refreshed CSVs.
+
 ## Export & Review Protocol
 
 - **Generated outputs** should land in `_build/` while under review. Once validated, copy the refreshed CSV/JSON files into `docs/data/` and update `docs/data/provenance.md` with row ranges and citations.
@@ -32,7 +48,7 @@ Running notebooks in this sequence ensures that event windows, checklists, PADs,
 
 ## Future Automation Hooks
 
-- Convert the helper modules shared by the notebooks into a Python package (`ingestlib`) to support command-line batch runs and CI automation.
+- Extend the `ingestlib` helpers with CLI entrypoints so notebook logic can run headlessly in CI or scheduled regression jobs.
 - Add smoke tests that re-run the notebooks in `--execute` mode and assert that regenerated CSVs are byte-identical to the committed versions unless an explicit update is requested.
 - Schedule notebook execution in long-running branches to generate regression dashboards (propellant trends, DSN coverage) that can be embedded into milestone reports.
 

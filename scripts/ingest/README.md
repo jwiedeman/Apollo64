@@ -17,18 +17,38 @@ The ingestion workflow is intentionally modular so new data slices and contingen
 | `communications_trends.ipynb` | Maintain the Deep Space Network analytics, ensuring GET windows, handovers, and signal strength trends stay synchronized with event data. | `docs/data/communications_trends.json` and summary dashboards for regression review. |
 | `consumables_budget.ipynb` | Track baseline power, propellant, and life support budgets, pulling deltas from Mission Operations Report tables. | `docs/data/consumables.json` revisions and variance plots that feed the validation CLI. |
 
-Notebooks will share helper modules for GET parsing, prerequisite resolution, and provenance logging so they stay aligned with the validator and avoid schema drift.
+These notebooks rely on the `ingestlib` helper package for GET parsing, prerequisite resolution, and provenance logging so they stay aligned with the validator and avoid schema drift.
 
 ## Helper Modules
 
-A lightweight Python package (`ingestlib`) will live alongside the notebooks and expose:
+The `ingestlib` Python package now ships with the workspace and consolidates the shared notebook helpers:
 
-- **GET utilities** – conversions between `HHH:MM:SS` strings, floating-minute offsets, and pandas `Timedelta` objects.
-- **Schema guards** – dataclass-backed representations of events, checklists, PADs, autopilots, and failures mirroring the definitions documented for Milestone M0.
-- **Reference resolvers** – helpers that verify prerequisites, autopilot IDs, checklist links, and failure references before export.
-- **Provenance logging** – wrappers that write row ranges and source citations into `docs/data/provenance.md` with consistent formatting.
+- **`ingestlib.time`** – canonical Ground Elapsed Time parsing/formatting helpers that mirror the simulator's expectations.
+- **`ingestlib.records`** – dataclass-backed representations of events, checklists, autopilots, PADs, failures, and the combined `MissionData` container.
+- **`ingestlib.loader`** – CSV/JSON loaders that resolve file paths relative to `docs/data/` and return typed records ready for analysis.
+- **`ingestlib.validation`** – reusable structural checks (window ordering, reference resolution, autopilot script health, PAD GET parsing).
+- **`ingestlib.provenance`** – utilities for composing Markdown tables that document row ranges and source citations.
 
-The package will be imported by each notebook to minimize duplicated logic and make it easier to transition the ingestion flow into headless scripts later.
+```python
+# Ensure PYTHONPATH includes scripts/ingest when running outside the notebooks.
+from pathlib import Path
+from ingestlib import load_mission_data, validate_mission_data
+from ingestlib.provenance import ProvenanceBuilder
+
+data_dir = Path('..') / 'docs' / 'data'
+mission = load_mission_data(data_dir)
+issues = validate_mission_data(mission)
+
+if issues:
+    for issue in issues:
+        print(issue.level, issue.category, issue.message, issue.context)
+
+provenance = ProvenanceBuilder()
+provenance.add('events.csv', 'TLI_001–TLI_005', 'Flight Plan p. 3-10 – 3-16')
+print(provenance.to_markdown())
+```
+
+Import these modules directly from notebooks to stay aligned with the committed dataset schemas and the JS validator.
 
 ## Execution Workflow
 
