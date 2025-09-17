@@ -57,6 +57,46 @@ const DEFAULT_OPTIONS = {
   logIntervalSeconds: 3600,
 };
 
+const DEFAULT_HISTORY_OPTIONS = {
+  enabled: true,
+  sampleIntervalSeconds: 60,
+  durationSeconds: 4 * 3600,
+};
+
+function normalizeHistoryOptions(raw) {
+  const base = { ...DEFAULT_HISTORY_OPTIONS };
+
+  if (raw === false) {
+    base.enabled = false;
+    return { ...base, maxSamples: 0 };
+  }
+
+  if (raw && typeof raw === 'object') {
+    if (raw.enabled === false) {
+      base.enabled = false;
+    } else if (raw.enabled === true) {
+      base.enabled = true;
+    }
+
+    const interval = Number(raw.sampleIntervalSeconds);
+    if (Number.isFinite(interval) && interval > 0) {
+      base.sampleIntervalSeconds = interval;
+    }
+
+    const duration = Number(raw.durationSeconds);
+    if (Number.isFinite(duration) && duration > 0) {
+      base.durationSeconds = duration;
+    }
+  }
+
+  const { durationSeconds, sampleIntervalSeconds, enabled } = base;
+  const maxSamples = enabled && durationSeconds > 0 && sampleIntervalSeconds > 0
+    ? Math.max(1, Math.ceil(durationSeconds / sampleIntervalSeconds) + 1)
+    : 0;
+
+  return { ...base, maxSamples };
+}
+
 const DRIFT_RATES = {
   powerPerSecond: 0.8 / 3600, // % per second when PTC is off
   cryoPerSecond: 0.02 / 3600, // % per second when PTC is off
@@ -91,8 +131,9 @@ function deepMerge(target, source) {
 export class ResourceSystem {
   constructor(logger, options = {}) {
     this.logger = logger;
-    this.options = { ...DEFAULT_OPTIONS, ...options };
-    this.state = deepMerge(deepClone(DEFAULT_STATE), options.initialState ?? {});
+    const { history: historyOptions, initialState, ...restOptions } = options ?? {};
+    this.options = { ...DEFAULT_OPTIONS, ...restOptions };
+    this.state = deepMerge(deepClone(DEFAULT_STATE), initialState ?? {});
     this.failures = new Map();
     this.failureCatalog = new Map();
     this.metrics = {
@@ -112,14 +153,31 @@ export class ResourceSystem {
     this.activeCommunicationsPowerDeltaKw = 0;
     this._logCountdown = this.options.logIntervalSeconds;
 
-    if (options.consumables) {
-      this.configureConsumables(options.consumables);
+    this.historyOptions = normalizeHistoryOptions(historyOptions);
+    this.historyCapacity = this.historyOptions.maxSamples ?? 0;
+    this.history = this.historyOptions.enabled
+      ? {
+          power: [],
+          thermal: [],
+          communications: [],
+          propellant: Object.create(null),
+        }
+      : null;
+    this._historyAccumulator = 0;
+    this._historyLastSampleSeconds = null;
+
+    if (restOptions.consumables) {
+      this.configureConsumables(restOptions.consumables);
     }
-    if (options.communicationsSchedule) {
-      this.configureCommunicationsSchedule(options.communicationsSchedule);
+    if (restOptions.communicationsSchedule) {
+      this.configureCommunicationsSchedule(restOptions.communicationsSchedule);
     }
-    if (options.failureCatalog || options.failures) {
-      this.configureFailures(options.failureCatalog ?? options.failures);
+    if (restOptions.failureCatalog || restOptions.failures) {
+      this.configureFailures(restOptions.failureCatalog ?? restOptions.failures);
+    }
+
+    if (this.historyOptions.enabled) {
+      this.#recordHistorySample(0, { force: true });
     }
   }
 
@@ -402,6 +460,7 @@ export class ResourceSystem {
     }
 
     this.#updateCommunications(getSeconds);
+    this.#updateHistory(dtSeconds, getSeconds);
 
     this._logCountdown -= dtSeconds;
     if (this._logCountdown <= 0) {
@@ -488,6 +547,20 @@ export class ResourceSystem {
     state.failures = Array.from(this.failures.values()).map((failure) => deepClone(failure));
     state.budgets = deepClone(this.budgets);
     state.metrics = this.metricsSnapshot();
+    state.historyMeta = {
+      enabled: this.historyOptions.enabled,
+      sampleIntervalSeconds: this.historyOptions.sampleIntervalSeconds,
+      durationSeconds: this.historyOptions.durationSeconds,
+      maxSamples: this.historyCapacity,
+      lastSampleSeconds: this._historyLastSampleSeconds,
+      sampleCount: this.historyOptions.enabled && this.history
+        ? Math.max(
+            this.history.power.length,
+            this.history.thermal.length,
+            this.history.communications.length,
+          )
+        : 0,
+    };
     return state;
   }
 
@@ -499,9 +572,206 @@ export class ResourceSystem {
     };
   }
 
+  historySnapshot() {
+    const meta = {
+      enabled: this.historyOptions.enabled,
+      sampleIntervalSeconds: this.historyOptions.sampleIntervalSeconds,
+      durationSeconds: this.historyOptions.durationSeconds,
+      maxSamples: this.historyCapacity,
+      lastSampleSeconds: this._historyLastSampleSeconds,
+    };
+
+    if (!this.historyOptions.enabled || !this.history) {
+      return {
+        meta,
+        power: [],
+        thermal: [],
+        communications: [],
+        propellant: {},
+      };
+    }
+
+    const snapshot = {
+      meta,
+      power: this.history.power.map((entry) => ({ ...entry })),
+      thermal: this.history.thermal.map((entry) => ({ ...entry })),
+      communications: this.history.communications.map((entry) => ({ ...entry })),
+      propellant: {},
+    };
+
+    for (const [key, entries] of Object.entries(this.history.propellant)) {
+      snapshot.propellant[key] = entries.map((entry) => ({ ...entry }));
+    }
+
+    return snapshot;
+  }
+
   isPtcStable() {
     const state = this.state.thermal_balance_state ?? '';
     return state === 'PTC_STABLE' || state === 'PTC_TUNED';
+  }
+
+  #updateHistory(dtSeconds, getSeconds) {
+    if (!this.historyOptions.enabled || !this.history) {
+      return;
+    }
+
+    const interval = this.historyOptions.sampleIntervalSeconds;
+    if (!Number.isFinite(interval) || interval <= 0) {
+      return;
+    }
+
+    if (!Number.isFinite(dtSeconds) || dtSeconds <= 0) {
+      return;
+    }
+
+    this._historyAccumulator += dtSeconds;
+    if (this._historyAccumulator < interval) {
+      return;
+    }
+
+    const samples = Math.floor(this._historyAccumulator / interval);
+    this._historyAccumulator -= samples * interval;
+    const baseTime = Number.isFinite(getSeconds)
+      ? getSeconds
+      : this._historyLastSampleSeconds ?? 0;
+
+    for (let i = samples; i >= 1; i -= 1) {
+      const sampleTime = Math.max(0, baseTime - (i - 1) * interval);
+      this.#recordHistorySample(sampleTime, { force: true });
+    }
+  }
+
+  #recordHistorySample(getSeconds, { force = false } = {}) {
+    if (!this.historyOptions.enabled || !this.history) {
+      return;
+    }
+
+    const timestamp = Number.isFinite(getSeconds)
+      ? getSeconds
+      : this._historyLastSampleSeconds ?? 0;
+
+    if (
+      !force
+      && this._historyLastSampleSeconds != null
+      && Math.abs(timestamp - this._historyLastSampleSeconds) < 1e-6
+    ) {
+      return;
+    }
+
+    this._historyLastSampleSeconds = timestamp;
+    this.#recordPowerHistory(timestamp);
+    this.#recordThermalHistory(timestamp);
+    this.#recordPropellantHistory(timestamp);
+    this.#recordCommunicationsHistory(timestamp);
+  }
+
+  #recordPowerHistory(timeSeconds) {
+    const entry = {
+      timeSeconds,
+      powerMarginPct: this.#coerceNumber(this.state.power_margin_pct),
+      fuelCellLoadKw: this.#coerceNumber(this.state.power?.fuel_cell_load_kw),
+      fuelCellOutputKw: this.#coerceNumber(this.state.power?.fuel_cell_output_kw),
+      batteryChargePct: this.#coerceNumber(this.state.power?.battery_charge_pct),
+      reactantMinutes: this.#coerceNumber(this.state.power?.reactant_minutes_remaining),
+    };
+    this.#pushHistoryEntry(this.history.power, entry);
+  }
+
+  #recordThermalHistory(timeSeconds) {
+    const entry = {
+      timeSeconds,
+      cryoBoiloffRatePctPerHr: this.#coerceNumber(this.state.cryo_boiloff_rate_pct_per_hr),
+      thermalState: this.state.thermal_balance_state ?? null,
+      ptcActive: this.state.ptc_active ?? null,
+    };
+    this.#pushHistoryEntry(this.history.thermal, entry);
+  }
+
+  #recordCommunicationsHistory(timeSeconds) {
+    const comms = this.state.communications ?? {};
+    const entry = {
+      timeSeconds,
+      active: Boolean(comms.active),
+      currentPassId: comms.current_pass_id ?? null,
+      currentStation: comms.current_station ?? null,
+      timeRemainingSeconds: this.#coerceNumber(comms.current_window_time_remaining_s),
+      timeSinceOpenSeconds: this.#coerceNumber(comms.time_since_window_open_s),
+      progress: this.#coerceNumber(comms.current_pass_progress),
+      nextPassId: comms.next_pass_id ?? null,
+      timeUntilNextWindowSeconds: this.#coerceNumber(comms.time_until_next_window_s),
+      signalStrengthDb: this.#coerceNumber(comms.signal_strength_db),
+      downlinkRateKbps: this.#coerceNumber(comms.downlink_rate_kbps),
+      powerLoadDeltaKw: this.#coerceNumber(comms.power_load_delta_kw),
+    };
+    this.#pushHistoryEntry(this.history.communications, entry);
+  }
+
+  #recordPropellantHistory(timeSeconds) {
+    const propellantState = this.state.propellant ?? {};
+    const budgets = this.budgets?.propellant ?? {};
+
+    for (const [rawKey, rawValue] of Object.entries(propellantState)) {
+      const key = this.#normalizePropellantKey(rawKey);
+      if (!key) {
+        continue;
+      }
+
+      if (!this.history.propellant[key]) {
+        this.history.propellant[key] = [];
+      }
+
+      const remainingKg = this.#coerceNumber(rawValue);
+      const budget = budgets[key] ?? {};
+      const initialKg = this.#coerceNumber(budget.initial_kg);
+      const reserveKg = this.#coerceNumber(budget.reserve_kg);
+
+      const entry = {
+        timeSeconds,
+        remainingKg: Number.isFinite(remainingKg) ? remainingKg : null,
+        initialKg: Number.isFinite(initialKg) ? initialKg : null,
+        reserveKg: Number.isFinite(reserveKg) ? reserveKg : null,
+      };
+
+      if (Number.isFinite(entry.remainingKg) && Number.isFinite(entry.initialKg) && entry.initialKg > 0) {
+        entry.percentRemaining = (entry.remainingKg / entry.initialKg) * 100;
+      } else {
+        entry.percentRemaining = null;
+      }
+
+      if (
+        Number.isFinite(entry.remainingKg)
+        && Number.isFinite(entry.initialKg)
+        && Number.isFinite(entry.reserveKg)
+        && entry.initialKg > entry.reserveKg
+      ) {
+        const usable = entry.initialKg - entry.reserveKg;
+        entry.percentAboveReserve = usable > 0
+          ? Math.max(0, entry.remainingKg - entry.reserveKg) / usable * 100
+          : null;
+      } else {
+        entry.percentAboveReserve = null;
+      }
+
+      this.#pushHistoryEntry(this.history.propellant[key], entry);
+    }
+  }
+
+  #pushHistoryEntry(buffer, entry) {
+    if (!Array.isArray(buffer)) {
+      return;
+    }
+    buffer.push(entry);
+    if (this.historyCapacity > 0 && buffer.length > this.historyCapacity) {
+      buffer.splice(0, buffer.length - this.historyCapacity);
+    }
+  }
+
+  #normalizePropellantKey(key) {
+    if (typeof key !== 'string' || key.length === 0) {
+      return null;
+    }
+    return key.endsWith('_kg') ? key.slice(0, -3) : key;
   }
 
   #assignPropellantBudget(key, initialKg) {
@@ -857,6 +1127,10 @@ export class ResourceSystem {
       signalStrengthDb: pass.signalStrengthDb ?? null,
       downlinkRateKbps: pass.downlinkRateKbps ?? null,
     });
+
+    if (this.historyOptions.enabled) {
+      this.#recordHistorySample(getSeconds, { force: true });
+    }
   }
 
   #updateActiveCommunicationsPass(pass, getSeconds) {
@@ -891,6 +1165,10 @@ export class ResourceSystem {
     this.activeCommunicationsPass = null;
     this.activeCommunicationsPowerDeltaKw = 0;
     this.#clearCurrentCommunicationsState();
+
+    if (this.historyOptions.enabled) {
+      this.#recordHistorySample(getSeconds, { force: true });
+    }
   }
 
   #updateNextCommunicationsPass(getSeconds) {

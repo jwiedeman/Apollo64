@@ -18,6 +18,7 @@ const DEFAULT_OPTIONS = {
   warningPropellantPct: 15,
   cautionCryoRatePctPerHr: 1.5,
   warningCryoRatePctPerHr: 2.5,
+  includeResourceHistory: false,
 };
 
 export class UiFrameBuilder {
@@ -43,6 +44,15 @@ export class UiFrameBuilder {
     const nextEvent = upcoming.length > 0 ? upcoming[0] : null;
 
     const resourceSnapshot = context.resourceSystem?.snapshot?.() ?? null;
+    const includeHistory = Boolean(this.options.includeResourceHistory);
+    let resourceHistory = null;
+    if (includeHistory) {
+      if (context.resourceHistory) {
+        resourceHistory = context.resourceHistory;
+      } else if (context.resourceSystem?.historySnapshot) {
+        resourceHistory = context.resourceSystem.historySnapshot();
+      }
+    }
     const resources = this.#summarizeResources(resourceSnapshot);
     const alerts = resources?.alerts ?? { warnings: [], cautions: [], failures: [] };
 
@@ -68,6 +78,10 @@ export class UiFrameBuilder {
       manualQueue: manualStats,
       alerts,
     };
+
+    if (includeHistory && resourceHistory) {
+      frame.resourceHistory = resourceHistory;
+    }
 
     this.lastFrame = frame;
     return frame;

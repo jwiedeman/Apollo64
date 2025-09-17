@@ -29,12 +29,19 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "autopilot": { ... },
   "checklists": { ... },
   "manualQueue": { ... },
-  "alerts": { "warnings": [], "cautions": [], "failures": [] }
+  "alerts": { "warnings": [], "cautions": [], "failures": [] },
+  "resourceHistory": { ... }
 }
 ```
 
 All numeric fields use SI units (seconds, kilograms, percent) unless noted.
 Strings representing GET values are formatted as `HHH:MM:SS`.
+
+`resourceHistory` appears only when the builder is configured with
+`includeResourceHistory: true`. The payload mirrors
+[`ResourceSystem.historySnapshot()`](../../js/src/sim/resourceSystem.js), providing
+minute-resolution samples for power, thermal, propellant, and communications
+metrics so trend widgets can consume the same telemetry as the HUD.
 
 ### `time`
 
@@ -167,6 +174,28 @@ Mirrors `ManualActionQueue.stats()` with counts for scheduled, pending, executed
 | `sources[]` | array | Event IDs or subsystems that produced the failure. |
 | `notes[]` | array | Additional notes captured by the resource system when the failure latched. |
 | `metadata` | object&#124;null | Raw metadata object recorded with the failure (e.g., manual override details). |
+
+### `resourceHistory`
+
+When present, this object mirrors `ResourceSystem.historySnapshot()` and exposes
+time-series buffers for Systems view trend widgets.
+
+- `meta.enabled` (boolean) – Whether tracking is active in the simulator.
+- `meta.sampleIntervalSeconds` / `meta.durationSeconds` – Sampling cadence and
+  retention window.
+- `power[]` – Entries containing `timeSeconds`, `powerMarginPct`,
+  `fuelCellLoadKw`, `fuelCellOutputKw`, `batteryChargePct`, and
+  `reactantMinutes`.
+- `thermal[]` – Entries containing `timeSeconds`,
+  `cryoBoiloffRatePctPerHr`, `thermalState`, and `ptcActive`.
+- `communications[]` – Entries containing `timeSeconds`, `active`,
+  `currentPassId`, `currentStation`, `timeRemainingSeconds`,
+  `timeSinceOpenSeconds`, `progress`, `nextPassId`,
+  `timeUntilNextWindowSeconds`, `signalStrengthDb`, `downlinkRateKbps`, and
+  `powerLoadDeltaKw`.
+- `propellant.{tankId}[]` – Tank-specific arrays with `timeSeconds`,
+  `remainingKg`, `initialKg`, `reserveKg`, `percentRemaining`, and
+  `percentAboveReserve`.
 
 ## Customization Hooks
 
