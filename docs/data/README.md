@@ -9,6 +9,12 @@ This directory contains the structured mission datasets produced during Mileston
 
 Future updates will flesh out surface EVA timelines, transearth communications, and add validation notebooks under `scripts/ingest/` as described in the milestone plan.
 
+## Validation Harness
+
+- Run `cd js && npm run validate:data` to execute the mission dataset sweep implemented in [`../../js/src/tools/validateMissionData.js`](../../js/src/tools/validateMissionData.js).
+- The validator checks GET formatting for events, PADs, and mission effects; verifies that prerequisite, checklist, autopilot, and failure references resolve; confirms autopilot JSON assets load with monotonic sequencing; ensures checklists are sequentially numbered; and surfaces missing numeric baselines in `consumables.json`.
+- Extend the harness alongside new ingest work—surface EVA and transearth communication records should introduce companion checks so regression runs highlight schema drift early.
+
 ## File Inventory
 - `events.csv` – Mission beat definitions with prerequisites, windows, and resource effects.
 - `checklists.csv` – Crew procedures broken into atomic steps.

@@ -25,7 +25,7 @@ Milestone M0 bootstraps the simulator with structured mission data extracted fro
 5. **Autopilot Script Hooks** — Flag steps where autopilot or guidance programs engage. Record necessary parameters (e.g., `PGM`, `target_attitude`, `thrust_profile`).
 6. **Failure Notes** — Capture conditions and resulting penalties directly from Flight Journal and MOCR. Map them to `failure_id` entries for later simulation hooks.
 7. **Export CSVs** — Convert the curated sheets into machine-readable CSV packs stored under `docs/data/` (to be created during M0 execution).
-8. **Validation Sweep** — Run scripts to verify chronological ordering, dependency closure, and GET uniqueness. Spot-check against published GET anchors (TLI 002:44:14, LOI 075:50:00, Landing 102:45:40).
+8. **Validation Sweep** — Run scripts to verify chronological ordering, dependency closure, and GET uniqueness. Spot-check against published GET anchors (TLI 002:44:14, LOI 075:50:00, Landing 102:45:40). The current sweep lives in [`js/src/tools/validateMissionData.js`](../../js/src/tools/validateMissionData.js) and should be extended as new datasets land.
 
 ## Data Schemas
 
@@ -96,7 +96,7 @@ Each CSV should include a header row, adhere to UTF-8, and avoid Excel artifacts
 
 ## Tooling Recommendations
 - Use a lightweight Python ingestion script (`scripts/ingest/` to be created later) to convert annotated spreadsheets into CSV, preserving GET formatting and verifying dependencies.
-- Adopt unit-style checks that confirm: monotonically increasing GET within phases, valid references between events/checklists/failures, and PAD times falling inside corresponding event windows.
+- Adopt unit-style checks that confirm: monotonically increasing GET within phases, valid references between events/checklists/failures, and PAD times falling inside corresponding event windows. Until those notebooks exist, run `cd js && npm run validate:data` as the canonical automated sweep.
 - Commit the ingestion notebooks or scripts alongside the CSV exports for reproducibility.
 
 ## Acceptance Criteria
