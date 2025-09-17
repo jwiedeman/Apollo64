@@ -10,6 +10,7 @@ import { Simulation } from './simulation.js';
 import { TextHud } from '../hud/textHud.js';
 import { UiFrameBuilder } from '../hud/uiFrameBuilder.js';
 import { ScoreSystem } from './scoreSystem.js';
+import { RcsController } from './rcsController.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -48,7 +49,11 @@ export async function createSimulationContext({
     consumables: missionData.consumables,
   });
 
-  const autopilotRunner = new AutopilotRunner(resourceSystem, logger);
+  const rcsController = new RcsController(missionData.thrusters, resourceSystem, logger);
+
+  const autopilotRunner = new AutopilotRunner(resourceSystem, logger, {
+    rcsController,
+  });
 
   const hudConfig = { ...(hudOptions ?? {}) };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);
@@ -101,6 +106,7 @@ export async function createSimulationContext({
     checklistManager,
     manualActionQueue,
     autopilotRunner,
+    rcsController,
     hud,
     scoreSystem,
     logger,
@@ -115,6 +121,7 @@ export async function createSimulationContext({
     resourceSystem,
     manualActionQueue,
     autopilotRunner,
+    rcsController,
     hud,
     uiFrameBuilder,
     scoreSystem,

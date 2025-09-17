@@ -10,9 +10,11 @@ const DEFAULT_OPTIONS = {
 
 export class AutopilotRunner {
   constructor(resourceSystem, logger, options = {}) {
+    const { rcsController = null, ...restOptions } = options ?? {};
     this.resourceSystem = resourceSystem;
     this.logger = logger;
-    this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.options = { ...DEFAULT_OPTIONS, ...restOptions };
+    this.rcsController = rcsController ?? null;
 
     this.active = new Map();
     this.metrics = {
@@ -22,6 +24,8 @@ export class AutopilotRunner {
       totalBurnSeconds: 0,
       totalUllageSeconds: 0,
       propellantKgByTank: Object.create(null),
+      totalRcsImpulseNs: 0,
+      totalRcsPulses: 0,
     };
     this.lastUpdateGetSeconds = 0;
   }
@@ -74,6 +78,8 @@ export class AutopilotRunner {
         ullageSeconds: 0,
         propellantKg: 0,
         rcsKg: 0,
+        rcsPulses: 0,
+        rcsImpulseNs: 0,
       },
     };
 
@@ -133,6 +139,8 @@ export class AutopilotRunner {
       burnSeconds: state.metrics.burnSeconds,
       propellantKg: state.metrics.propellantKg,
       rcsKg: state.metrics.rcsKg,
+      rcsPulses: state.metrics.rcsPulses,
+      rcsImpulseNs: state.metrics.rcsImpulseNs,
     });
   }
 
@@ -160,7 +168,20 @@ export class AutopilotRunner {
               secondsRemaining: Math.max(0, ramp.endGetSeconds - now),
             }
           : null,
+        rcsPulses: state.metrics.rcsPulses,
+        rcsImpulseNs: state.metrics.rcsImpulseNs,
+        rcsKg: state.metrics.rcsKg,
       });
+    }
+
+    let primary = null;
+    if (activeAutopilots.length > 0) {
+      const sorted = [...activeAutopilots].sort((a, b) => {
+        const aRemaining = Number.isFinite(a.remainingSeconds) ? a.remainingSeconds : Infinity;
+        const bRemaining = Number.isFinite(b.remainingSeconds) ? b.remainingSeconds : Infinity;
+        return aRemaining - bRemaining;
+      });
+      primary = sorted[0];
     }
 
     return {
@@ -170,8 +191,11 @@ export class AutopilotRunner {
       aborted: this.metrics.aborted,
       totalBurnSeconds: this.metrics.totalBurnSeconds,
       totalUllageSeconds: this.metrics.totalUllageSeconds,
+      totalRcsImpulseNs: this.metrics.totalRcsImpulseNs,
+      totalRcsPulses: this.metrics.totalRcsPulses,
       propellantKgByTank: { ...this.metrics.propellantKgByTank },
       activeAutopilots,
+      primary,
     };
   }
 
@@ -281,6 +305,66 @@ export class AutopilotRunner {
             durationSeconds: duration,
             propulsion: state.propulsion.type,
           });
+        }
+        break;
+      }
+      case 'rcs_pulse': {
+        if (!this.rcsController) {
+          this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} RCS pulse skipped`, {
+            eventId: state.eventId,
+            reason: 'no_rcs_controller',
+          });
+          break;
+        }
+
+        const craftId = this.#normalizeString(
+          command.craft ?? command.craft_id ?? command.vehicle ?? null,
+        );
+        const tankKey = this.#normalizeString(
+          command.tank ?? command.tank_key ?? command.propellant_tank ?? null,
+        );
+        const axis = command.axis ?? command.translation_axis ?? null;
+        const torqueAxis = command.torque_axis ?? command.attitude_axis ?? null;
+        const durationSeconds = this.#coerceNumber(
+          command.duration
+            ?? command.seconds
+            ?? command.impulse
+            ?? command.pulse_seconds
+            ?? null,
+        );
+        const count = this.#coerceNumber(command.count ?? command.pulses ?? command.repeat ?? 1);
+        const dutyCycle = this.#coerceNumber(command.duty_cycle ?? command.duty ?? command.duty_factor ?? null);
+        const maxThrusters = this.#coerceNumber(
+          command.max_thrusters
+            ?? command.thrusters_per_axis
+            ?? command.thruster_count
+            ?? null,
+        );
+        const thrusterIds = this.#normalizeIdList(command.thrusters ?? command.thruster_ids);
+
+        const result = this.rcsController.executePulse({
+          autopilotId: state.autopilotId,
+          eventId: state.eventId,
+          getSeconds: commandGetSeconds,
+          craftId,
+          thrusterIds,
+          axis,
+          torqueAxis,
+          durationSeconds,
+          count,
+          dutyCycle,
+          tankKey,
+          note: command.note ?? command.label ?? null,
+          maxThrusters,
+        });
+
+        if (result?.massKg > 0) {
+          state.metrics.rcsKg += result.massKg;
+          state.metrics.rcsPulses += result.pulses ?? 0;
+          state.metrics.rcsImpulseNs += result.impulseNs ?? 0;
+          this.metrics.totalRcsPulses += result.pulses ?? 0;
+          this.metrics.totalRcsImpulseNs += result.impulseNs ?? 0;
+          this.#accumulatePropellant(result.tankKey, result.massKg);
         }
         break;
       }
@@ -431,6 +515,8 @@ export class AutopilotRunner {
       ullageSeconds: state.metrics.ullageSeconds,
       propellantKg: state.metrics.propellantKg,
       rcsKg: state.metrics.rcsKg,
+      rcsPulses: state.metrics.rcsPulses,
+      rcsImpulseNs: state.metrics.rcsImpulseNs,
     });
   }
 
@@ -615,6 +701,30 @@ export class AutopilotRunner {
 
     const t = (timeSeconds - ramp.startGetSeconds) / range;
     return ramp.startLevel + (ramp.endLevel - ramp.startLevel) * clamp(t, 0, 1);
+  }
+
+  #normalizeString(value) {
+    if (value == null) {
+      return null;
+    }
+    const text = String(value).trim();
+    return text.length > 0 ? text : null;
+  }
+
+  #normalizeIdList(value) {
+    if (!value) {
+      return [];
+    }
+    if (Array.isArray(value)) {
+      return value.map((entry) => this.#normalizeString(entry)).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((entry) => this.#normalizeString(entry))
+        .filter(Boolean);
+    }
+    return [];
   }
 
   #normalizeTankKey(value) {

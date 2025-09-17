@@ -248,6 +248,8 @@ export class UiFrameBuilder {
       aborted: stats.aborted,
       totalBurnSeconds: stats.totalBurnSeconds,
       totalUllageSeconds: stats.totalUllageSeconds,
+      totalRcsImpulseNs: stats.totalRcsImpulseNs ?? 0,
+      totalRcsPulses: stats.totalRcsPulses ?? 0,
       propellantKgByTank: stats.propellantKgByTank ?? {},
       activeAutopilots,
       primary,
