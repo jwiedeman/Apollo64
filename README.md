@@ -6,6 +6,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - `js/` – Workspace for the JavaScript/Web prototype that will validate the mission model and user experience.
 - `n64/` – Workspace for the libdragon-powered Nintendo 64 port that inherits the proven systems from the web build.
 - `docs/` – Planning and reference material for the project, including the current mission and technology plan.
+- `scripts/ingest/` – Planned notebooks and helper modules that turn annotated research assets into the committed datasets.
 
 ## Current Progress
 - Milestone M0 datasets now cover launch through splashdown, capturing extended Passive Thermal Control maintenance, MCC-1/2/3/4 PAD workflows, LOI-focused navigation realignments, DOI planning, LM separation, powered descent and landing safing, surface EVA-1 prep/egress/traverse/closeout, ascent/docking evaluation, TEI preparation and execution, transearth DSN communications passes, MCC-5 return corrections, entry PAD alignment, service module jettison, and recovery procedures.
@@ -23,6 +24,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - Milestone M6 fidelity pass outline in [`docs/milestones/M6_FIDELITY_PASS.md`](docs/milestones/M6_FIDELITY_PASS.md) defines calibration targets for timelines, propulsion, resources, and communications against Apollo 11 telemetry.
 - Milestone M7 stability plan in [`docs/milestones/M7_STABILITY_FAULTS.md`](docs/milestones/M7_STABILITY_FAULTS.md) details soak-testing strategy, fault injection coverage, and automation expectations for release readiness.
 - Manual action recorder in [`js/src/logging/manualActionRecorder.js`](js/src/logging/manualActionRecorder.js) can capture auto-advanced checklist steps and export them via the CLI `--record-manual-script` flag for deterministic manual-vs-auto parity runs.
+- Ingestion workflow planning under [`scripts/ingest/`](scripts/ingest/README.md) and [`docs/data/INGESTION_PIPELINE.md`](docs/data/INGESTION_PIPELINE.md) now documents how future dataset updates move from annotated sources into the CSV/JSON packs, including notebook sequencing, validation checkpoints, and automation hooks.
 
 ## Immediate Priorities
 1. Continue Milestone M0 by publishing ingestion notebooks under `scripts/ingest/`, rounding out contingency datasets, and wiring the new EVA/DSN analytics into automated regression notebooks while extending the validation CLI as new schema fields appear.
@@ -42,6 +44,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/milestones/M7_STABILITY_FAULTS.md`](docs/milestones/M7_STABILITY_FAULTS.md) – Stability, fault injection, soak testing, and automation strategy.
 - [`docs/data/README.md`](docs/data/README.md) – Normalized mission datasets produced during Milestone M0 (currently covering launch through splashdown).
 - [`docs/data/VALIDATION_CHECKS.md`](docs/data/VALIDATION_CHECKS.md) – Automated dataset sweep coverage and guidance for extending the validation CLI.
+- [`docs/data/INGESTION_PIPELINE.md`](docs/data/INGESTION_PIPELINE.md) – Step-by-step workflow for running the ingestion notebooks, validating outputs, and planning future automation.
 
 ## Contribution Notes
 - Follow the guidelines in [`AGENTS.md`](AGENTS.md) for documentation structure and future implementation phases.
