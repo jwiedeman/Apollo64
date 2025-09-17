@@ -1,0 +1,31 @@
+[
+  {
+    "id": "PTC_ENABLE",
+    "type": "checklist_ack",
+    "event_id": "COAST_004",
+    "get": "004:50:00",
+    "count": 3,
+    "retry_window_seconds": 120,
+    "note": "Manual crew acknowledges PTC entry"
+  },
+  {
+    "id": "PTC_TRIM_PROP",
+    "type": "propellant_burn",
+    "get": "004:52:00",
+    "tank": "csm_rcs",
+    "amount_lb": 1.2,
+    "note": "Trim pulses during PTC capture"
+  },
+  {
+    "id": "CONS_CHECK",
+    "type": "resource_delta",
+    "get": "012:10:00",
+    "effect": {
+      "power": {
+        "fuel_cell_load_kw": -0.2
+      }
+    },
+    "source": "manual_script",
+    "note": "Load shed after consumables review"
+  }
+]

@@ -52,6 +52,8 @@ Events publish status updates to the HUD queue so the UI can render upcoming win
 
 Each resource exposes interfaces for `apply_delta(value, source)` and emits alerts when thresholds cross caution/warning bands. These alerts feed both the scheduler (to trigger remedial events) and the HUD (for player awareness).
 
+The current prototype seeds the resource model with launch-day consumable budgets parsed from `docs/data/consumables.json`, ensuring simulated deltas have a realistic baseline.
+
 ## PTC Control Loop Specification
 - **Objective:** Maintain a slow 0.3°/s roll to evenly distribute heating and preserve cryo tanks.
 - **Sensors:** Current attitude quaternion, sun vector, roll rate gyros.
@@ -79,12 +81,13 @@ The HUD can be console-based during M1—rendered as a simple text grid updated 
 - **Data ingestion:** [`js/src/data/missionDataLoader.js`](../../js/src/data/missionDataLoader.js) parses the M0 CSVs without external dependencies, loads autopilot JSON payloads, estimates their durations, and assembles checklist maps consumed by the runtime.
 - **Scheduler loop:** [`js/src/sim/eventScheduler.js`](../../js/src/sim/eventScheduler.js) transitions events through `pending → armed → active → complete/failed`, applies success/failure effects into the resource system, and emits GET-stamped log entries that backstop the upcoming HUD.
 - **Checklist management:** [`js/src/sim/checklistManager.js`](../../js/src/sim/checklistManager.js) binds crew procedures to active events, auto-advancing step acknowledgement on a deterministic cadence while logging metrics for manual override tooling.
-- **Resource feedback:** [`js/src/sim/resourceSystem.js`](../../js/src/sim/resourceSystem.js) currently models aggregate power margin, cryo boiloff drift, and Passive Thermal Control state, logging hourly snapshots to quantify divergence when PTC is skipped.
-- **Logging:** [`js/src/logging/missionLogger.js`](../../js/src/logging/missionLogger.js) streams mission events to stdout today and will persist frames for replay validation once the HUD arrives.
+- **Resource feedback:** [`js/src/sim/resourceSystem.js`](../../js/src/sim/resourceSystem.js) models aggregate power margin, cryo boiloff drift, Passive Thermal Control state, and baseline consumable budgets while logging hourly snapshots to quantify divergence when PTC is skipped.
+- **Manual actions:** [`js/src/sim/manualActionQueue.js`](../../js/src/sim/manualActionQueue.js) replays scripted manual inputs—checklist acknowledgements, resource deltas, and propellant burns—so regression runs can mimic human intervention deterministically.
+- **Logging:** [`js/src/logging/missionLogger.js`](../../js/src/logging/missionLogger.js) streams mission events to stdout and can export the run to JSON for deterministic replay validation once the HUD arrives.
 
 ### Known Gaps Before M1 Completion
-- Checklist auto-advance currently relies on scripted cadences; manual input queues and controller bindings still need to feed acknowledgements when automation is disabled.
-- Consumable modelling lumps propellants and electrical reserves together; SPS, RCS, battery, and comm window effects still need to be represented explicitly.
+- Manual action scripts now cover checklist overrides and resource deltas, but parity tests comparing scripted vs. auto-driven runs still need to be codified.
+- Consumable budgets seed the resource model, yet PAD-driven deltas and long-horizon trending analytics still need to be wired into the scheduler for scoring.
 - Failure hooks only propagate `failure_id` metadata; downstream remedial event arming and cascading penalties remain to be wired into the scheduler.
 - Deterministic log replay/regression tooling is not yet capturing frame-by-frame state, leaving validation to manual CLI runs.
 

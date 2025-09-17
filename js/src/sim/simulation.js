@@ -2,10 +2,18 @@ import { formatGET } from '../utils/time.js';
 import { SimulationClock } from './simulationClock.js';
 
 export class Simulation {
-  constructor({ scheduler, resourceSystem, checklistManager = null, logger, tickRate = 20 }) {
+  constructor({
+    scheduler,
+    resourceSystem,
+    checklistManager = null,
+    manualActionQueue = null,
+    logger,
+    tickRate = 20,
+  }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
     this.checklistManager = checklistManager;
+    this.manualActions = manualActionQueue;
     this.logger = logger;
     this.clock = new SimulationClock({ tickRate });
     this.tickRate = tickRate;
@@ -17,6 +25,9 @@ export class Simulation {
 
     while (this.clock.getCurrent() < untilGetSeconds) {
       const currentGet = this.clock.getCurrent();
+      if (this.manualActions) {
+        this.manualActions.update(currentGet, dtSeconds);
+      }
       this.scheduler.update(currentGet, dtSeconds);
       this.resourceSystem.update(dtSeconds, currentGet);
       this.clock.advance();
@@ -26,6 +37,7 @@ export class Simulation {
     const stats = this.scheduler.stats();
     const finalState = this.resourceSystem.snapshot();
     const checklistStats = this.checklistManager ? this.checklistManager.stats() : null;
+    const manualStats = this.manualActions ? this.manualActions.stats() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       ticks,
@@ -33,6 +45,7 @@ export class Simulation {
       upcoming: stats.upcoming,
       resources: finalState,
       checklists: checklistStats,
+      manualActions: manualStats,
     });
 
     return {
@@ -41,6 +54,7 @@ export class Simulation {
       events: stats,
       resources: finalState,
       checklists: checklistStats,
+      manualActions: manualStats,
     };
   }
 }

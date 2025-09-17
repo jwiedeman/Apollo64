@@ -16,5 +16,10 @@ Future updates will flesh out surface EVA timelines, transearth communications, 
 - `failures.csv` – Recoverable and hard failure hooks tied to mission logic.
 - `pads.csv` – Uplink cards for burns and corrections.
 - `provenance.md` – Source citations for every record range.
+- `consumables.json` – Baseline power, propellant, and life-support budgets with notes and references to the Mission Operations Report and Flight Plan.
 
 These files use UTF-8 encoding with Unix line endings and can be imported into spreadsheets or parsed directly by ingestion tooling.
+
+## Manual Action Scripts
+
+Milestone M1 introduced a manual action scripting system that can drive checklist acknowledgements and resource deltas deterministically. Script structure, examples, and usage notes live in [`manual_scripts/README.md`](manual_scripts/README.md) to keep the CLI harness and future HUD implementations in sync.
