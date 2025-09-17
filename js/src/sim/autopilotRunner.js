@@ -5,6 +5,7 @@ const DEFAULT_OPTIONS = {
   csmSpsMassFlowKgPerSec: 29.5,
   lmDescentMassFlowKgPerSec: 14.7,
   lmAscentMassFlowKgPerSec: 5.1,
+  defaultUllageTankKey: 'csm_rcs',
 };
 
 export class AutopilotRunner {
@@ -49,7 +50,7 @@ export class AutopilotRunner {
     });
 
     const durationSeconds = this.#resolveDuration(event);
-    const propulsion = this.#resolvePropulsionProfile(event.autopilotId);
+    const propulsion = this.#resolvePropulsionProfile(event);
 
     const state = {
       eventId: event.id,
@@ -241,17 +242,22 @@ export class AutopilotRunner {
 
     const ullageDuration = this.#computeUllageOverlap(state, currentGetSeconds);
     if (ullageDuration > 0) {
-      const ullageUsageKg = ullageDuration * (this.options.ullageRcsKgPerSec ?? DEFAULT_OPTIONS.ullageRcsKgPerSec);
-      if (ullageUsageKg > 0) {
-        state.metrics.rcsKg += ullageUsageKg;
-        state.metrics.ullageSeconds += ullageDuration;
-        this.metrics.totalUllageSeconds += ullageDuration;
-        this.#accumulatePropellant('csm_rcs', ullageUsageKg);
-        this.resourceSystem?.recordPropellantUsage('csm_rcs', ullageUsageKg, {
-          getSeconds: currentGetSeconds,
-          source: state.autopilotId,
-          note: 'autopilot_ullage',
-        });
+      const ullageProfile = state.propulsion?.ullage ?? null;
+      const ullageTankKey = ullageProfile?.tankKey ?? null;
+      const ullageRate = ullageProfile?.massFlowKgPerSec ?? 0;
+      if (ullageTankKey && ullageRate > 0) {
+        const ullageUsageKg = ullageDuration * ullageRate;
+        if (ullageUsageKg > 0) {
+          state.metrics.rcsKg += ullageUsageKg;
+          state.metrics.ullageSeconds += ullageDuration;
+          this.metrics.totalUllageSeconds += ullageDuration;
+          this.#accumulatePropellant(ullageTankKey, ullageUsageKg);
+          this.resourceSystem?.recordPropellantUsage(ullageTankKey, ullageUsageKg, {
+            getSeconds: currentGetSeconds,
+            source: state.autopilotId,
+            note: 'autopilot_ullage',
+          });
+        }
       }
     }
 
@@ -366,14 +372,86 @@ export class AutopilotRunner {
     return 0;
   }
 
-  #resolvePropulsionProfile(autopilotId) {
+  #resolvePropulsionProfile(event) {
+    const autopilotId = event?.autopilotId ?? event?.autopilot?.id ?? null;
+    const normalized = this.#normalizePropulsionConfig(event?.autopilot?.propulsion ?? null, autopilotId);
+    if (normalized) {
+      return normalized;
+    }
+    return this.#resolvePropulsionFromId(autopilotId);
+  }
+
+  #normalizePropulsionConfig(config, autopilotId) {
+    if (!config || typeof config !== 'object') {
+      return null;
+    }
+
+    const type = typeof config.type === 'string' && config.type.trim().length > 0
+      ? config.type.trim()
+      : autopilotId ?? 'unknown';
+
+    const tankKey = this.#normalizeTankKey(
+      config.tank ?? config.tank_key ?? config.propellant ?? null,
+    );
+
+    let massFlowKgPerSec = this.#coerceNumber(
+      config.mass_flow_kg_per_s ?? config.massFlowKgPerSec ?? null,
+    );
+    if (!Number.isFinite(massFlowKgPerSec)) {
+      const massFlowLbPerSec = this.#coerceNumber(
+        config.mass_flow_lb_per_s ?? config.massFlowLbPerSec ?? null,
+      );
+      if (Number.isFinite(massFlowLbPerSec)) {
+        massFlowKgPerSec = massFlowLbPerSec * 0.45359237;
+      }
+    }
+    if (!Number.isFinite(massFlowKgPerSec)) {
+      massFlowKgPerSec = 0;
+    } else if (massFlowKgPerSec < 0) {
+      massFlowKgPerSec = Math.abs(massFlowKgPerSec);
+    }
+
+    let ullage = null;
+    if (config.ullage && typeof config.ullage === 'object') {
+      const ullageTankKey = this.#normalizeTankKey(
+        config.ullage.tank ?? config.ullage.tank_key ?? config.ullage.propellant ?? null,
+      );
+      let ullageRate = this.#coerceNumber(
+        config.ullage.mass_flow_kg_per_s ?? config.ullage.massFlowKgPerSec ?? null,
+      );
+      if (!Number.isFinite(ullageRate)) {
+        const ullageRateLb = this.#coerceNumber(
+          config.ullage.mass_flow_lb_per_s ?? config.ullage.massFlowLbPerSec ?? null,
+        );
+        if (Number.isFinite(ullageRateLb)) {
+          ullageRate = ullageRateLb * 0.45359237;
+        }
+      }
+      if (ullageTankKey && Number.isFinite(ullageRate) && ullageRate > 0) {
+        ullage = { tankKey: ullageTankKey, massFlowKgPerSec: ullageRate };
+      }
+    }
+
+    if (!tankKey && massFlowKgPerSec <= 0 && !ullage && (!type || type === 'unknown')) {
+      return null;
+    }
+
+    return {
+      type: type || 'unknown',
+      tankKey,
+      massFlowKgPerSec,
+      ullage,
+    };
+  }
+
+  #resolvePropulsionFromId(autopilotId) {
     const id = (autopilotId ?? '').toUpperCase();
     if (!id) {
-      return { type: 'unknown', tankKey: null, massFlowKgPerSec: 0 };
+      return { type: 'unknown', tankKey: null, massFlowKgPerSec: 0, ullage: null };
     }
 
     if (id === 'PGM_06_TLI') {
-      return { type: 'sivb', tankKey: null, massFlowKgPerSec: 0 };
+      return { type: 'sivb', tankKey: null, massFlowKgPerSec: 0, ullage: null };
     }
 
     if (id.startsWith('PGM_LM_ASCENT')) {
@@ -381,6 +459,7 @@ export class AutopilotRunner {
         type: 'lm_ascent',
         tankKey: 'lm_ascent',
         massFlowKgPerSec: this.options.lmAscentMassFlowKgPerSec ?? DEFAULT_OPTIONS.lmAscentMassFlowKgPerSec,
+        ullage: null,
       };
     }
 
@@ -389,21 +468,21 @@ export class AutopilotRunner {
         type: 'lm_descent',
         tankKey: 'lm_descent',
         massFlowKgPerSec: this.options.lmDescentMassFlowKgPerSec ?? DEFAULT_OPTIONS.lmDescentMassFlowKgPerSec,
+        ullage: null,
       };
     }
 
-    if (id.startsWith('PGM_MCC') || id.startsWith('PGM_LOI') || id === 'PGM_DOI' || id === 'PGM_TEI') {
-      return {
-        type: 'csm_sps',
-        tankKey: 'csm_sps',
-        massFlowKgPerSec: this.options.csmSpsMassFlowKgPerSec ?? DEFAULT_OPTIONS.csmSpsMassFlowKgPerSec,
-      };
-    }
+    const massFlowKgPerSec = this.options.csmSpsMassFlowKgPerSec ?? DEFAULT_OPTIONS.csmSpsMassFlowKgPerSec;
+    const ullageRate = this.options.ullageRcsKgPerSec ?? DEFAULT_OPTIONS.ullageRcsKgPerSec;
+    const ullageTankKey = this.options.defaultUllageTankKey ?? DEFAULT_OPTIONS.defaultUllageTankKey;
 
     return {
       type: 'csm_sps',
       tankKey: 'csm_sps',
-      massFlowKgPerSec: this.options.csmSpsMassFlowKgPerSec ?? DEFAULT_OPTIONS.csmSpsMassFlowKgPerSec,
+      massFlowKgPerSec,
+      ullage: ullageRate > 0 && ullageTankKey
+        ? { tankKey: ullageTankKey, massFlowKgPerSec: ullageRate }
+        : null,
     };
   }
 
@@ -420,6 +499,24 @@ export class AutopilotRunner {
       return null;
     }
     return value.endsWith('_kg') ? value : `${value}_kg`;
+  }
+
+  #coerceNumber(value) {
+    if (value == null) {
+      return null;
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return null;
+      }
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
   }
 
   #nextCommandElapsed(state) {
