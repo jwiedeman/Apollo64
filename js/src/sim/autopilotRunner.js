@@ -10,11 +10,12 @@ const DEFAULT_OPTIONS = {
 
 export class AutopilotRunner {
   constructor(resourceSystem, logger, options = {}) {
-    const { rcsController = null, ...restOptions } = options ?? {};
+    const { rcsController = null, manualActionRecorder = null, ...restOptions } = options ?? {};
     this.resourceSystem = resourceSystem;
     this.logger = logger;
     this.options = { ...DEFAULT_OPTIONS, ...restOptions };
     this.rcsController = rcsController ?? null;
+    this.manualActionRecorder = manualActionRecorder ?? null;
 
     this.active = new Map();
     this.metrics = {
@@ -26,6 +27,7 @@ export class AutopilotRunner {
       propellantKgByTank: Object.create(null),
       totalRcsImpulseNs: 0,
       totalRcsPulses: 0,
+      dskyEntries: 0,
     };
     this.lastUpdateGetSeconds = 0;
   }
@@ -80,6 +82,7 @@ export class AutopilotRunner {
         rcsKg: 0,
         rcsPulses: 0,
         rcsImpulseNs: 0,
+        dskyEntries: 0,
       },
     };
 
@@ -141,6 +144,7 @@ export class AutopilotRunner {
       rcsKg: state.metrics.rcsKg,
       rcsPulses: state.metrics.rcsPulses,
       rcsImpulseNs: state.metrics.rcsImpulseNs,
+      dskyEntries: state.metrics.dskyEntries,
     });
   }
 
@@ -171,6 +175,7 @@ export class AutopilotRunner {
         rcsPulses: state.metrics.rcsPulses,
         rcsImpulseNs: state.metrics.rcsImpulseNs,
         rcsKg: state.metrics.rcsKg,
+        dskyEntries: state.metrics.dskyEntries,
       });
     }
 
@@ -193,6 +198,7 @@ export class AutopilotRunner {
       totalUllageSeconds: this.metrics.totalUllageSeconds,
       totalRcsImpulseNs: this.metrics.totalRcsImpulseNs,
       totalRcsPulses: this.metrics.totalRcsPulses,
+      totalDskyEntries: this.metrics.dskyEntries,
       propellantKgByTank: { ...this.metrics.propellantKgByTank },
       activeAutopilots,
       primary,
@@ -368,6 +374,20 @@ export class AutopilotRunner {
         }
         break;
       }
+      case 'dsky_entry':
+      case 'dsky_macro': {
+        const entry = this.#normalizeDskyCommand(command);
+        if (!entry) {
+          this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} DSKY entry skipped`, {
+            eventId: state.eventId,
+            reason: 'invalid_payload',
+          });
+          break;
+        }
+
+        this.#recordDskyEntry(state, entry, commandGetSeconds);
+        break;
+      }
       default: {
         this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} unknown command ${commandName}`, {
           eventId: state.eventId,
@@ -375,6 +395,92 @@ export class AutopilotRunner {
         break;
       }
     }
+  }
+
+  #recordDskyEntry(state, entry, getSeconds) {
+    const registers = entry.registers && Object.keys(entry.registers).length > 0
+      ? { ...entry.registers }
+      : undefined;
+    const sequence = entry.sequence && entry.sequence.length > 0 ? [...entry.sequence] : undefined;
+
+    const payload = {
+      eventId: state.eventId,
+      autopilotId: state.autopilotId,
+      macroId: entry.macroId ?? undefined,
+      verb: entry.verb ?? undefined,
+      noun: entry.noun ?? undefined,
+      verbLabel: this.#formatVerbNoun(entry.verb),
+      nounLabel: this.#formatVerbNoun(entry.noun),
+      program: entry.program ?? undefined,
+      registers,
+      sequence,
+      note: entry.note ?? undefined,
+    };
+
+    this.logger?.log(getSeconds, `Autopilot ${state.autopilotId} DSKY entry executed`, payload);
+    state.metrics.dskyEntries += 1;
+    this.metrics.dskyEntries += 1;
+
+    if (this.manualActionRecorder) {
+      this.manualActionRecorder.recordDskyEntry({
+        getSeconds,
+        eventId: state.eventId,
+        autopilotId: state.autopilotId,
+        macroId: entry.macroId ?? null,
+        verb: entry.verb ?? null,
+        noun: entry.noun ?? null,
+        program: entry.program ?? null,
+        registers,
+        sequence,
+        note: entry.note ?? null,
+        actor: 'AUTO_CREW',
+      });
+    }
+  }
+
+  #normalizeDskyCommand(command) {
+    if (!command || typeof command !== 'object') {
+      return null;
+    }
+
+    const macroId = this.#normalizeString(
+      command.macro ?? command.macro_id ?? command.macroId ?? null,
+    );
+    const verb = this.#coerceVerbOrNoun(command.verb ?? command.verb_id ?? null);
+    const noun = this.#coerceVerbOrNoun(command.noun ?? command.noun_id ?? null);
+    const program = this.#normalizeString(
+      command.program ?? command.agc_program ?? command.agcProgram ?? null,
+    );
+    const registers = this.#normalizeRegisters(
+      command.registers
+        ?? command.values
+        ?? command.register_values
+        ?? command.registerValues
+        ?? null,
+    );
+    const sequence = this.#normalizeSequence(
+      command.sequence
+        ?? command.inputs
+        ?? command.key_sequence
+        ?? command.keySequence
+        ?? command.steps
+        ?? null,
+    );
+    const note = this.#normalizeString(command.note ?? command.label ?? null);
+
+    if (!macroId && verb == null && noun == null) {
+      return null;
+    }
+
+    return {
+      macroId: macroId ?? null,
+      verb,
+      noun,
+      program: program ?? null,
+      registers,
+      sequence,
+      note: note ?? null,
+    };
   }
 
   #applyContinuousEffects(state, currentGetSeconds) {
@@ -517,6 +623,7 @@ export class AutopilotRunner {
       rcsKg: state.metrics.rcsKg,
       rcsPulses: state.metrics.rcsPulses,
       rcsImpulseNs: state.metrics.rcsImpulseNs,
+      dskyEntries: state.metrics.dskyEntries,
     });
   }
 
@@ -709,6 +816,110 @@ export class AutopilotRunner {
     }
     const text = String(value).trim();
     return text.length > 0 ? text : null;
+  }
+
+  #normalizeRegisters(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return {};
+    }
+
+    const registers = {};
+    if (Array.isArray(raw)) {
+      raw.forEach((value, index) => {
+        const key = `R${index + 1}`;
+        const normalizedValue = this.#normalizeRegisterValue(value);
+        if (normalizedValue != null) {
+          registers[key] = normalizedValue;
+        }
+      });
+      return registers;
+    }
+
+    for (const [key, value] of Object.entries(raw)) {
+      const normalizedKey = this.#normalizeString(key)?.toUpperCase();
+      if (!normalizedKey) {
+        continue;
+      }
+      const normalizedValue = this.#normalizeRegisterValue(value);
+      if (normalizedValue != null) {
+        registers[normalizedKey] = normalizedValue;
+      }
+    }
+    return registers;
+  }
+
+  #normalizeRegisterValue(value) {
+    if (value == null) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value.toString();
+    }
+    return null;
+  }
+
+  #normalizeSequence(raw) {
+    if (!raw) {
+      return [];
+    }
+    if (Array.isArray(raw)) {
+      return raw
+        .map((entry) => (entry == null ? '' : String(entry).trim()))
+        .filter((entry) => entry.length > 0);
+    }
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (trimmed.length === 0) {
+        return [];
+      }
+      if (trimmed.includes('\n')) {
+        return trimmed
+          .split('\n')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+      }
+      if (trimmed.includes(',')) {
+        return trimmed
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+      }
+      return [trimmed];
+    }
+    return [];
+  }
+
+  #coerceVerbOrNoun(value) {
+    if (value == null) {
+      return null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Number.parseInt(value, 10);
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return null;
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  #formatVerbNoun(value) {
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    const integer = Number.parseInt(value, 10);
+    if (!Number.isFinite(integer)) {
+      return null;
+    }
+    return integer.toString().padStart(2, '0');
   }
 
   #normalizeIdList(value) {

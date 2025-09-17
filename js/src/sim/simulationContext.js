@@ -54,6 +54,7 @@ export async function createSimulationContext({
 
   const autopilotRunner = new AutopilotRunner(resourceSystem, logger, {
     rcsController,
+    manualActionRecorder,
   });
 
   const hudConfig = { ...(hudOptions ?? {}) };
