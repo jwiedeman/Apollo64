@@ -251,6 +251,7 @@ export class EventScheduler {
         phase: event.phase,
         status: event.status,
         opensAt: formatGET(event.getOpenSeconds ?? 0),
+        opensAtSeconds: event.getOpenSeconds ?? null,
       }));
 
     return { counts, upcoming, timeline };
