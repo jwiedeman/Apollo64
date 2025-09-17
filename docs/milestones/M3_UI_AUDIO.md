@@ -16,6 +16,7 @@ port.
 - HUD layout specifications including timing blocks, event stack, resource gauges, and maneuver widgets.
 - Audio cue taxonomy mapped to mission events and failure classes with playback priority rules and asset references.
 - Logging, replay, and accessibility guidelines covering color use, captioning, and control remapping hooks.
+- Panel hierarchy, DSKY macro catalog, and JSON data schema references in [`docs/ui/`](../ui) to guide panel highlighting, DSKY macros, and tile-mode presets.
 
 ## UI Architecture & Data Flow
 1. **State aggregation:**
