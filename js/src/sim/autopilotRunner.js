@@ -61,6 +61,7 @@ export class AutopilotRunner {
       sequence,
       nextCommandIndex: 0,
       currentThrottle: 0,
+      throttleRamp: null,
       propulsion,
       ullageWindow: null,
       lastUpdateGetSeconds: startGetSeconds,
@@ -123,6 +124,7 @@ export class AutopilotRunner {
     }
 
     this.#applyContinuousEffects(state, getSeconds);
+    state.throttleRamp = null;
     this.active.delete(eventId);
     this.metrics.aborted += 1;
 
@@ -142,6 +144,7 @@ export class AutopilotRunner {
       const elapsed = Math.max(0, now - state.startGetSeconds);
       const remaining = Math.max(0, (state.durationSeconds ?? 0) - elapsed);
       const nextCommandElapsed = this.#nextCommandElapsed(state);
+      const ramp = state.throttleRamp;
       activeAutopilots.push({
         eventId: state.eventId,
         autopilotId: state.autopilotId,
@@ -150,6 +153,13 @@ export class AutopilotRunner {
         remainingSeconds: remaining,
         currentThrottle: state.currentThrottle,
         nextCommandInSeconds: nextCommandElapsed != null ? Math.max(0, nextCommandElapsed - elapsed) : null,
+        throttleTarget: ramp ? ramp.endLevel : state.currentThrottle,
+        throttleRamp: ramp
+          ? {
+              targetLevel: ramp.endLevel,
+              secondsRemaining: Math.max(0, ramp.endGetSeconds - now),
+            }
+          : null,
       });
     }
 
@@ -211,11 +221,67 @@ export class AutopilotRunner {
         state.metrics.throttleChanges += 1;
         const level = clamp(Number(command.level ?? command.value ?? 0), 0, 1);
         state.currentThrottle = level;
+        state.throttleRamp = null;
         this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} throttle set`, {
           eventId: state.eventId,
           level,
           propulsion: state.propulsion.type,
         });
+        break;
+      }
+      case 'throttle_ramp': {
+        state.metrics.throttleChanges += 1;
+        const epsilon = this.options.epsilon ?? DEFAULT_OPTIONS.epsilon;
+        const fromLevel = clamp(
+          Number(
+            command.from ??
+              command.from_level ??
+              command.start_level ??
+              command.start ??
+              state.currentThrottle,
+          ),
+          0,
+          1,
+        );
+        const toLevel = clamp(
+          Number(
+            command.to ??
+              command.to_level ??
+              command.level ??
+              command.target ??
+              state.currentThrottle,
+          ),
+          0,
+          1,
+        );
+        const duration = Math.max(0, Number(command.duration ?? command.ramp_duration ?? 0));
+
+        if (duration <= epsilon) {
+          state.currentThrottle = toLevel;
+          state.throttleRamp = null;
+          this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} throttle instant set`, {
+            eventId: state.eventId,
+            fromLevel,
+            level: toLevel,
+            propulsion: state.propulsion.type,
+          });
+        } else {
+          state.throttleRamp = {
+            startLevel: fromLevel,
+            endLevel: toLevel,
+            startGetSeconds: commandGetSeconds,
+            endGetSeconds: commandGetSeconds + duration,
+            duration,
+          };
+          state.currentThrottle = fromLevel;
+          this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} throttle ramp`, {
+            eventId: state.eventId,
+            fromLevel,
+            toLevel,
+            durationSeconds: duration,
+            propulsion: state.propulsion.type,
+          });
+        }
         break;
       }
       default: {
@@ -228,12 +294,13 @@ export class AutopilotRunner {
   }
 
   #applyContinuousEffects(state, currentGetSeconds) {
-    const deltaSeconds = currentGetSeconds - state.lastUpdateGetSeconds;
+    const startSeconds = state.lastUpdateGetSeconds;
+    const deltaSeconds = currentGetSeconds - startSeconds;
     if (deltaSeconds <= 0) {
       return;
     }
 
-    const throttleUsage = this.#consumeThrottle(state, deltaSeconds, currentGetSeconds);
+    const throttleUsage = this.#consumeThrottle(state, startSeconds, currentGetSeconds);
     if (throttleUsage > 0) {
       state.metrics.propellantKg += throttleUsage;
       this.metrics.totalBurnSeconds += deltaSeconds;
@@ -264,10 +331,9 @@ export class AutopilotRunner {
     state.lastUpdateGetSeconds = currentGetSeconds;
   }
 
-  #consumeThrottle(state, deltaSeconds, currentGetSeconds) {
-    const throttle = state.currentThrottle;
-    const epsilon = this.options.throttleEpsilon ?? DEFAULT_OPTIONS.throttleEpsilon;
-    if (throttle <= epsilon) {
+  #consumeThrottle(state, startSeconds, endSeconds) {
+    const deltaSeconds = endSeconds - startSeconds;
+    if (!(deltaSeconds > 0)) {
       return 0;
     }
 
@@ -276,17 +342,26 @@ export class AutopilotRunner {
       return 0;
     }
 
-    const usageKg = throttle * massFlowKgPerSec * deltaSeconds;
+    const epsilon = this.options.throttleEpsilon ?? DEFAULT_OPTIONS.throttleEpsilon;
+    const { averageThrottle, endThrottle } = this.#resolveThrottleForInterval(state, startSeconds, endSeconds);
+    if (averageThrottle <= epsilon) {
+      state.currentThrottle = endThrottle;
+      return 0;
+    }
+
+    const usageKg = averageThrottle * massFlowKgPerSec * deltaSeconds;
     if (usageKg <= 0) {
+      state.currentThrottle = endThrottle;
       return 0;
     }
 
     this.resourceSystem?.recordPropellantUsage(tankKey, usageKg, {
-      getSeconds: currentGetSeconds,
+      getSeconds: endSeconds,
       source: state.autopilotId,
       note: 'autopilot_throttle',
     });
     state.metrics.burnSeconds += deltaSeconds;
+    state.currentThrottle = endThrottle;
     return usageKg;
   }
 
@@ -321,6 +396,15 @@ export class AutopilotRunner {
       state.currentThrottle = 0;
     }
 
+    if (state.throttleRamp) {
+      const rampEnd = state.throttleRamp.endGetSeconds ?? currentGetSeconds;
+      if (currentGetSeconds + epsilon < rampEnd) {
+        return;
+      }
+      state.currentThrottle = state.throttleRamp.endLevel;
+      state.throttleRamp = null;
+    }
+
     if (state.ullageWindow) {
       return;
     }
@@ -340,6 +424,7 @@ export class AutopilotRunner {
     this.active.delete(state.eventId);
     this.metrics.completed += 1;
 
+    state.throttleRamp = null;
     this.logger?.log(getSeconds, `Autopilot ${state.autopilotId} complete for event ${state.eventId}`, {
       reason,
       burnSeconds: state.metrics.burnSeconds,
@@ -492,6 +577,44 @@ export class AutopilotRunner {
     }
     const normalized = this.#normalizeTankKey(tankKey);
     this.metrics.propellantKgByTank[normalized] = (this.metrics.propellantKgByTank[normalized] ?? 0) + deltaKg;
+  }
+
+  #resolveThrottleForInterval(state, startSeconds, endSeconds) {
+    const ramp = state.throttleRamp;
+    if (!ramp) {
+      return { averageThrottle: state.currentThrottle, endThrottle: state.currentThrottle };
+    }
+
+    const startValue = this.#interpolateThrottle(ramp, startSeconds);
+    const endValue = this.#interpolateThrottle(ramp, endSeconds);
+    const averageThrottle = (startValue + endValue) * 0.5;
+
+    const epsilon = this.options.epsilon ?? DEFAULT_OPTIONS.epsilon;
+    if (endSeconds + epsilon >= ramp.endGetSeconds) {
+      state.throttleRamp = null;
+    }
+
+    return { averageThrottle, endThrottle: endValue };
+  }
+
+  #interpolateThrottle(ramp, timeSeconds) {
+    if (!ramp) {
+      return 0;
+    }
+    if (timeSeconds <= ramp.startGetSeconds) {
+      return ramp.startLevel;
+    }
+    if (timeSeconds >= ramp.endGetSeconds) {
+      return ramp.endLevel;
+    }
+
+    const range = ramp.duration > 0 ? ramp.duration : ramp.endGetSeconds - ramp.startGetSeconds;
+    if (!Number.isFinite(range) || range <= 0) {
+      return ramp.endLevel;
+    }
+
+    const t = (timeSeconds - ramp.startGetSeconds) / range;
+    return ramp.startLevel + (ramp.endLevel - ramp.startLevel) * clamp(t, 0, 1);
   }
 
   #normalizeTankKey(value) {
