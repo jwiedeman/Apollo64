@@ -4,11 +4,11 @@
   "dt": 1.0,
   "sequence": [
     {"time": 0, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": -14, "yaw_deg": 0}},
-    {"time": 5, "command": "throttle", "level": 0.92},
-    {"time": 120, "command": "throttle", "level": 0.65},
-    {"time": 420, "command": "throttle", "level": 0.45},
-    {"time": 690, "command": "throttle", "level": 0.2},
-    {"time": 720, "command": "throttle", "level": 0.0},
+    {"time": 5, "command": "throttle_ramp", "from": 0.05, "to": 0.92, "duration": 15},
+    {"time": 120, "command": "throttle_ramp", "to": 0.65, "duration": 30},
+    {"time": 420, "command": "throttle_ramp", "to": 0.45, "duration": 25},
+    {"time": 690, "command": "throttle_ramp", "to": 0.2, "duration": 12},
+    {"time": 720, "command": "throttle_ramp", "to": 0.0, "duration": 5},
     {"time": 725, "command": "attitude_hold", "target": {"roll_deg": 0, "pitch_deg": 0, "yaw_deg": 0}}
   ],
   "notes": "Simplified throttle profile derived from Apollo 11 Flight Journal PDI transcript."

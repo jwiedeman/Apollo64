@@ -29,6 +29,17 @@ Future updates will publish the ingestion notebooks under `scripts/ingest/`, exp
 
 These files use UTF-8 encoding with Unix line endings and can be imported into spreadsheets or parsed directly by ingestion tooling.
 
+## Autopilot Command Reference
+
+Automation scripts under `autopilots/` describe maneuvers as ordered command sequences. The runner in [`../../js/src/sim/autopilotRunner.js`](../../js/src/sim/autopilotRunner.js) currently supports:
+
+- `attitude_hold` — maintain an attitude target using the guidance loop.
+- `ullage_fire` — request an ullage firing for a specified duration (seconds).
+- `throttle` — step the propulsion system to a specific throttle level.
+- `throttle_ramp` — linearly transition throttle from the current (or explicit `from`) level to the `to`/`level` target over the provided `duration` seconds. Zero-duration ramps collapse to an instantaneous throttle change.
+
+The LM powered descent script (`PGM_LM_PDI.json`) now uses `throttle_ramp` entries to approximate the gradual spool-up and throttle-bucket transitions captured in the Flight Journal, giving the simulation smoother mass-flow integration for descent propellant tracking.
+
 ## Manual Action Scripts
 
 Milestone M1 introduced a manual action scripting system that can drive checklist acknowledgements and resource deltas deterministically. Script structure, examples, and usage notes live in [`manual_scripts/README.md`](manual_scripts/README.md) to keep the CLI harness and future HUD implementations in sync.
