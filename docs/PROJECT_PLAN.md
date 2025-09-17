@@ -52,6 +52,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - Text console for PAD uplinks and autopilot feedback.
 - Failure breadcrumbs highlighting causal chains (e.g., "PTC OFF → cryo boiloff ↑ → fuel cell ΔP ↓").
 - Panel switch maps, DSKY macro catalog, and workspace schemas documented in [`docs/ui/`](ui) to keep UI prerequisites aligned with mission procedures.
+- Presentation-layer component boundaries and update cadence are outlined in [`docs/ui/component_architecture.md`](ui/component_architecture.md), while cue categories, priority routing, and asset specs live in [`docs/ui/audio_cue_taxonomy.md`](ui/audio_cue_taxonomy.md) to steer Milestone M3 implementation.
 
 ## 5. Failure Taxonomy
 - **Success:** All milestones within spec.
