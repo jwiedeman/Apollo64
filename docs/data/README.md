@@ -18,7 +18,9 @@ Future updates will flesh out surface EVA timelines, transearth communications, 
 ## File Inventory
 - `events.csv` – Mission beat definitions with prerequisites, windows, and resource effects.
 - `checklists.csv` – Crew procedures broken into atomic steps.
-- `autopilots.csv` – High-level metadata for automation scripts, each pointing to a JSON profile under `autopilots/`.
+- `autopilots.csv` – High-level metadata for automation scripts, each pointing to a JSON profile under `autopilots/` and
+  defining `propulsion` JSON payloads that capture tank assignments, mass-flow rates, and optional ullage usage for the
+  resource model.
 - `failures.csv` – Recoverable and hard failure hooks tied to mission logic.
 - `pads.csv` – Uplink cards for burns and corrections.
 - `provenance.md` – Source citations for every record range.

@@ -35,6 +35,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
           entryConditions: record.entry_conditions,
           terminationConditions: record.termination_conditions,
           tolerances: parseOptionalJson(record.tolerances),
+          propulsion: record.propulsion ? parseOptionalJson(record.propulsion) : null,
           script,
           durationSeconds: computeAutopilotDuration(script),
         },

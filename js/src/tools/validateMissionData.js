@@ -90,6 +90,54 @@ async function validateAutopilots(records, context) {
       parseJsonField(record.tolerances, `Autopilot ${id} tolerances`, context);
     }
 
+    if (record.propulsion) {
+      const propulsion = parseJsonField(record.propulsion, `Autopilot ${id} propulsion`, context);
+      if (propulsion && typeof propulsion === 'object') {
+        if (propulsion.type != null && typeof propulsion.type !== 'string') {
+          addWarning(context, `Autopilot ${id} propulsion type should be a string`);
+        }
+
+        if (propulsion.tank != null && typeof propulsion.tank !== 'string') {
+          addWarning(context, `Autopilot ${id} propulsion tank should be a string`);
+        }
+        if (propulsion.tank_key != null && typeof propulsion.tank_key !== 'string') {
+          addWarning(context, `Autopilot ${id} propulsion tank_key should be a string`);
+        }
+
+        const massFlowKgRaw = propulsion.mass_flow_kg_per_s ?? propulsion.massFlowKgPerSec;
+        if (massFlowKgRaw != null && !isFiniteNumber(massFlowKgRaw)) {
+          addError(context, `Autopilot ${id} propulsion mass_flow_kg_per_s is not numeric`);
+        }
+        const massFlowLbRaw = propulsion.mass_flow_lb_per_s ?? propulsion.massFlowLbPerSec;
+        if (massFlowLbRaw != null && !isFiniteNumber(massFlowLbRaw)) {
+          addError(context, `Autopilot ${id} propulsion mass_flow_lb_per_s is not numeric`);
+        }
+
+        if (!propulsion.tank && !propulsion.tank_key && (massFlowKgRaw != null || massFlowLbRaw != null)) {
+          addWarning(context, `Autopilot ${id} propulsion defines mass flow without a tank identifier`);
+        }
+
+        if (propulsion.ullage != null) {
+          if (typeof propulsion.ullage !== 'object') {
+            addError(context, `Autopilot ${id} propulsion ullage must be an object`);
+          } else {
+            const ullageTank = propulsion.ullage.tank ?? propulsion.ullage.tank_key ?? propulsion.ullage.propellant;
+            if (ullageTank != null && typeof ullageTank !== 'string') {
+              addWarning(context, `Autopilot ${id} propulsion ullage tank should be a string`);
+            }
+            const ullageKgRaw = propulsion.ullage.mass_flow_kg_per_s ?? propulsion.ullage.massFlowKgPerSec;
+            if (ullageKgRaw != null && !isFiniteNumber(ullageKgRaw)) {
+              addError(context, `Autopilot ${id} propulsion ullage mass_flow_kg_per_s is not numeric`);
+            }
+            const ullageLbRaw = propulsion.ullage.mass_flow_lb_per_s ?? propulsion.ullage.massFlowLbPerSec;
+            if (ullageLbRaw != null && !isFiniteNumber(ullageLbRaw)) {
+              addError(context, `Autopilot ${id} propulsion ullage mass_flow_lb_per_s is not numeric`);
+            }
+          }
+        }
+      }
+    }
+
     autopilots.set(id, record);
   }
 
@@ -520,6 +568,21 @@ function getNestedValue(target, pathSpec) {
     }
     return undefined;
   }, target);
+}
+
+function isFiniteNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return false;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed);
+  }
+  return false;
 }
 
 function addError(context, message) {
