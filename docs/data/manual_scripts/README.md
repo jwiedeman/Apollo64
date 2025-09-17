@@ -8,7 +8,7 @@ Scripts are UTF-8 JSON files. The root can either be an array of action objects 
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `type` | ✔️ | `"checklist_ack"`, `"resource_delta"`, or `"propellant_burn"`. |
+| `type` | ✔️ | `"checklist_ack"`, `"resource_delta"`, `"propellant_burn"`, or `"dsky_entry"`. |
 | `get` / `time` / `get_seconds` | ✔️ | Mission time to execute. Accepts `HHH:MM:SS` or seconds. |
 | `id` |  | Optional label for log output; defaults to `<type>_<index>`. |
 | `retry_window_seconds` / `retry_until` |  | Optional retry window if prerequisites are not yet met (e.g., event still arming). |
@@ -53,6 +53,17 @@ Convenience wrapper that subtracts propellant from a named tank. Fields:
 - `tank` / `tank_key` / `propellant` (required) – Tank identifier (e.g., `"csm_rcs"`, `"lm_descent"`).
 - `amount_kg` or `amount_lb` (required) – Consumption amount; pounds are converted to kilograms automatically.
 
+#### `dsky_entry`
+
+Logs a DSKY macro or manual keypad entry for upcoming AGC integration. Fields:
+
+- `macro` / `macro_id` (optional) – Macro identifier from [`docs/ui/dsky_reference.md`](../../ui/dsky_reference.md).
+- `verb` and `noun` (required when `macro` omitted) – Numeric Verb/Noun pair.
+- `registers` / `values` (optional) – Object or array of register contents (`{"R1": "+00000"}`) that the entry supplies.
+- `sequence` / `inputs` (optional) – Ordered keypress list (`["VERB 21", "NOUN 33", "PRO"]`).
+- `program` (optional) – AGC program label for logging.
+- `note` (optional) – Freeform annotation recorded alongside the log entry.
+
 ## Example
 
 ```json
@@ -85,6 +96,21 @@ Convenience wrapper that subtracts propellant from a named tank. Fields:
     },
     "source": "manual_script",
     "note": "Load shed after consumables review"
+  },
+  {
+    "id": "LOAD_MCC1_PAD",
+    "type": "dsky_entry",
+    "get": "009:35:00",
+    "macro": "V21N33_LOAD_DV",
+    "verb": 21,
+    "noun": 33,
+    "registers": {
+      "R1": "+00020",
+      "R2": "+00000",
+      "R3": "-00005"
+    },
+    "sequence": ["VERB 21", "NOUN 33", "+00020", "+00000", "-00005", "PRO"],
+    "note": "Pre-fill MCC-1 ΔV vector"
   }
 ]
 ```

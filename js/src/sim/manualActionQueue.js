@@ -30,6 +30,7 @@ export class ManualActionQueue {
       acknowledgedSteps: 0,
       resourceDeltas: 0,
       propellantBurns: 0,
+      dskyEntries: 0,
     };
     this._nextInternalId = 0;
 
@@ -141,6 +142,7 @@ export class ManualActionQueue {
       acknowledgedSteps: this.metrics.acknowledgedSteps,
       resourceDeltas: this.metrics.resourceDeltas,
       propellantBurns: this.metrics.propellantBurns,
+      dskyEntries: this.metrics.dskyEntries,
     };
   }
 
@@ -156,6 +158,8 @@ export class ManualActionQueue {
         return this.#executeResourceDelta(action, currentGetSeconds);
       case 'propellant_burn':
         return this.#executePropellantBurn(action, currentGetSeconds);
+      case 'dsky_entry':
+        return this.#executeDskyEntry(action, currentGetSeconds);
       default:
         this.logger?.log(currentGetSeconds, `Unknown manual action type ${action.type}`, {
           actionId: action.id,
@@ -263,6 +267,55 @@ export class ManualActionQueue {
     return { status: ACTION_STATUS.SUCCESS, details: { deltaKg: action.amountKg } };
   }
 
+  #executeDskyEntry(action, currentGetSeconds) {
+    const hasMacro = Boolean(action.macroId);
+    const hasVerb = Number.isFinite(action.verb);
+    const hasNoun = Number.isFinite(action.noun);
+
+    if (!hasMacro && (!hasVerb || !hasNoun)) {
+      return { status: ACTION_STATUS.FAILURE, details: { reason: 'invalid_dsky_entry' } };
+    }
+
+    const registers = action.registers && Object.keys(action.registers).length > 0
+      ? { ...action.registers }
+      : undefined;
+    const sequence = Array.isArray(action.sequence) && action.sequence.length > 0
+      ? [...action.sequence]
+      : undefined;
+
+    const payload = { actionId: action.id };
+    if (action.macroId) {
+      payload.macroId = action.macroId;
+    }
+    const verbLabel = formatVerbNoun(action.verb);
+    if (verbLabel) {
+      payload.verb = verbLabel;
+    }
+    const nounLabel = formatVerbNoun(action.noun);
+    if (nounLabel) {
+      payload.noun = nounLabel;
+    }
+    if (action.program) {
+      payload.program = action.program;
+    }
+    if (registers) {
+      payload.registers = registers;
+    }
+    if (sequence) {
+      payload.sequence = sequence;
+    }
+    if (action.note) {
+      payload.note = action.note;
+    }
+
+    this.logger?.log(currentGetSeconds, 'Manual DSKY entry executed', payload);
+    this.metrics.dskyEntries += 1;
+
+    const details = { ...payload };
+    delete details.actionId;
+    return { status: ACTION_STATUS.SUCCESS, details };
+  }
+
   #shouldRetry(action, currentGetSeconds) {
     if (action.retryUntilSeconds == null) {
       return false;
@@ -342,6 +395,36 @@ function normalizeAction(rawAction, internalId) {
         note: rawAction.note ?? null,
       };
     }
+    case 'dsky_entry': {
+      const macroId = normalizeMacroId(rawAction.macro ?? rawAction.macro_id ?? rawAction.macroId);
+      const verb = coerceVerbOrNoun(rawAction.verb);
+      const noun = coerceVerbOrNoun(rawAction.noun);
+      const program = normalizeMacroId(rawAction.program ?? rawAction.agc_program ?? rawAction.agcProgram);
+      const registers = normalizeRegisters(
+        rawAction.registers
+          ?? rawAction.values
+          ?? rawAction.register_values
+          ?? rawAction.registerValues,
+      );
+      const sequence = normalizeSequence(
+        rawAction.sequence
+          ?? rawAction.inputs
+          ?? rawAction.key_sequence
+          ?? rawAction.keySequence
+          ?? rawAction.steps,
+      );
+
+      return {
+        ...base,
+        macroId,
+        verb,
+        noun,
+        program,
+        registers,
+        sequence,
+        note: rawAction.note ?? null,
+      };
+    }
     default:
       return base;
   }
@@ -404,4 +487,119 @@ function coerceEffect(effect) {
     return {};
   }
   return effect;
+}
+
+function normalizeMacroId(value) {
+  if (value == null) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function coerceVerbOrNoun(value) {
+  if (value == null) {
+    return null;
+  }
+  if (Number.isFinite(value)) {
+    return Number(value);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+    const numeric = Number.parseInt(trimmed, 10);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+  return null;
+}
+
+function normalizeRegisters(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+
+  const registers = {};
+  if (Array.isArray(raw)) {
+    raw.forEach((value, index) => {
+      const key = `R${index + 1}`;
+      const normalized = normalizeRegisterValue(value);
+      if (normalized != null) {
+        registers[key] = normalized;
+      }
+    });
+    return registers;
+  }
+
+  for (const [key, value] of Object.entries(raw)) {
+    if (!key) {
+      continue;
+    }
+    const normalizedKey = String(key).trim().toUpperCase();
+    if (!normalizedKey) {
+      continue;
+    }
+    const normalizedValue = normalizeRegisterValue(value);
+    if (normalizedValue != null) {
+      registers[normalizedKey] = normalizedValue;
+    }
+  }
+  return registers;
+}
+
+function normalizeRegisterValue(value) {
+  if (value == null) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (Number.isFinite(value)) {
+    return Number(value).toString();
+  }
+  return null;
+}
+
+function normalizeSequence(raw) {
+  if (!raw) {
+    return [];
+  }
+  if (Array.isArray(raw)) {
+    return raw
+      .map((entry) => (entry == null ? '' : String(entry).trim()))
+      .filter((entry) => entry.length > 0);
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      return [];
+    }
+    if (trimmed.includes('\n')) {
+      return trimmed
+        .split('\n')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+    }
+    if (trimmed.includes(',')) {
+      return trimmed
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+    }
+    return [trimmed];
+  }
+  return [];
+}
+
+function formatVerbNoun(value) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  const integer = Number.parseInt(value, 10);
+  if (!Number.isFinite(integer)) {
+    return null;
+  }
+  return integer.toString().padStart(2, '0');
 }
