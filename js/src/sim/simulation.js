@@ -7,6 +7,7 @@ export class Simulation {
     resourceSystem,
     checklistManager = null,
     manualActionQueue = null,
+    autopilotRunner = null,
     logger,
     tickRate = 20,
   }) {
@@ -14,6 +15,7 @@ export class Simulation {
     this.resourceSystem = resourceSystem;
     this.checklistManager = checklistManager;
     this.manualActions = manualActionQueue;
+    this.autopilotRunner = autopilotRunner;
     this.logger = logger;
     this.clock = new SimulationClock({ tickRate });
     this.tickRate = tickRate;
@@ -38,6 +40,7 @@ export class Simulation {
     const finalState = this.resourceSystem.snapshot();
     const checklistStats = this.checklistManager ? this.checklistManager.stats() : null;
     const manualStats = this.manualActions ? this.manualActions.stats() : null;
+    const autopilotStats = this.autopilotRunner ? this.autopilotRunner.stats() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       ticks,
@@ -46,6 +49,7 @@ export class Simulation {
       resources: finalState,
       checklists: checklistStats,
       manualActions: manualStats,
+      autopilot: autopilotStats,
     });
 
     return {
@@ -55,6 +59,7 @@ export class Simulation {
       resources: finalState,
       checklists: checklistStats,
       manualActions: manualStats,
+      autopilot: autopilotStats,
     };
   }
 }
