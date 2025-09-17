@@ -101,7 +101,7 @@ Tile mode allows power users to reconfigure panes while the Always-On HUD stays 
 - **Screen reader hints:** Provide ARIA labels for key metrics (GET, resource percentages, checklist step) and ensure focus order matches mission workflow.
 
 ## Implementation Checklist
-1. Extend simulator HUD aggregator to emit `ui_frame` snapshots with scheduler, resource, autopilot, checklist, and failure slices.
+1. Extend simulator HUD aggregator to emit `ui_frame` snapshots with scheduler, resource, autopilot, checklist, and failure slices (implemented in [`UiFrameBuilder`](../../js/src/hud/uiFrameBuilder.js)).
 2. Build Always-On HUD component with responsive scaling rules and caution thresholds derived from `docs/data/consumables.json` and resource model defaults.
 3. Implement view containers (Navigation, Controls, Systems) that subscribe to `ui_frame` updates and manage overlay activation based on scheduler/autopilot states.
 4. Wire tile mode presets to JSON loader/saver, validating layout metadata from `workspaces.json` once the schema lands.

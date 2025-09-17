@@ -23,6 +23,7 @@ port.
    - Subscribe to scheduler, resource, autopilot, and failure evaluators introduced in M1/M2.
    - Normalize updates into a single `ui_frame` payload with timestamps, active events, resource deltas, checklist progress, and
      active maneuvers.
+   - `UiFrameBuilder` (`js/src/hud/uiFrameBuilder.js`) now implements this aggregation, exposing deterministic frames consumed by the CLI HUD and future view layers (see [`docs/ui/ui_frame_reference.md`](../ui/ui_frame_reference.md)).
    - Guarantee deterministic ordering by applying mutations during the simulation loop’s `refresh_hud` pass.
 2. **Component layers:**
    - **Core HUD:** Static layout sized for 320×240, rendering via HTML/CSS/Canvas in the JS build and line primitives on N64.
