@@ -3,6 +3,7 @@ import { DATA_DIR } from './config/paths.js';
 import { loadMissionData } from './data/missionDataLoader.js';
 import { MissionLogger } from './logging/missionLogger.js';
 import { EventScheduler } from './sim/eventScheduler.js';
+import { ChecklistManager } from './sim/checklistManager.js';
 import { ResourceSystem } from './sim/resourceSystem.js';
 import { Simulation } from './sim/simulation.js';
 import { formatGET, parseGET } from './utils/time.js';
@@ -18,6 +19,10 @@ async function main() {
 
   const missionData = await loadMissionData(DATA_DIR, { logger });
 
+  const checklistManager = new ChecklistManager(missionData.checklists, logger, {
+    autoAdvance: args.autoChecklists,
+    defaultStepDurationSeconds: args.checklistStepSeconds,
+  });
   const resourceSystem = new ResourceSystem(logger, {
     logIntervalSeconds: args.logIntervalSeconds,
   });
@@ -27,7 +32,7 @@ async function main() {
     resourceSystem,
     logger,
     {
-      checklists: missionData.checklists,
+      checklistManager,
       failures: missionData.failures,
     },
   );
@@ -35,6 +40,7 @@ async function main() {
   const simulation = new Simulation({
     scheduler,
     resourceSystem,
+    checklistManager,
     logger,
     tickRate: args.tickRate,
   });
@@ -51,6 +57,8 @@ function parseArgs(argv) {
     quiet: false,
     tickRate: 20,
     logIntervalSeconds: 3600,
+    autoChecklists: true,
+    checklistStepSeconds: 15,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -90,6 +98,18 @@ function parseArgs(argv) {
         i += 1;
         break;
       }
+      case '--manual-checklists':
+        args.autoChecklists = false;
+        break;
+      case '--checklist-step-seconds': {
+        const next = Number(argv[i + 1]);
+        if (!Number.isFinite(next) || next <= 0) {
+          throw new Error('--checklist-step-seconds requires a positive number');
+        }
+        args.checklistStepSeconds = next;
+        i += 1;
+        break;
+      }
       default:
         break;
     }
@@ -110,6 +130,17 @@ function printSummary(summary) {
     }
   }
   console.log('Resource snapshot:', summary.resources);
+  if (summary.checklists) {
+    console.log('Checklist totals:', summary.checklists.totals);
+    if (summary.checklists.active.length > 0) {
+      console.log('Active checklists:');
+      for (const entry of summary.checklists.active) {
+        console.log(
+          `  • ${entry.eventId} (${entry.checklistId}) — ${entry.completedSteps}/${entry.totalSteps} steps complete`,
+        );
+      }
+    }
+  }
 }
 
 main().catch((error) => {

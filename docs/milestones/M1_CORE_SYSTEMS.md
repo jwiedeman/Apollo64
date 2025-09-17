@@ -76,13 +76,14 @@ The HUD can be console-based during M1—rendered as a simple text grid updated 
 
 ## Implementation Snapshot — JS Prototype Harness
 - **Entrypoint:** [`js/src/index.js`](../../js/src/index.js) initializes the mission datasets, scheduler, and resource model, then marches the simulation to a target GET at a deterministic 20 Hz cadence.
-- **Data ingestion:** [`js/src/data/missionDataLoader.js`](../../js/src/data/missionDataLoader.js) parses the M0 CSVs without external dependencies, loads autopilot JSON payloads, estimates their durations, and groups checklist rows for future manual acknowledgement.
+- **Data ingestion:** [`js/src/data/missionDataLoader.js`](../../js/src/data/missionDataLoader.js) parses the M0 CSVs without external dependencies, loads autopilot JSON payloads, estimates their durations, and assembles checklist maps consumed by the runtime.
 - **Scheduler loop:** [`js/src/sim/eventScheduler.js`](../../js/src/sim/eventScheduler.js) transitions events through `pending → armed → active → complete/failed`, applies success/failure effects into the resource system, and emits GET-stamped log entries that backstop the upcoming HUD.
+- **Checklist management:** [`js/src/sim/checklistManager.js`](../../js/src/sim/checklistManager.js) binds crew procedures to active events, auto-advancing step acknowledgement on a deterministic cadence while logging metrics for manual override tooling.
 - **Resource feedback:** [`js/src/sim/resourceSystem.js`](../../js/src/sim/resourceSystem.js) currently models aggregate power margin, cryo boiloff drift, and Passive Thermal Control state, logging hourly snapshots to quantify divergence when PTC is skipped.
 - **Logging:** [`js/src/logging/missionLogger.js`](../../js/src/logging/missionLogger.js) streams mission events to stdout today and will persist frames for replay validation once the HUD arrives.
 
 ### Known Gaps Before M1 Completion
-- Manual/checklist acknowledgement is stubbed—events without autopilot support auto-complete after a default duration rather than respecting crew input queues.
+- Checklist auto-advance currently relies on scripted cadences; manual input queues and controller bindings still need to feed acknowledgements when automation is disabled.
 - Consumable modelling lumps propellants and electrical reserves together; SPS, RCS, battery, and comm window effects still need to be represented explicitly.
 - Failure hooks only propagate `failure_id` metadata; downstream remedial event arming and cascading penalties remain to be wired into the scheduler.
 - Deterministic log replay/regression tooling is not yet capturing frame-by-frame state, leaving validation to manual CLI runs.

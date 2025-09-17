@@ -2,9 +2,10 @@ import { formatGET } from '../utils/time.js';
 import { SimulationClock } from './simulationClock.js';
 
 export class Simulation {
-  constructor({ scheduler, resourceSystem, logger, tickRate = 20 }) {
+  constructor({ scheduler, resourceSystem, checklistManager = null, logger, tickRate = 20 }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
+    this.checklistManager = checklistManager;
     this.logger = logger;
     this.clock = new SimulationClock({ tickRate });
     this.tickRate = tickRate;
@@ -24,12 +25,14 @@ export class Simulation {
 
     const stats = this.scheduler.stats();
     const finalState = this.resourceSystem.snapshot();
+    const checklistStats = this.checklistManager ? this.checklistManager.stats() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       ticks,
       events: stats.counts,
       upcoming: stats.upcoming,
       resources: finalState,
+      checklists: checklistStats,
     });
 
     return {
@@ -37,6 +40,7 @@ export class Simulation {
       finalGetSeconds: this.clock.getCurrent(),
       events: stats,
       resources: finalState,
+      checklists: checklistStats,
     };
   }
 }

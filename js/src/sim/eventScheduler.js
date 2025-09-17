@@ -13,6 +13,7 @@ export class EventScheduler {
     this.logger = logger;
     this.resourceSystem = resourceSystem;
     this.options = options;
+    this.checklistManager = options.checklistManager ?? null;
     this.events = events.map((event) => this.prepareEvent(event, autopilotMap));
     this.eventMap = new Map(this.events.map((event) => [event.id, event]));
   }
@@ -20,13 +21,9 @@ export class EventScheduler {
   prepareEvent(event, autopilotMap) {
     const autopilotId = event.autopilotId ?? event.autopilot_script ?? event.autopilot_script_id ?? null;
     const autopilot = autopilotId ? autopilotMap.get(autopilotId) ?? null : null;
-    const windowSeconds = Math.max(0, (event.getCloseSeconds ?? 0) - (event.getOpenSeconds ?? 0));
-    let manualDuration = 120;
-    if (windowSeconds > 0) {
-      const halfWindow = windowSeconds * 0.5;
-      const safeWindow = Math.max(5, windowSeconds - 1);
-      manualDuration = Math.max(5, Math.min(halfWindow, safeWindow, 600));
-    }
+    const hasChecklist = Boolean(event.checklistId && this.checklistManager?.hasChecklist(event.checklistId));
+    const expectedDurationSeconds = this.estimateExpectedDuration({ event, autopilot, hasChecklist });
+    const requiresDurationGate = Boolean(autopilot) || !hasChecklist;
 
     return {
       ...event,
@@ -35,11 +32,39 @@ export class EventScheduler {
       status: STATUS.PENDING,
       activationTimeSeconds: null,
       completionTimeSeconds: null,
-      expectedDurationSeconds: autopilot?.durationSeconds ?? manualDuration,
+      expectedDurationSeconds,
+      requiresDurationGate,
+      requiresChecklist: hasChecklist,
     };
   }
 
+  estimateExpectedDuration({ event, autopilot, hasChecklist }) {
+    if (autopilot?.durationSeconds > 0) {
+      return autopilot.durationSeconds;
+    }
+
+    if (hasChecklist && this.checklistManager) {
+      const estimate = this.checklistManager.estimateDuration(event.checklistId);
+      if (estimate > 0) {
+        return estimate;
+      }
+    }
+
+    const windowSeconds = Math.max(0, (event.getCloseSeconds ?? 0) - (event.getOpenSeconds ?? 0));
+    if (windowSeconds <= 0) {
+      return 120;
+    }
+
+    const halfWindow = windowSeconds * 0.5;
+    const safeWindow = Math.max(5, windowSeconds - 1);
+    return Math.max(5, Math.min(halfWindow, safeWindow, 600));
+  }
+
   update(currentGetSeconds, dtSeconds) {
+    if (this.checklistManager) {
+      this.checklistManager.update(currentGetSeconds, dtSeconds);
+    }
+
     for (const event of this.events) {
       switch (event.status) {
         case STATUS.PENDING:
@@ -95,6 +120,12 @@ export class EventScheduler {
       checklist: event.checklistId,
       expectedDurationSeconds: event.expectedDurationSeconds,
     });
+    if (event.checklistId && this.checklistManager) {
+      this.checklistManager.activateEvent(event, currentGetSeconds, {
+        expectedDurationSeconds: event.expectedDurationSeconds,
+        windowCloseSeconds: event.getCloseSeconds,
+      });
+    }
   }
 
   maybeComplete(event, currentGetSeconds) {
@@ -103,7 +134,10 @@ export class EventScheduler {
     }
 
     const elapsed = currentGetSeconds - (event.activationTimeSeconds ?? currentGetSeconds);
-    if (elapsed < event.expectedDurationSeconds) {
+    const timerSatisfied = !event.requiresDurationGate || elapsed >= event.expectedDurationSeconds;
+    const checklistSatisfied = !event.requiresChecklist || this.checklistManager?.isEventComplete(event.id);
+
+    if (!timerSatisfied || !checklistSatisfied) {
       return;
     }
 
@@ -117,6 +151,9 @@ export class EventScheduler {
       source: event.id,
       type: 'success',
     });
+    if (event.checklistId && this.checklistManager) {
+      this.checklistManager.finalizeEvent(event.id, currentGetSeconds);
+    }
   }
 
   maybeFail(event, currentGetSeconds, reason) {
@@ -141,6 +178,9 @@ export class EventScheduler {
       source: event.id,
       type: 'failure',
     });
+    if (event.checklistId && this.checklistManager) {
+      this.checklistManager.abortEvent(event.id, currentGetSeconds, reason);
+    }
   }
 
   arePrerequisitesComplete(event) {
