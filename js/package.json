@@ -1,0 +1,15 @@
+{
+  "name": "apollo11-sim-js",
+  "version": "0.1.0",
+  "description": "JS prototype for the Apollo 11 real-time mission simulator",
+  "type": "module",
+  "scripts": {
+    "start": "node ./src/index.js",
+    "check": "node --check ./src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "license": "MIT"
+}

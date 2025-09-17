@@ -74,6 +74,19 @@ PTC status becomes an event in the scheduler with success criteria "roll rate wi
 
 The HUD can be console-based during M1—rendered as a simple text grid updated each frame—before migrating to a graphical display in later milestones.
 
+## Implementation Snapshot — JS Prototype Harness
+- **Entrypoint:** [`js/src/index.js`](../../js/src/index.js) initializes the mission datasets, scheduler, and resource model, then marches the simulation to a target GET at a deterministic 20 Hz cadence.
+- **Data ingestion:** [`js/src/data/missionDataLoader.js`](../../js/src/data/missionDataLoader.js) parses the M0 CSVs without external dependencies, loads autopilot JSON payloads, estimates their durations, and groups checklist rows for future manual acknowledgement.
+- **Scheduler loop:** [`js/src/sim/eventScheduler.js`](../../js/src/sim/eventScheduler.js) transitions events through `pending → armed → active → complete/failed`, applies success/failure effects into the resource system, and emits GET-stamped log entries that backstop the upcoming HUD.
+- **Resource feedback:** [`js/src/sim/resourceSystem.js`](../../js/src/sim/resourceSystem.js) currently models aggregate power margin, cryo boiloff drift, and Passive Thermal Control state, logging hourly snapshots to quantify divergence when PTC is skipped.
+- **Logging:** [`js/src/logging/missionLogger.js`](../../js/src/logging/missionLogger.js) streams mission events to stdout today and will persist frames for replay validation once the HUD arrives.
+
+### Known Gaps Before M1 Completion
+- Manual/checklist acknowledgement is stubbed—events without autopilot support auto-complete after a default duration rather than respecting crew input queues.
+- Consumable modelling lumps propellants and electrical reserves together; SPS, RCS, battery, and comm window effects still need to be represented explicitly.
+- Failure hooks only propagate `failure_id` metadata; downstream remedial event arming and cascading penalties remain to be wired into the scheduler.
+- Deterministic log replay/regression tooling is not yet capturing frame-by-frame state, leaving validation to manual CLI runs.
+
 ## Validation & Testing
 - **Determinism Check:** Run the same 6-hour mission slice twice and confirm byte-identical state logs.
 - **Resource Drift Test:** Simulate PTC off vs. on and verify expected divergence in cryo/power reserves after 3 hours.
