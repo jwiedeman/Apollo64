@@ -90,6 +90,7 @@ Each CSV should include a header row, adhere to UTF-8, and avoid Excel artifacts
 
 ### Current Dataset Status
 - Launch through LM ascent and rendezvous (GET ≤ 128:30:00) populated across all CSV packs with DOI targeting, LM separation, powered descent, landing safing, and ascent docking flows.
+- Surface EVA-1 prep/egress/traverse/closeout and transearth DSN communications passes now contribute resource deltas, checklists, and failure hooks aligned to Flight Plan Sections 7–8 and Flight Journal Day 5–6 coverage.
 - Autopilot JSON assets under `docs/data/autopilots/` now cover TLI, MCC-1/2/3/4, LOI-1/2, DOI, LM powered descent, and LM ascent and are referenced by the metadata CSV.
 - Provenance log documents the specific Flight Plan, Flight Journal, and Mission Operations Report sections leveraged to date, including the Section 7 LM operations references.
 - Consumable budgets captured in `docs/data/consumables.json` seed the simulation with launch-day power, propellant, and life-support margins for both vehicles.

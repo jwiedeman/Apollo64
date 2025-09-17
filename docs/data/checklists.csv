@@ -125,6 +125,18 @@ FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,Joint,3,Arm engine s
 FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,CDR,1,Shut down descent engine and valves,Descent engine valves closed,Flight Plan p. 7-24
 FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,LMP,2,Configure ECS to POST-LAND mode,Cabin pressure stable 4.8 psi,Flight Plan p. 7-24
 FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,Joint,3,Transmit stay or no-stay decision,MCC concurs with stay,Flight Journal Day 5 102:50 GET
+FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,1,Configure LM cabin to PRE-EVA mode,Cabin pressure trending to 3.5 psi with suit circuit breakers set,Flight Plan p. 7-26
+FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,2,Verify PLSS O2 and water quantities,PLSS gauges within EVA launch limits,Flight Plan p. 7-26
+FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,3,Perform suit communications and biomedical checks,Voice/biomed loops GO for EVA,Flight Journal Day 5 109:15 GET
+FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,Joint,1,Depress cabin and open forward hatch,Cabin pressure <0.2 psia and hatch latched open,Flight Plan p. 7-27
+FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,CDR,2,Descend ladder and deploy MESA/TV,TV and MESA deployed; footpads inspected,Flight Journal Day 5 109:45 GET
+FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,LMP,3,Translate to porch and verify tether routing,Tether routed clear; handrail ready for descent,Flight Plan p. 7-27
+FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,1,Plant flag and document site,Flag secured; imagery recorded,Flight Journal Day 5 110:40 GET
+FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,2,Collect contingency and bulk samples,Samples sealed in SRC #1,Flight Plan p. 7-28
+FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,3,Deploy SWC and place seismic/traverse markers,Experiments deployed per checklist,Flight Journal Day 5 111:10 GET
+FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,1,Stow sample boxes and secure TV,MESA closed; SRCs latched,Flight Plan p. 7-30
+FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,2,Brush suits and verify LM cabin configuration,Suits brushed; LM ECS valves set to REPRESS,Flight Journal Day 5 112:30 GET
+FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,3,Initiate repressurization and close hatch,Cabin climbing through 3.5 psia; hatch secure,Flight Plan p. 7-30
 FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,LMP,1,Load ascent PAD into AGC and AGS,P12 displays updated TIG,Flight Plan p. 7-28
 FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CDR,2,Align platform with P52 option 3,IMU residuals < 0.3°,Flight Plan p. 7-29
 FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CMP,3,Verify CSM rendezvous plan,CSM state vector uplinked,Flight Journal Day 5 123:55 GET
@@ -149,6 +161,12 @@ FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,CMP,1,Update state vector with TEI tra
 FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,Joint,2,Report return trajectory solution to MCC,Return time copy read back,Flight Plan p. 8-10
 FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,CMP,1,Roll to Passive Thermal Control rate 0.3°/s,RCS trim pulses nominal,Flight Plan p. 8-12
 FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,Joint,2,Log cryo boiloff and thermal status,Heat balance trend stabilized,Flight Journal Day 6 137:00 GET
+FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,CMP,1,Slew high-gain antenna to HS station angles,HGA angles within comm limits,Flight Plan p. 8-13
+FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,CDR,2,Review PAD/comm updates with CapCom,Updated PAD parameters copied to DSE log,Flight Journal Day 6 137:45 GET
+FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,Joint,3,Log consumables/thermal trending for downlink,Downlink package transmitted,Flight Plan p. 8-13
+FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,CMP,1,Align high-gain antenna to Goldstone geometry,HGA AGC > 20 dB,Flight Plan p. 8-17
+FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,Joint,2,Record entry update and crew status with CapCom,Entry PAD update acknowledged,Flight Journal Day 6 147:15 GET
+FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,Joint,3,Confirm handover to next DSN shift,Next window logged in comm planner,Flight Plan p. 8-17
 FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,CMP,1,Read MCC-5 PAD and confirm TIG,Guidance updates TIG 138:58:00,Flight Plan p. 8-14
 FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,Joint,2,Load burn targets into Program 30,P30 register 1 matches PAD,Flight Journal Day 6 138:30 GET
 FP_8-16_MCC5_EXEC,MCC-5 Execution,138:55:00,CMP,1,Fire SPS per PAD and monitor Δv,Δv achieved within 0.5 ft/s,Flight Journal Day 6 138:59 GET
