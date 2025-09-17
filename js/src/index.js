@@ -26,6 +26,10 @@ async function main() {
     checklistStepSeconds: args.checklistStepSeconds,
     manualActionScriptPath: args.manualScriptPath,
     manualActionRecorder,
+    hudOptions: {
+      enabled: args.showHud && !args.quiet,
+      renderIntervalSeconds: args.hudIntervalSeconds,
+    },
   });
 
   const untilSeconds = args.untilSeconds ?? parseGET('015:00:00');
@@ -63,6 +67,8 @@ function parseArgs(argv) {
     logFile: null,
     logPretty: false,
     recordManualScriptPath: null,
+    showHud: true,
+    hudIntervalSeconds: 600,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -144,6 +150,19 @@ function parseArgs(argv) {
         i += 1;
         break;
       }
+      case '--no-hud':
+      case '--disable-hud':
+        args.showHud = false;
+        break;
+      case '--hud-interval': {
+        const next = Number(argv[i + 1]);
+        if (!Number.isFinite(next) || next <= 0) {
+          throw new Error('--hud-interval requires a positive number of seconds');
+        }
+        args.hudIntervalSeconds = next;
+        i += 1;
+        break;
+      }
       default:
         break;
     }
@@ -202,6 +221,16 @@ function printSummary(summary) {
           `  • ${active.eventId} (${active.autopilotId}) — ${active.propulsion} throttle ${throttle}; remaining ${remaining} s`,
         );
       }
+    }
+  }
+  if (summary.hud) {
+    console.log('HUD stats:', {
+      enabled: summary.hud.enabled,
+      renderIntervalSeconds: summary.hud.renderIntervalSeconds,
+      renderCount: summary.hud.renderCount,
+    });
+    if (summary.hud.lastSnapshot) {
+      console.log('Last HUD snapshot:', summary.hud.lastSnapshot);
     }
   }
 }

@@ -7,6 +7,7 @@ import { ChecklistManager } from './checklistManager.js';
 import { ResourceSystem } from './resourceSystem.js';
 import { AutopilotRunner } from './autopilotRunner.js';
 import { Simulation } from './simulation.js';
+import { TextHud } from '../hud/textHud.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -29,6 +30,7 @@ export async function createSimulationContext({
   manualActions = DEFAULT_OPTIONS.manualActions,
   manualActionRecorder = null,
   manualQueueOptions = DEFAULT_OPTIONS.manualQueueOptions,
+  hudOptions = null,
 } = {}) {
   const resolvedDataDir = path.resolve(dataDir);
   const missionData = await loadMissionData(resolvedDataDir, { logger });
@@ -45,6 +47,11 @@ export async function createSimulationContext({
   });
 
   const autopilotRunner = new AutopilotRunner(resourceSystem, logger);
+
+  const hud = new TextHud({
+    logger,
+    ...(hudOptions ?? {}),
+  });
 
   let manualActionQueue = null;
   if (Array.isArray(manualActions) && manualActions.length > 0) {
@@ -81,6 +88,7 @@ export async function createSimulationContext({
     checklistManager,
     manualActionQueue,
     autopilotRunner,
+    hud,
     logger,
     tickRate,
   });
@@ -93,6 +101,7 @@ export async function createSimulationContext({
     resourceSystem,
     manualActionQueue,
     autopilotRunner,
+    hud,
     manualActionRecorder,
     logger,
     options: {
