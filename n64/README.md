@@ -1,6 +1,7 @@
 # N64 Port Workspace
 
 The N64 build will reuse the systems proven in the JS prototype while targeting libdragon for homebrew-friendly development.
+Detailed milestone planning lives in [`../docs/milestones/M4_N64_PORT.md`](../docs/milestones/M4_N64_PORT.md).
 
 Key preparation tasks:
 
