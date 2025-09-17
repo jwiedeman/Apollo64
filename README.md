@@ -33,6 +33,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - Milestone M6 fidelity pass outline in [`docs/milestones/M6_FIDELITY_PASS.md`](docs/milestones/M6_FIDELITY_PASS.md) defines calibration targets for timelines, propulsion, resources, and communications against Apollo 11 telemetry.
 - Milestone M7 stability plan in [`docs/milestones/M7_STABILITY_FAULTS.md`](docs/milestones/M7_STABILITY_FAULTS.md) details soak-testing strategy, fault injection coverage, and automation expectations for release readiness.
 - Manual action recorder in [`js/src/logging/manualActionRecorder.js`](js/src/logging/manualActionRecorder.js) can capture auto-advanced checklist steps and export them via the CLI `--record-manual-script` flag for deterministic manual-vs-auto parity runs.
+- `ManualActionQueue` now accepts `dsky_entry` actions so scripted runs and future UI flows can log Verb/Noun inputs and macro payloads for AGC integration while keeping the mission log authoritative.
 - Ingestion workflow planning under [`scripts/ingest/`](scripts/ingest/README.md) and [`docs/data/INGESTION_PIPELINE.md`](docs/data/INGESTION_PIPELINE.md) now documents how future dataset updates move from annotated sources into the CSV/JSON packs, including notebook sequencing, validation checkpoints, and automation hooks.
 - Shared Python helpers under [`scripts/ingest/ingestlib/`](scripts/ingest/ingestlib) expose GET utilities, typed dataset loaders, validation routines, and provenance table builders so notebooks and future automation reuse a single source of truth.
 
