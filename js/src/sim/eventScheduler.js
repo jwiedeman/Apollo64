@@ -220,8 +220,26 @@ export class EventScheduler {
       [STATUS.FAILED]: 0,
     };
 
+    const timeline = {};
+
     for (const event of this.events) {
-      counts[event.status] += 1;
+      if (counts[event.status] != null) {
+        counts[event.status] += 1;
+      }
+
+      const activationSeconds = event.activationTimeSeconds ?? null;
+      const completionSeconds = event.completionTimeSeconds ?? null;
+
+      timeline[event.id] = {
+        status: event.status,
+        checklistId: event.checklistId ?? null,
+        autopilotId: event.autopilotId ?? null,
+        expectedDurationSeconds: event.expectedDurationSeconds ?? null,
+        activationSeconds,
+        completionSeconds,
+        activationGET: activationSeconds != null ? formatGET(activationSeconds) : null,
+        completionGET: completionSeconds != null ? formatGET(completionSeconds) : null,
+      };
     }
 
     const upcoming = this.events
@@ -235,6 +253,6 @@ export class EventScheduler {
         opensAt: formatGET(event.getOpenSeconds ?? 0),
       }));
 
-    return { counts, upcoming };
+    return { counts, upcoming, timeline };
   }
 }

@@ -121,7 +121,7 @@ To validate parity without managing scripts manually, use the bundled harness:
 npm run parity -- --until 015:00:00 --output out/parity.json
 ```
 
-The tool performs two back-to-back simulations (auto-advance followed by manual replay), compares event status counts, resource snapshots, and autopilot metrics, and prints a PASS/FAIL summary. The optional `--output` flag captures the JSON diff report for archival or CI gating. Additional options:
+The tool performs two back-to-back simulations (auto-advance followed by manual replay), compares event status counts, event timelines, resource snapshots, and autopilot metrics, and prints a PASS/FAIL summary. The optional `--output` flag captures the JSON diff report for archival or CI gating. Additional options:
 
 - `--tolerance <value>` – Adjust numeric comparison tolerance.
 - `--quiet` / `--verbose` – Toggle mission log verbosity during the paired runs.

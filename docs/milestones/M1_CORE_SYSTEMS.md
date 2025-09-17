@@ -87,7 +87,7 @@ The HUD can be console-based during M1—rendered as a simple text grid updated 
 - **Logging:** [`js/src/logging/missionLogger.js`](../../js/src/logging/missionLogger.js) streams mission events to stdout and can export the run to JSON for deterministic replay validation once the HUD arrives.
 
 ### Known Gaps Before M1 Completion
-- Manual action scripts now cover checklist overrides and resource deltas, and the CLI can record auto crew acknowledgements into reusable scripts; the new parity harness in [`js/src/tools/runParityCheck.js`](../../js/src/tools/runParityCheck.js) replays those recordings and highlights event/resource/autopilot diffs—next steps hook its reports into automated regression gating.
+- Manual action scripts now cover checklist overrides and resource deltas, and the CLI can record auto crew acknowledgements into reusable scripts; the parity harness in [`js/src/tools/runParityCheck.js`](../../js/src/tools/runParityCheck.js) replays those recordings, highlights event/resource/autopilot diffs, and now compares event timelines—next steps hook its reports into automated regression gating.
 - Consumable budgets seed the resource model, yet PAD-driven deltas and long-horizon trending analytics still need to be wired into the scheduler for scoring.
 - Failure hooks only propagate `failure_id` metadata; downstream remedial event arming and cascading penalties remain to be wired into the scheduler.
 - Autopilot runner currently assumes constant mass-flow rates per propulsion system; calibrate against PAD timelines and hook tolerances into the failure taxonomy so underburn/overburn conditions propagate meaningfully.
