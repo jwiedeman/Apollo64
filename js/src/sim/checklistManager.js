@@ -18,6 +18,7 @@ export class ChecklistManager {
       completed: 0,
       aborted: 0,
     };
+    this.manualActionRecorder = options.manualActionRecorder ?? null;
   }
 
   hasChecklist(checklistId) {
@@ -313,6 +314,15 @@ export class ChecklistManager {
       expectedResponse: step.expectedResponse,
       remainingSteps: remaining,
       actor,
+    });
+
+    this.manualActionRecorder?.recordChecklistAck({
+      eventId: state.eventId,
+      checklistId: state.checklistId,
+      stepNumber: step.stepNumber,
+      getSeconds,
+      actor,
+      note,
     });
   }
 }

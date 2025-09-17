@@ -15,10 +15,11 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - Milestone M2 planning notes outline guidance, RCS, and docking system requirements in [`docs/milestones/M2_GUIDANCE_RCS.md`](docs/milestones/M2_GUIDANCE_RCS.md) to steer upcoming implementation work.
 - Milestone M3 UI, HUD, and audio telemetry planning in [`docs/milestones/M3_UI_AUDIO.md`](docs/milestones/M3_UI_AUDIO.md) defines presentation-layer architecture, cue taxonomy, and accessibility handoff targets for the JS prototype and N64 port.
 - Milestone M4 N64 port plan in [`docs/milestones/M4_N64_PORT.md`](docs/milestones/M4_N64_PORT.md) maps the libdragon architecture, rendering/audio budgets, input scheme, and asset pipeline for the hardware build.
+- Manual action recorder in [`js/src/logging/manualActionRecorder.js`](js/src/logging/manualActionRecorder.js) can capture auto-advanced checklist steps and export them via the CLI `--record-manual-script` flag for deterministic manual-vs-auto parity runs.
 
 ## Immediate Priorities
 1. Continue Milestone M0 by transforming the Flight Plan, Flight Journal, and Mission Operations Report into normalized CSV packs as outlined in [`docs/milestones/M0_DATA_INGESTION.md`](docs/milestones/M0_DATA_INGESTION.md), focusing on surface EVA expansions, transearth communications, and automated validation notebooks that consume the new consumable budgets.
-2. Extend the Milestone M1 simulation harness with manual/auto parity testing, autopilot burn calibration (verifying mass-flow assumptions against mission data), and deterministic log replay suites that exercise the manual action queue and resource deltas.
+2. Extend the Milestone M1 simulation harness with manual/auto parity testing—replaying recorder-generated scripts alongside the auto crew—while continuing autopilot burn calibration (verifying mass-flow assumptions against mission data) and deterministic log replay suites that exercise the manual action queue and resource deltas.
 3. Prepare for Milestone M2 execution by deriving thruster configuration tables, validating autopilot script needs, and planning rendezvous tuning sessions following [`docs/milestones/M2_GUIDANCE_RCS.md`](docs/milestones/M2_GUIDANCE_RCS.md).
 4. Capture Milestone M3 presentation-layer requirements by prototyping HUD layouts, audio cue routing, and accessibility tooling as described in [`docs/milestones/M3_UI_AUDIO.md`](docs/milestones/M3_UI_AUDIO.md).
 

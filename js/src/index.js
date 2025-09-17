@@ -3,6 +3,7 @@ import path from 'path';
 import { DATA_DIR } from './config/paths.js';
 import { loadMissionData } from './data/missionDataLoader.js';
 import { MissionLogger } from './logging/missionLogger.js';
+import { ManualActionRecorder } from './logging/manualActionRecorder.js';
 import { EventScheduler } from './sim/eventScheduler.js';
 import { ChecklistManager } from './sim/checklistManager.js';
 import { ResourceSystem } from './sim/resourceSystem.js';
@@ -20,11 +21,14 @@ async function main() {
     tickRate: args.tickRate,
   });
 
+  const manualActionRecorder = args.recordManualScriptPath ? new ManualActionRecorder() : null;
+
   const missionData = await loadMissionData(DATA_DIR, { logger });
 
   const checklistManager = new ChecklistManager(missionData.checklists, logger, {
     autoAdvance: args.autoChecklists,
     defaultStepDurationSeconds: args.checklistStepSeconds,
+    manualActionRecorder,
   });
   const resourceSystem = new ResourceSystem(logger, {
     logIntervalSeconds: args.logIntervalSeconds,
@@ -74,6 +78,17 @@ async function main() {
     await logger.flushToFile(logPath, { pretty: args.logPretty });
     console.log(`Mission log written to ${logPath}`);
   }
+
+  if (manualActionRecorder && args.recordManualScriptPath) {
+    const scriptPath = path.resolve(args.recordManualScriptPath);
+    const result = await manualActionRecorder.writeScript(scriptPath, { pretty: true });
+    if (result) {
+      const { path: outPath, actions: actionCount, checklistEntries } = result;
+      console.log(
+        `Manual action script recorded to ${outPath} (${actionCount} actions from ${checklistEntries} checklist steps)`,
+      );
+    }
+  }
 }
 
 function parseArgs(argv) {
@@ -86,6 +101,7 @@ function parseArgs(argv) {
     manualScriptPath: null,
     logFile: null,
     logPretty: false,
+    recordManualScriptPath: null,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -158,6 +174,15 @@ function parseArgs(argv) {
       case '--log-pretty':
         args.logPretty = true;
         break;
+      case '--record-manual-script': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--record-manual-script requires a file path');
+        }
+        args.recordManualScriptPath = next;
+        i += 1;
+        break;
+      }
       default:
         break;
     }
