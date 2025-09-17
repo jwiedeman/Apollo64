@@ -6,6 +6,9 @@ import { DATA_DIR } from '../config/paths.js';
 import { parseCsv } from '../utils/csv.js';
 import { formatGET, parseGET } from '../utils/time.js';
 
+const VALID_TRANSLATION_AXES = new Set(['+X', '-X', '+Y', '-Y', '+Z', '-Z']);
+const VALID_TORQUE_AXES = new Set(['+pitch', '-pitch', '+yaw', '-yaw', '+roll', '-roll']);
+
 async function main() {
   const context = createContext();
 
@@ -26,6 +29,7 @@ async function main() {
 
   await validateConsumables(context);
   await validateCommunicationsTrends(context);
+  await validateThrusters(context);
 
   printSummary(context);
 
@@ -504,6 +508,18 @@ async function validateConsumables(context) {
       addWarning(context, `Consumables communications.next_window_open_get has invalid GET value: ${nextWindow}`);
     }
 
+    if (data.propellant && typeof data.propellant === 'object') {
+      const tankKeys = Object.keys(data.propellant)
+        .map((key) => key.trim())
+        .filter((key) => key.length > 0);
+      if (!context.refs.propellantTanks) {
+        context.refs.propellantTanks = new Set();
+      }
+      for (const key of tankKeys) {
+        context.refs.propellantTanks.add(key);
+      }
+    }
+
     context.stats.consumablesSections = Object.keys(data).length;
   } catch (error) {
     addError(context, `Failed to read consumables.json: ${error.message}`);
@@ -581,6 +597,194 @@ async function validateCommunicationsTrends(context) {
   } catch (error) {
     addError(context, `Failed to read communications_trends.json: ${error.message}`);
   }
+}
+
+async function validateThrusters(context) {
+  const filePath = path.resolve(DATA_DIR, 'thrusters.json');
+  let parsed;
+  try {
+    const content = await fs.readFile(filePath, 'utf8');
+    parsed = JSON.parse(content);
+  } catch (error) {
+    addError(context, `Failed to read thrusters.json: ${error.message}`);
+    return;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    addError(context, 'Thruster dataset is not a valid JSON object');
+    return;
+  }
+
+  const craftEntries = Array.isArray(parsed.craft) ? parsed.craft : [];
+  if (craftEntries.length === 0) {
+    addWarning(context, 'Thruster dataset defines no craft entries');
+    context.stats.thrusterCraft = 0;
+    context.stats.thrusters = 0;
+    return;
+  }
+
+  const craftIds = new Set();
+  const thrusterIds = new Set();
+  let thrusterCount = 0;
+
+  for (const [index, craft] of craftEntries.entries()) {
+    const craftLabel = `thrusters.craft[${index}]`;
+    if (!craft || typeof craft !== 'object') {
+      addError(context, `${craftLabel} is not an object`);
+      continue;
+    }
+
+    const craftId = typeof craft.id === 'string' ? craft.id.trim() : '';
+    if (!craftId) {
+      addError(context, `${craftLabel} is missing an id`);
+    } else if (craftIds.has(craftId)) {
+      addError(context, `${craftLabel} duplicate id ${craftId}`);
+    } else {
+      craftIds.add(craftId);
+    }
+
+    const tankKey = typeof craft.propellant_tank === 'string' ? craft.propellant_tank.trim() : '';
+    if (!tankKey) {
+      addWarning(context, `${craftLabel} is missing propellant_tank reference`);
+    } else if (context.refs?.propellantTanks && !context.refs.propellantTanks.has(tankKey)) {
+      addWarning(context, `${craftLabel} references unknown propellant_tank ${tankKey}`);
+    }
+
+    const rcs = craft.rcs;
+    if (!rcs || typeof rcs !== 'object') {
+      addError(context, `${craftLabel} is missing rcs configuration`);
+      continue;
+    }
+
+    const defaults = rcs.defaults ?? {};
+    const defaultThrust = toFiniteNumber(defaults.thrust_newtons);
+    const defaultIsp = toFiniteNumber(defaults.isp_seconds);
+    const defaultMinPulse = toFiniteNumber(defaults.min_impulse_seconds);
+    const defaultDuty = toFiniteNumber(defaults.max_duty_cycle);
+
+    const clusters = Array.isArray(rcs.clusters) ? rcs.clusters : [];
+    if (clusters.length === 0) {
+      addWarning(context, `${craftLabel} has no RCS clusters defined`);
+      continue;
+    }
+
+    for (const [clusterIndex, cluster] of clusters.entries()) {
+      const clusterLabel = `${craftLabel}.clusters[${clusterIndex}]`;
+      if (!cluster || typeof cluster !== 'object') {
+        addError(context, `${clusterLabel} is not an object`);
+        continue;
+      }
+
+      const clusterId = typeof cluster.id === 'string' ? cluster.id.trim() : '';
+      if (!clusterId) {
+        addWarning(context, `${clusterLabel} is missing an id`);
+      }
+
+      const radiusValue = cluster.radius_m;
+      if (radiusValue != null && !isFiniteNumber(radiusValue)) {
+        addWarning(context, `${clusterLabel}.radius_m should be numeric when present`);
+      }
+      const angleValue = cluster.angle_deg;
+      if (angleValue != null && !isFiniteNumber(angleValue)) {
+        addWarning(context, `${clusterLabel}.angle_deg should be numeric when present`);
+      }
+      const zValue = cluster.z_m;
+      if (zValue != null && !isFiniteNumber(zValue)) {
+        addWarning(context, `${clusterLabel}.z_m should be numeric when present`);
+      }
+
+      const clusterThrust = toFiniteNumber(cluster.thrust_newtons);
+      const clusterIsp = toFiniteNumber(cluster.isp_seconds);
+      const clusterMinPulse = toFiniteNumber(cluster.min_impulse_seconds);
+      const clusterDuty = toFiniteNumber(cluster.max_duty_cycle);
+
+      const thrusters = Array.isArray(cluster.thrusters) ? cluster.thrusters : [];
+      if (thrusters.length === 0) {
+        addWarning(context, `${clusterLabel} contains no thrusters`);
+        continue;
+      }
+
+      for (const [thrusterIndex, thruster] of thrusters.entries()) {
+        const thrusterLabel = `${clusterLabel}.thrusters[${thrusterIndex}]`;
+        if (!thruster || typeof thruster !== 'object') {
+          addError(context, `${thrusterLabel} is not an object`);
+          continue;
+        }
+
+        const thrusterId = typeof thruster.id === 'string' ? thruster.id.trim() : '';
+        if (!thrusterId) {
+          addError(context, `${thrusterLabel} is missing an id`);
+        } else if (thrusterIds.has(thrusterId)) {
+          addError(context, `${thrusterLabel} duplicate id ${thrusterId}`);
+        } else {
+          thrusterIds.add(thrusterId);
+        }
+
+        const translationAxis = typeof thruster.translation_axis === 'string'
+          ? thruster.translation_axis.trim().toUpperCase()
+          : '';
+        if (!translationAxis) {
+          addWarning(context, `${thrusterLabel} is missing translation_axis`);
+        } else if (!VALID_TRANSLATION_AXES.has(translationAxis)) {
+          addWarning(context, `${thrusterLabel} has unexpected translation_axis ${translationAxis}`);
+        }
+
+        const torqueAxesRaw = Array.isArray(thruster.torque_axes)
+          ? thruster.torque_axes
+          : thruster.torque_axis != null
+            ? [thruster.torque_axis]
+            : [];
+        if (torqueAxesRaw.length === 0) {
+          addWarning(context, `${thrusterLabel} lists no torque_axes`);
+        }
+        for (const axis of torqueAxesRaw) {
+          const normalized = typeof axis === 'string' ? axis.trim().toLowerCase() : '';
+          if (!normalized) {
+            addWarning(context, `${thrusterLabel} torque_axes entry is empty`);
+            continue;
+          }
+          if (!VALID_TORQUE_AXES.has(normalized)) {
+            addWarning(context, `${thrusterLabel} has unexpected torque axis ${axis}`);
+          }
+        }
+
+        const thrusterThrust = toFiniteNumber(thruster.thrust_newtons)
+          ?? clusterThrust
+          ?? defaultThrust;
+        if (thrusterThrust == null || thrusterThrust <= 0) {
+          addWarning(context, `${thrusterLabel} is missing a valid thrust_newtons value`);
+        }
+
+        const thrusterIsp = toFiniteNumber(thruster.isp_seconds) ?? clusterIsp ?? defaultIsp;
+        if (thrusterIsp == null || thrusterIsp <= 0) {
+          addWarning(context, `${thrusterLabel} is missing a valid isp_seconds value`);
+        }
+
+        const minPulse = toFiniteNumber(thruster.min_impulse_seconds) ?? clusterMinPulse ?? defaultMinPulse;
+        if (minPulse == null || minPulse < 0) {
+          addWarning(context, `${thrusterLabel} min_impulse_seconds should be ≥ 0`);
+        }
+
+        const duty = toFiniteNumber(thruster.max_duty_cycle) ?? clusterDuty ?? defaultDuty;
+        if (duty != null && (duty < 0 || duty > 1)) {
+          addWarning(context, `${thrusterLabel} max_duty_cycle should be between 0 and 1`);
+        }
+
+        const vector = thruster.approximate_vector;
+        if (vector != null) {
+          const { x, y, z } = vector;
+          if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) {
+            addWarning(context, `${thrusterLabel}.approximate_vector should include numeric x, y, z`);
+          }
+        }
+
+        thrusterCount += 1;
+      }
+    }
+  }
+
+  context.stats.thrusterCraft = craftIds.size;
+  context.stats.thrusters = thrusterCount;
 }
 
 function parseJsonField(value, label, context) {
@@ -735,6 +939,21 @@ function isFiniteNumber(value) {
     return Number.isFinite(parsed);
   }
   return false;
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function addError(context, message) {

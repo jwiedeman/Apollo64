@@ -8,6 +8,7 @@ Milestone M0 bootstraps the simulator with structured mission data extracted fro
 - Checklist CSV mirroring the Apollo 11 Flight Plan and supporting callouts.
 - PAD uplink dataset for guidance, burns, and consumables updates.
 - Provenance log linking each derived record to its page/paragraph in the source documents.
+- Thruster geometry JSON capturing CSM/LM RCS cluster placement, control axes, and baseline performance figures.
 
 ## Source Inventory
 | Source | Coverage | Notes |
@@ -85,6 +86,7 @@ Milestone M0 bootstraps the simulator with structured mission data extracted fro
 - `docs/data/pads.csv`
 - `docs/data/provenance.md`
 - `docs/data/consumables.json`
+- `docs/data/thrusters.json`
 
 Each CSV should include a header row, adhere to UTF-8, and avoid Excel artifacts (smart quotes, tabs). `provenance.md` lists each dataset row range with citations (Flight Plan page, Journal entry time).
 
@@ -94,6 +96,7 @@ Each CSV should include a header row, adhere to UTF-8, and avoid Excel artifacts
 - Autopilot JSON assets under `docs/data/autopilots/` now cover TLI, MCC-1/2/3/4, LOI-1/2, DOI, LM powered descent, and LM ascent and are referenced by the metadata CSV.
 - Provenance log documents the specific Flight Plan, Flight Journal, and Mission Operations Report sections leveraged to date, including the Section 7 LM operations references.
 - Consumable budgets captured in `docs/data/consumables.json` seed the simulation with launch-day power, propellant, and life-support margins for both vehicles.
+- Thruster metadata in `docs/data/thrusters.json` maps CSM and LM RCS clusters to their control axes so Milestone M2 can consume the geometry without revisiting the source manuals.
 
 ## Tooling Recommendations
 - Use a lightweight Python ingestion script (`scripts/ingest/` to be created later) to convert annotated spreadsheets into CSV, preserving GET formatting and verifying dependencies.

@@ -76,3 +76,7 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `PAD_PDI_001`: Apollo 11 Flight Plan Section 7 PDI targeting tables and Flight Journal Day 5 descent transcript for throttle cues.
 - `PAD_ASCENT_001`: Apollo 11 Flight Plan Section 7 ascent PAD data supplemented by Flight Journal Day 5 ascent and rendezvous updates.
 - `PAD_TEI_001`, `PAD_MCC5_001`, `PAD_ENTRY_001`: Apollo 11 Flight Plan Section 8 TEI and entry PAD tables, Mission Operations Report Section 3.7 MCC-5 budgets, and Flight Journal Day 6–8 commentary for timing and parameter verification.
+
+## `thrusters.json`
+- CSM RCS cluster layout, thrust levels, and duty-cycle limits: Apollo 11 Command and Service Module News Reference (Block II), Section 2.10 Reaction Control System schematics and performance tables.
+- LM RCS cluster placement, torque axes, and impulse-bit guidance: Apollo 11 Lunar Module News Reference, Reaction Control System chapter (Figures 2-12 through 2-16) and performance data tables.

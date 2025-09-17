@@ -6,6 +6,7 @@ This directory contains the structured mission datasets produced during Mileston
 - Launch through transearth coast, atmospheric entry, and splashdown (GET 000:00:00 → 195:25:00).
 - Passive Thermal Control monitoring, MCC-1/2/3/4 PAD flows and execution logic, LOI-focused P52 realignment, DOI planning, LM separation and powered descent, landing/post-landing safing, surface EVA-1 prep/egress/traverse/closeout **plus the contingency EVA-2 extension**, ascent rendezvous guidance, TEI preparation and burn execution, MCC-5 return correction, transearth DSN communications passes with signal-strength trend analytics, entry PAD alignment, service module jettison, and recovery procedures captured in the events, checklists, PADs, and autopilot packs defined by [`../milestones/M0_DATA_INGESTION.md`](../milestones/M0_DATA_INGESTION.md).
 - Provenance log linking each record to the primary reference used.
+- Reaction-control system cluster geometry for both vehicles captured in `thrusters.json`, providing Milestone M2 with baseline lever-arm and control-axis metadata before guidance tuning begins.
 
 Future updates will publish the ingestion notebooks under `scripts/ingest/`, expand contingency branches, and wire the new analytics into regression notebooks as described in the milestone plan.
 
@@ -26,6 +27,7 @@ Future updates will publish the ingestion notebooks under `scripts/ingest/`, exp
 - `provenance.md` – Source citations for every record range.
 - `consumables.json` – Baseline power, propellant, and life-support budgets with notes and references to the Mission Operations Report and Flight Plan.
 - `communications_trends.json` – DSN pass analytics (signal strength, handover duration, power deltas) for transearth coast support.
+- `thrusters.json` – Reaction-control system geometry for the CSM and LM, including cluster placement, control axes, and baseline thrust/impulse metadata for Milestone M2 tuning.
 
 These files use UTF-8 encoding with Unix line endings and can be imported into spreadsheets or parsed directly by ingestion tooling.
 
