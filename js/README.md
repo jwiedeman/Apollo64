@@ -10,6 +10,7 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 - Supports deterministic manual action scripts for checklist overrides, resource deltas, and propellant burns via `ManualActionQueue` (`src/sim/manualActionQueue.js`).
 - Streams mission log messages with GET stamps and can export them to JSON for regression playback (`src/logging/missionLogger.js`).
 - Replays autopilot JSON sequences through `AutopilotRunner` (`src/sim/autopilotRunner.js`), issuing ullage, attitude, and throttle commands while subtracting SPS/LM/RCS propellant usage from the shared resource model.
+- Captures auto-advanced checklist acknowledgements and exports them as deterministic manual action scripts when `--record-manual-script` is provided, enabling parity runs without relying on auto crew logic (`src/logging/manualActionRecorder.js`).
 
 ## Running the Prototype
 ```
@@ -22,6 +23,8 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `--quiet` – Suppress per-event logging while still printing the final summary.
 - `--checklist-step-seconds <seconds>` – Configure how long the auto-advance crew spends on each checklist step (default `15`).
 - `--manual-checklists` – Disable auto-advance so external tools or manual operators can acknowledge steps.
+- `--manual-script <path>` – Path to a manual action script JSON file to replay during the run.
+- `--record-manual-script <path>` – Capture auto crew acknowledgements into a manual action script for deterministic parity testing.
 
 ## Module Overview
 - `src/index.js` – CLI entrypoint that wires the loader, scheduler, resource model, and simulation loop.
@@ -31,7 +34,7 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `src/utils/` – Helpers for GET parsing and CSV decoding without external dependencies.
 
 ## Next Steps
-- Exercise the manual action queue with parity tests that compare scripted vs. auto-driven checklists and ensure deterministic replay.
+- Exercise the manual action queue with parity tests that compare recorder-generated scripts vs. auto-driven checklists and ensure deterministic replay.
 - Expand the resource model to ingest PAD-driven consumable deltas and publish propellant/power summaries for HUD integration.
 - Surface the scheduler/resource state through a browser HUD per Milestone M3, keeping the CLI loop as a regression harness.
 - Calibrate the autopilot runner against PAD timelines by validating propellant mass-flow assumptions, logging Δv proxies, and wiring failure thresholds that surface when burns diverge from historical tolerances.
