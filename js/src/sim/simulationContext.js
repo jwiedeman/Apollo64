@@ -8,6 +8,7 @@ import { ResourceSystem } from './resourceSystem.js';
 import { AutopilotRunner } from './autopilotRunner.js';
 import { Simulation } from './simulation.js';
 import { TextHud } from '../hud/textHud.js';
+import { UiFrameBuilder } from '../hud/uiFrameBuilder.js';
 import { ScoreSystem } from './scoreSystem.js';
 
 const DEFAULT_OPTIONS = {
@@ -49,9 +50,12 @@ export async function createSimulationContext({
 
   const autopilotRunner = new AutopilotRunner(resourceSystem, logger);
 
+  const hudConfig = { ...(hudOptions ?? {}) };
+  const uiFrameBuilder = new UiFrameBuilder(hudConfig);
   const hud = new TextHud({
     logger,
-    ...(hudOptions ?? {}),
+    frameBuilder: uiFrameBuilder,
+    ...hudConfig,
   });
 
   let manualActionQueue = null;
@@ -112,6 +116,7 @@ export async function createSimulationContext({
     manualActionQueue,
     autopilotRunner,
     hud,
+    uiFrameBuilder,
     scoreSystem,
     manualActionRecorder,
     logger,
