@@ -68,6 +68,8 @@ Strings representing GET values are formatted as `HHH:MM:SS`.
 | `thermal.state` | string&#124;null | Thermal balance label (e.g., `PTC_STABLE`). |
 | `thermal.ptcActive` | boolean&#124;null | Passive Thermal Control status. |
 | `deltaV.totalMps` | number&#124;null | Remaining Δv margin (m/s). |
+| `deltaV.usedMps` | number&#124;null | Δv consumed via SPS propellant draw (m/s). |
+| `deltaV.recoveredMps` | number&#124;null | Δv margin regained from propellant additions (m/s). |
 | `propellant.tanks` | object | Keyed by tank (`csm_sps`, `csm_rcs`, `lm_descent`, `lm_ascent`, `lm_rcs`). Each entry reports `label`, `remainingKg`, `initialKg`, `reserveKg`, `percentRemaining`, `percentAboveReserve`, `status`, and `statusMessage`. |
 | `propellant.metrics` | object | Aggregate burn totals accumulated during the run. |
 | `lifeSupport.*` | number&#124;null | Oxygen (kg), water (kg), lithium hydroxide canisters, and CO₂ partial pressure (mmHg). |
