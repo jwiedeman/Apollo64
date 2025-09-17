@@ -1,0 +1,76 @@
+{
+  "power": {
+    "fuel_cells": {
+      "reactant_minutes": 2400,
+      "output_kw": 12.6,
+      "baseline_load_kw": 8.6,
+      "surge_capacity_kw": 14.0,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-II",
+      "notes": "Combined output of three Service Module fuel cells; baseline load derived from translunar coast housekeeping requirements."
+    },
+    "batteries": {
+      "capacity_ah": 1230,
+      "initial_soc_pct": 100,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-II",
+      "notes": "Command Module entry batteries plus Service Module surge pack available at launch."
+    }
+  },
+  "propellant": {
+    "csm_sps": {
+      "initial_kg": 18440,
+      "reserve_kg": 360,
+      "usable_delta_v_mps": 2810,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-IV",
+      "notes": "Service Propulsion System propellant load (Aerozine 50 / N2O4) converted from 40,600 lb."
+    },
+    "csm_rcs": {
+      "initial_kg": 1290,
+      "reserve_kg": 45,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-V",
+      "notes": "Combined quads propellant budget including translation reserve."
+    },
+    "lm_descent": {
+      "initial_kg": 8165,
+      "reserve_kg": 140,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-VI",
+      "notes": "LM descent stage prop load (18,000 lb) with hover reserve."
+    },
+    "lm_ascent": {
+      "initial_kg": 2350,
+      "reserve_kg": 45,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-VI",
+      "notes": "LM ascent stage prop load plus rendezvous contingency margin."
+    },
+    "lm_rcs": {
+      "initial_kg": 281,
+      "reserve_kg": 9,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-VI",
+      "notes": "LM reaction control propellant including docking reserve."
+    }
+  },
+  "life_support": {
+    "oxygen": {
+      "initial_kg": 320,
+      "reserve_kg": 28,
+      "reference": "Apollo 11 Mission Operations Report, Table 3-VII",
+      "notes": "Combined CSM and LM gaseous oxygen availability at launch."
+    },
+    "water": {
+      "initial_kg": 180,
+      "reserve_kg": 18,
+      "reference": "Apollo 11 Mission Operations Report, Section 3.8",
+      "notes": "Potable and cooling water budget for nominal mission length."
+    },
+    "lithium_hydroxide": {
+      "canisters": 70,
+      "reference": "Apollo 11 Flight Plan, Section 4",
+      "notes": "Disposable LiOH canisters staged across CM/LM environmental control systems."
+    }
+  },
+  "communications": {
+    "dsn_shift_hours": [8, 8, 8],
+    "next_window_open_get": "004:30:00",
+    "reference": "Apollo 11 Flight Plan, Section 4 DSN schedule",
+    "notes": "Nominal 8-hour Deep Space Network shift rotation supporting PAD uplinks during translunar coast."
+  }
+}

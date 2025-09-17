@@ -1,10 +1,12 @@
 #!/usr/bin/env node
+import path from 'path';
 import { DATA_DIR } from './config/paths.js';
 import { loadMissionData } from './data/missionDataLoader.js';
 import { MissionLogger } from './logging/missionLogger.js';
 import { EventScheduler } from './sim/eventScheduler.js';
 import { ChecklistManager } from './sim/checklistManager.js';
 import { ResourceSystem } from './sim/resourceSystem.js';
+import { ManualActionQueue } from './sim/manualActionQueue.js';
 import { Simulation } from './sim/simulation.js';
 import { formatGET, parseGET } from './utils/time.js';
 
@@ -25,7 +27,18 @@ async function main() {
   });
   const resourceSystem = new ResourceSystem(logger, {
     logIntervalSeconds: args.logIntervalSeconds,
+    consumables: missionData.consumables,
   });
+
+  let manualActions = null;
+  if (args.manualScriptPath) {
+    const scriptPath = path.resolve(args.manualScriptPath);
+    manualActions = await ManualActionQueue.fromFile(scriptPath, {
+      logger,
+      checklistManager,
+      resourceSystem,
+    });
+  }
   const scheduler = new EventScheduler(
     missionData.events,
     missionData.autopilots,
@@ -41,6 +54,7 @@ async function main() {
     scheduler,
     resourceSystem,
     checklistManager,
+    manualActionQueue: manualActions,
     logger,
     tickRate: args.tickRate,
   });
@@ -50,6 +64,12 @@ async function main() {
 
   const summary = simulation.run({ untilGetSeconds: untilSeconds });
   printSummary(summary);
+
+  if (args.logFile) {
+    const logPath = path.resolve(args.logFile);
+    await logger.flushToFile(logPath, { pretty: args.logPretty });
+    console.log(`Mission log written to ${logPath}`);
+  }
 }
 
 function parseArgs(argv) {
@@ -59,6 +79,9 @@ function parseArgs(argv) {
     logIntervalSeconds: 3600,
     autoChecklists: true,
     checklistStepSeconds: 15,
+    manualScriptPath: null,
+    logFile: null,
+    logPretty: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -110,6 +133,27 @@ function parseArgs(argv) {
         i += 1;
         break;
       }
+      case '--manual-script': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--manual-script requires a file path');
+        }
+        args.manualScriptPath = next;
+        i += 1;
+        break;
+      }
+      case '--log-file': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--log-file requires a file path');
+        }
+        args.logFile = next;
+        i += 1;
+        break;
+      }
+      case '--log-pretty':
+        args.logPretty = true;
+        break;
       default:
         break;
     }
@@ -130,6 +174,9 @@ function printSummary(summary) {
     }
   }
   console.log('Resource snapshot:', summary.resources);
+  if (summary.resources?.metrics) {
+    console.log('Resource metrics:', summary.resources.metrics);
+  }
   if (summary.checklists) {
     console.log('Checklist totals:', summary.checklists.totals);
     if (summary.checklists.active.length > 0) {
@@ -140,6 +187,9 @@ function printSummary(summary) {
         );
       }
     }
+  }
+  if (summary.manualActions) {
+    console.log('Manual action stats:', summary.manualActions);
   }
 }
 

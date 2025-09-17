@@ -38,6 +38,14 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 - `PGM_MCC3`, `PGM_MCC4`: Built from Apollo 11 Mission Operations Report Section 3.4 midcourse correction budgets and Flight Plan Section 6 MCC-3/4 execution cues.
 - `PGM_LOI1`, `PGM_LOI2`: Derived from Apollo 11 Flight Plan Section 6 LOI PAD data and Flight Journal Day 4 burn transcripts, with Mission Operations Report Section 3.4 providing performance references.
 - `PGM_DOI`, `PGM_LM_PDI`, `PGM_LM_ASCENT`: Based on Apollo 11 Flight Plan Section 7 PAD tables for DOI, powered descent, and ascent, along with Flight Journal Day 5 transcripts describing burn timelines and throttle management.
+
+## `consumables.json`
+- `power.fuel_cells`, `power.batteries`: Apollo 11 Mission Operations Report Table 3-II for fuel cell output, reactant endurance, and battery capacity margins.
+- `propellant.csm_sps`, `propellant.csm_rcs`: Mission Operations Report Tables 3-IV and 3-V documenting Service Module SPS and RCS propellant loads and reserves.
+- `propellant.lm_descent`, `propellant.lm_ascent`, `propellant.lm_rcs`: Mission Operations Report Table 3-VI LM consumable table for descent/ascent propellant and RCS margins.
+- `life_support.oxygen`, `life_support.water`: Mission Operations Report Table 3-VII and Section 3.8 consumables narratives for oxygen and water budgets.
+- `life_support.lithium_hydroxide`: Apollo 11 Flight Plan Section 4 environmental control notes enumerating LiOH canister availability.
+- `communications.dsn_shift_hours`, `communications.next_window_open_get`: Apollo 11 Flight Plan Section 4 DSN schedule summary establishing the 8-hour rotation and first post-TLI uplink window.
 - `PGM_TEI`, `PGM_MCC5`: Informed by Apollo 11 Flight Plan Section 8 TEI and MCC-5 PAD tables, Mission Operations Report Section 3.7 correction budgets, and Flight Journal Day 6 burn commentary.
 
 ## `failures.csv`

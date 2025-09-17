@@ -5,9 +5,10 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 ## Current Prototype Features
 - Loads `docs/data/*.csv` and autopilot JSON packs into typed runtime structures (`src/data/missionDataLoader.js`).
 - Runs a fixed-step (20 Hz by default) mission loop that arms, activates, and completes events based on prerequisites and GET windows (`src/sim/eventScheduler.js`, `src/sim/simulation.js`).
-- Applies success/failure effects into a lightweight resource model with thermal drift modelling for PTC coverage (`src/sim/resourceSystem.js`).
+- Applies success/failure effects into a resource model with thermal drift modelling for PTC coverage and baseline consumable budgets sourced from `docs/data/consumables.json` (`src/sim/resourceSystem.js`).
 - Tracks checklist-driven events with automatic or manual step acknowledgement scheduling so crew procedures gate event completion (`src/sim/checklistManager.js`).
-- Streams mission log messages with GET stamps for later HUD/audio wiring (`src/logging/missionLogger.js`).
+- Supports deterministic manual action scripts for checklist overrides, resource deltas, and propellant burns via `ManualActionQueue` (`src/sim/manualActionQueue.js`).
+- Streams mission log messages with GET stamps and can export them to JSON for regression playback (`src/logging/missionLogger.js`).
 
 ## Running the Prototype
 ```
@@ -29,7 +30,7 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `src/utils/` – Helpers for GET parsing and CSV decoding without external dependencies.
 
 ## Next Steps
-- Wire manual input queues so human or scripted operators can acknowledge checklist steps when auto-advance is disabled.
-- Expand the resource model to differentiate SPS, RCS, and electrical budgets, wiring in PAD-driven consumable deltas.
+- Exercise the manual action queue with parity tests that compare scripted vs. auto-driven checklists and ensure deterministic replay.
+- Expand the resource model to ingest PAD-driven consumable deltas and publish propellant/power summaries for HUD integration.
 - Surface the scheduler/resource state through a browser HUD per Milestone M3, keeping the CLI loop as a regression harness.
-- Add deterministic log replay tests that validate event ordering, PTC drift divergence, and failure propagation.
+- Extend the autopilot runner ahead of Milestone M2 so guidance scripts can drive resource consumption and event scoring.

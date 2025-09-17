@@ -1,3 +1,5 @@
+import fs from 'fs/promises';
+import path from 'path';
 import { formatGET } from '../utils/time.js';
 
 export class MissionLogger {
@@ -29,5 +31,17 @@ export class MissionLogger {
       return [...this.entries];
     }
     return this.entries.filter(filterFn);
+  }
+
+  async flushToFile(filePath, { pretty = false } = {}) {
+    if (!filePath) {
+      return;
+    }
+
+    const absolutePath = path.resolve(filePath);
+    const directory = path.dirname(absolutePath);
+    await fs.mkdir(directory, { recursive: true });
+    const payload = pretty ? JSON.stringify(this.entries, null, 2) : JSON.stringify(this.entries);
+    await fs.writeFile(absolutePath, payload, 'utf8');
   }
 }

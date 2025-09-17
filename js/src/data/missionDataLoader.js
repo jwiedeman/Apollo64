@@ -10,9 +10,17 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'autopilots.csv')),
     readFile(path.resolve(dataDir, 'failures.csv')),
     readFile(path.resolve(dataDir, 'pads.csv')),
+    readFile(path.resolve(dataDir, 'consumables.json')),
   ]);
 
-  const [eventsContent, checklistsContent, autopilotsContent, failuresContent, padsContent] = files;
+  const [
+    eventsContent,
+    checklistsContent,
+    autopilotsContent,
+    failuresContent,
+    padsContent,
+    consumablesContent,
+  ] = files;
 
   const autopilotRecords = parseCsv(autopilotsContent);
   const autopilotEntries = await Promise.all(
@@ -56,6 +64,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const checklists = buildChecklists(checklistRecords);
   const failures = buildLookup(parseCsv(failuresContent), 'failure_id');
   const pads = buildLookup(parseCsv(padsContent), 'pad_id');
+  const consumables = parseConsumables(consumablesContent, logger);
 
   if (logger) {
     logger.log(0, 'Mission data loaded', {
@@ -65,6 +74,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
         autopilots: autopilots.size,
         failures: failures.size,
         pads: pads.size,
+        consumables: Object.keys(consumables).length,
       },
     });
   }
@@ -75,6 +85,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     autopilots,
     failures,
     pads,
+    consumables,
   };
 }
 
@@ -183,4 +194,17 @@ function buildLookup(records, keyField) {
     map.set(key, record);
   }
   return map;
+}
+
+function parseConsumables(content, logger) {
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== 'object') {
+      return {};
+    }
+    return parsed;
+  } catch (error) {
+    logger?.log(0, 'Failed to parse consumables dataset', { error: error.message });
+    return {};
+  }
 }

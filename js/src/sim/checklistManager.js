@@ -27,6 +27,10 @@ export class ChecklistManager {
     return this.checklists.has(checklistId);
   }
 
+  getEventState(eventId) {
+    return this.active.get(eventId) ?? null;
+  }
+
   activateEvent(event, getSeconds, context = {}) {
     if (!event?.checklistId || !this.hasChecklist(event.checklistId)) {
       return null;
