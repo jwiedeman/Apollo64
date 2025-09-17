@@ -1,0 +1,41 @@
+[
+  {
+    "id": "DSN_PASS_A",
+    "station": "Honeysuckle Creek",
+    "get_open": "137:20:00",
+    "get_close": "138:05:00",
+    "signal_strength_db": 21.8,
+    "handover_minutes": 12,
+    "downlink_rate_kbps": 16,
+    "power_margin_delta_kw": -0.1,
+    "next_station": "Goldstone",
+    "notes": "Nominal S-band AGC trending; handover to Goldstone matched Mission Operations Report timing.",
+    "source": "Apollo 11 Mission Operations Report Section 3.8"
+  },
+  {
+    "id": "DSN_PASS_B",
+    "station": "Goldstone",
+    "get_open": "147:05:00",
+    "get_close": "147:40:00",
+    "signal_strength_db": 23.1,
+    "handover_minutes": 8,
+    "downlink_rate_kbps": 16,
+    "power_margin_delta_kw": -0.05,
+    "next_station": "Madrid",
+    "notes": "High-gain antenna track maintained 20 dB margin; shorter handover due to high elevation track.",
+    "source": "Apollo 11 Mission Operations Report Section 3.8"
+  },
+  {
+    "id": "DSN_PASS_C",
+    "station": "Madrid",
+    "get_open": "170:15:00",
+    "get_close": "171:05:00",
+    "signal_strength_db": 20.4,
+    "handover_minutes": 14,
+    "downlink_rate_kbps": 16,
+    "power_margin_delta_kw": -0.08,
+    "next_station": "Goldstone",
+    "notes": "Lunar range increasing; AGC sag flagged for follow-up trending in consumables log.",
+    "source": "Apollo 11 Flight Plan Section 8 DSN schedule"
+  }
+]

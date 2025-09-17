@@ -25,6 +25,7 @@ async function main() {
   validateEvents(eventRecords, { autopilotMap, checklistMap, failureMap, context });
 
   await validateConsumables(context);
+  await validateCommunicationsTrends(context);
 
   printSummary(context);
 
@@ -38,6 +39,7 @@ function createContext() {
     errors: [],
     warnings: [],
     stats: {},
+    refs: {},
   };
 }
 
@@ -403,13 +405,7 @@ function validateEvents(records, { autopilotMap, checklistMap, failureMap, conte
     }
 
     const successEffects = parseJsonField(record.success_effects, `Event ${id} success_effects`, context);
-    if (successEffects && typeof successEffects === 'object') {
-      for (const [key, value] of Object.entries(successEffects)) {
-        if (typeof value === 'string' && /GET$/i.test(key) && parseGET(value) == null) {
-          addWarning(context, `Event ${id} success_effects ${key} has invalid GET value: ${value}`);
-        }
-      }
-    }
+    validateEffectPayload(successEffects, context, `Event ${id} success_effects`);
 
     const failureEffects = parseJsonField(record.failure_effects, `Event ${id} failure_effects`, context);
     const failureIds = extractFailureIds(failureEffects);
@@ -418,6 +414,7 @@ function validateEvents(records, { autopilotMap, checklistMap, failureMap, conte
         addError(context, `Event ${id} references unknown failure_id ${failureId}`);
       }
     }
+    validateEffectPayload(failureEffects, context, `Event ${id} failure_effects`);
 
     events.set(id, {
       id,
@@ -513,6 +510,79 @@ async function validateConsumables(context) {
   }
 }
 
+async function validateCommunicationsTrends(context) {
+  const filePath = path.resolve(DATA_DIR, 'communications_trends.json');
+  try {
+    const content = await fs.readFile(filePath, 'utf8');
+    const data = JSON.parse(content);
+    if (!Array.isArray(data)) {
+      addError(context, 'Communications trends dataset must be an array');
+      return;
+    }
+
+    const ids = new Set();
+    for (const [index, entry] of data.entries()) {
+      const label = `communications_trends[${index}]`;
+      if (!entry || typeof entry !== 'object') {
+        addError(context, `${label} is not an object`);
+        continue;
+      }
+
+      const id = typeof entry.id === 'string' ? entry.id.trim() : '';
+      if (!id) {
+        addError(context, `${label} is missing an id field`);
+      } else if (ids.has(id)) {
+        addError(context, `${label} has duplicate id ${id}`);
+      } else {
+        ids.add(id);
+      }
+
+      const openGet = typeof entry.get_open === 'string' ? entry.get_open.trim() : '';
+      const closeGet = typeof entry.get_close === 'string' ? entry.get_close.trim() : '';
+      const openSeconds = openGet ? parseGET(openGet) : null;
+      const closeSeconds = closeGet ? parseGET(closeGet) : null;
+      if (openGet && openSeconds == null) {
+        addWarning(context, `${label} has invalid get_open value: ${openGet}`);
+      }
+      if (closeGet && closeSeconds == null) {
+        addWarning(context, `${label} has invalid get_close value: ${closeGet}`);
+      }
+      if (openSeconds != null && closeSeconds != null && closeSeconds < openSeconds) {
+        addWarning(
+          context,
+          `${label} closes (${formatGET(closeSeconds)}) before it opens (${formatGET(openSeconds)})`,
+        );
+      }
+
+      const station = typeof entry.station === 'string' ? entry.station.trim() : '';
+      if (!station) {
+        addWarning(context, `${label} is missing station information`);
+      }
+
+      const numericFields = [
+        ['signal_strength_db', entry.signal_strength_db],
+        ['handover_minutes', entry.handover_minutes],
+        ['downlink_rate_kbps', entry.downlink_rate_kbps],
+        ['power_margin_delta_kw', entry.power_margin_delta_kw],
+      ];
+      for (const [field, value] of numericFields) {
+        if (value != null && !Number.isFinite(Number(value))) {
+          addWarning(context, `${label}.${field} should be numeric`);
+        }
+      }
+
+      if (entry.next_station != null && typeof entry.next_station !== 'string') {
+        addWarning(context, `${label}.next_station should be a string when present`);
+      }
+    }
+
+    context.stats.communicationsTrends = ids.size;
+    context.refs.dsnPasses = ids;
+  } catch (error) {
+    addError(context, `Failed to read communications_trends.json: ${error.message}`);
+  }
+}
+
 function parseJsonField(value, label, context) {
   if (!value || value.trim().length === 0) {
     return null;
@@ -559,6 +629,88 @@ function parseList(value) {
     .split(',')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function validateEffectPayload(effect, context, label) {
+  if (Array.isArray(effect)) {
+    effect.forEach((item, index) => {
+      validateEffectPayload(item, context, `${label}[${index}]`);
+    });
+    return;
+  }
+
+  if (!effect || typeof effect !== 'object') {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(effect)) {
+    const pathLabel = `${label}.${key}`;
+    if (typeof value === 'string') {
+      if (/_get$/i.test(key) || /GET$/i.test(key)) {
+        if (parseGET(value) == null) {
+          addWarning(context, `${pathLabel} has invalid GET value: ${value}`);
+        }
+      }
+      continue;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean' || value == null) {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      validateEffectPayload(value, context, pathLabel);
+      continue;
+    }
+
+    if (typeof value === 'object') {
+      if (key === 'communications') {
+        validateCommunicationsEffect(value, context, pathLabel);
+      } else {
+        validateEffectPayload(value, context, pathLabel);
+      }
+    }
+  }
+}
+
+function validateCommunicationsEffect(effect, context, label) {
+  if (!effect || typeof effect !== 'object') {
+    return;
+  }
+
+  const stringFields = ['last_pad_id', 'next_station', 'dsn_station'];
+  for (const field of stringFields) {
+    const value = effect[field];
+    if (value != null && typeof value !== 'string') {
+      addWarning(context, `${label}.${field} should be a string`);
+    }
+  }
+
+  if (typeof effect.next_window_open_get === 'string' && parseGET(effect.next_window_open_get) == null) {
+    addWarning(context, `${label}.next_window_open_get has invalid GET value: ${effect.next_window_open_get}`);
+  }
+
+  const numericFields = ['signal_strength_db', 'handover_minutes', 'downlink_rate_kbps', 'power_margin_delta_kw'];
+  for (const field of numericFields) {
+    const value = effect[field];
+    if (value != null && !Number.isFinite(Number(value))) {
+      addWarning(context, `${label}.${field} should be numeric`);
+    }
+  }
+
+  const passId = typeof effect.last_pad_id === 'string' ? effect.last_pad_id.trim() : '';
+  if (passId && context.refs?.dsnPasses && !context.refs.dsnPasses.has(passId)) {
+    addWarning(context, `${label}.last_pad_id ${passId} not found in communications_trends dataset`);
+  }
+
+  for (const [key, value] of Object.entries(effect)) {
+    if (stringFields.includes(key) || numericFields.includes(key) || key === 'next_window_open_get') {
+      continue;
+    }
+    if (value && typeof value === 'object') {
+      validateEffectPayload(value, context, `${label}.${key}`);
+    }
+  }
 }
 
 function getNestedValue(target, pathSpec) {
