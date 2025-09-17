@@ -204,10 +204,7 @@ export class UiFrameBuilder {
       co2MmHg: this.#coerceNumber(snapshot.lifeSupport?.co2_mmHg),
     };
 
-    const communications = {
-      nextWindowOpenGet: snapshot.communications?.next_window_open_get ?? null,
-      lastPadId: snapshot.communications?.last_pad_id ?? null,
-    };
+    const communications = this.#summarizeCommunications(snapshot.communications ?? {});
 
     return {
       power,
@@ -220,6 +217,71 @@ export class UiFrameBuilder {
       lifeSupport,
       communications,
       alerts,
+    };
+  }
+
+  #summarizeCommunications(snapshot) {
+    const base = {
+      active: Boolean(snapshot?.active),
+      nextWindowOpenGet: snapshot?.next_window_open_get ?? null,
+      lastPadId: snapshot?.last_pad_id ?? null,
+      scheduleCount: Number(snapshot?.schedule_count ?? 0) || 0,
+    };
+
+    if (!snapshot || typeof snapshot !== 'object') {
+      return base;
+    }
+
+    const currentPassId = snapshot.current_pass_id ?? null;
+    const timeRemaining = this.#coerceNumber(snapshot.current_window_time_remaining_s);
+    const timeSinceOpen = this.#coerceNumber(snapshot.time_since_window_open_s);
+    const duration = this.#coerceNumber(snapshot.current_pass_duration_s);
+    const progress = this.#coerceNumber(snapshot.current_pass_progress);
+
+    const current = currentPassId
+      ? {
+          id: currentPassId,
+          station: snapshot.current_station ?? null,
+          nextStation: snapshot.current_next_station ?? null,
+          openGet: snapshot.current_window_open_get ?? null,
+          closeGet: snapshot.current_window_close_get ?? null,
+          openSeconds: this.#coerceNumber(snapshot.current_window_open_seconds),
+          closeSeconds: this.#coerceNumber(snapshot.current_window_close_seconds),
+          durationSeconds: duration,
+          timeRemainingSeconds: timeRemaining,
+          timeRemainingLabel: timeRemaining != null ? this.#formatOffset(timeRemaining) : null,
+          timeSinceOpenSeconds: timeSinceOpen,
+          timeSinceOpenLabel: Number.isFinite(timeSinceOpen)
+            ? `T+${formatGET(Math.max(0, Math.round(timeSinceOpen)))}`
+            : null,
+          progress: Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : null,
+          signalStrengthDb: this.#coerceNumber(snapshot.signal_strength_db),
+          downlinkRateKbps: this.#coerceNumber(snapshot.downlink_rate_kbps),
+          handoverMinutes: this.#coerceNumber(snapshot.handover_minutes),
+          powerMarginDeltaKw: this.#coerceNumber(snapshot.power_margin_delta_kw),
+          powerLoadDeltaKw: this.#coerceNumber(snapshot.power_load_delta_kw),
+        }
+      : null;
+
+    const nextWindowOpenGet = snapshot.next_window_open_get ?? null;
+    const timeUntilNext = this.#coerceNumber(snapshot.time_until_next_window_s);
+    const next = (snapshot.next_pass_id ?? null) || nextWindowOpenGet
+      ? {
+          id: snapshot.next_pass_id ?? null,
+          station: snapshot.next_station ?? null,
+          openGet: nextWindowOpenGet,
+          openSeconds: this.#coerceNumber(snapshot.next_window_open_seconds),
+          timeUntilOpenSeconds: timeUntilNext,
+          timeUntilOpenLabel: timeUntilNext != null ? this.#formatOffset(timeUntilNext) : null,
+        }
+      : null;
+
+    return {
+      ...base,
+      current,
+      next,
+      timeUntilNextWindowSeconds: timeUntilNext,
+      timeUntilNextWindowLabel: timeUntilNext != null ? this.#formatOffset(timeUntilNext) : null,
     };
   }
 

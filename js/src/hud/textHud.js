@@ -122,6 +122,28 @@ export class TextHud {
       }
     }
 
+    const communications = snapshot.resources?.communications;
+    if (communications) {
+      const current = communications.current;
+      if (current?.station) {
+        const remainLabel = current.timeRemainingLabel ?? null;
+        const signalLabel = this.#formatNumber(current.signalStrengthDb, 1);
+        let message = `Comms ${current.station}`;
+        if (remainLabel) {
+          message += ` ${remainLabel}`;
+        }
+        if (signalLabel !== 'n/a') {
+          message += ` ${signalLabel}dB`;
+        }
+        parts.push(message.trim());
+      } else if (communications.nextWindowOpenGet) {
+        const station = communications.next?.station ?? '';
+        const label = communications.timeUntilNextWindowLabel ?? communications.nextWindowOpenGet;
+        const stationLabel = station ? ` ${station}` : '';
+        parts.push(`Comms next${stationLabel} ${label}`.trim());
+      }
+    }
+
     const chip = snapshot.checklists?.chip;
     if (chip) {
       const nextStep = chip.nextStepNumber != null ? `S${chip.nextStepNumber}` : 'pending';

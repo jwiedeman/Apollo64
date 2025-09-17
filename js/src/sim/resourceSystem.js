@@ -1,3 +1,5 @@
+import { formatGET, parseGET } from '../utils/time.js';
+
 const DEFAULT_STATE = {
   power_margin_pct: 100,
   cryo_boiloff_rate_pct_per_hr: 1.0,
@@ -24,7 +26,29 @@ const DEFAULT_STATE = {
     co2_mmHg: 0,
   },
   communications: {
+    active: false,
+    current_pass_id: null,
+    current_station: null,
+    current_next_station: null,
+    current_window_open_get: null,
+    current_window_close_get: null,
+    current_window_open_seconds: null,
+    current_window_close_seconds: null,
+    current_window_time_remaining_s: null,
+    current_pass_duration_s: null,
+    current_pass_progress: null,
+    time_since_window_open_s: null,
+    signal_strength_db: null,
+    downlink_rate_kbps: null,
+    handover_minutes: null,
+    power_margin_delta_kw: null,
+    power_load_delta_kw: 0,
+    next_pass_id: null,
+    next_station: null,
     next_window_open_get: null,
+    next_window_open_seconds: null,
+    time_until_next_window_s: null,
+    schedule_count: 0,
     last_pad_id: null,
   },
 };
@@ -82,10 +106,16 @@ export class ResourceSystem {
     this.propellantConfig = {
       csm_sps: null,
     };
+    this.communicationsSchedule = [];
+    this.activeCommunicationsPass = null;
+    this.activeCommunicationsPowerDeltaKw = 0;
     this._logCountdown = this.options.logIntervalSeconds;
 
     if (options.consumables) {
       this.configureConsumables(options.consumables);
+    }
+    if (options.communicationsSchedule) {
+      this.configureCommunicationsSchedule(options.communicationsSchedule);
     }
   }
 
@@ -129,6 +159,13 @@ export class ResourceSystem {
     if (communications.next_window_open_get) {
       this.state.communications.next_window_open_get = communications.next_window_open_get;
     }
+  }
+
+  configureCommunicationsSchedule(schedule) {
+    this.communicationsSchedule = this.#normalizeCommunicationsSchedule(schedule);
+    this.state.communications.schedule_count = this.communicationsSchedule.length;
+    this.#clearCurrentCommunicationsState();
+    this.#updateNextCommunicationsPass(0);
   }
 
   applyEffect(effect, { getSeconds, source, type }) {
@@ -188,6 +225,8 @@ export class ResourceSystem {
         this.state.cryo_boiloff_rate_pct_per_hr - (RECOVERY_RATES.cryoPerSecond * dtSeconds),
       );
     }
+
+    this.#updateCommunications(getSeconds);
 
     this._logCountdown -= dtSeconds;
     if (this._logCountdown <= 0) {
@@ -476,6 +515,258 @@ export class ResourceSystem {
         newMarginMps: this.state.delta_v_margin_mps,
       });
     }
+  }
+
+  #normalizeCommunicationsSchedule(schedule) {
+    if (!Array.isArray(schedule)) {
+      return [];
+    }
+
+    const normalized = [];
+    for (const entry of schedule) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+
+      const idRaw = entry.id ?? entry.pass_id ?? entry.comm_id ?? null;
+      const id = typeof idRaw === 'string' ? idRaw.trim() : null;
+      if (!id) {
+        continue;
+      }
+
+      const openSeconds = this.#parseGetSeconds(
+        entry.getOpenSeconds ?? entry.get_open ?? entry.getOpen ?? entry.open_get ?? entry.openSeconds,
+      );
+      const closeSeconds = this.#parseGetSeconds(
+        entry.getCloseSeconds ?? entry.get_close ?? entry.getClose ?? entry.close_get ?? entry.closeSeconds,
+      );
+
+      if (!Number.isFinite(openSeconds) || !Number.isFinite(closeSeconds) || closeSeconds <= openSeconds) {
+        continue;
+      }
+
+      const durationSeconds = closeSeconds - openSeconds;
+      const openLabel = typeof entry.get_open === 'string'
+        ? entry.get_open
+        : typeof entry.getOpen === 'string'
+          ? entry.getOpen
+          : formatGET(openSeconds);
+      const closeLabel = typeof entry.get_close === 'string'
+        ? entry.get_close
+        : typeof entry.getClose === 'string'
+          ? entry.getClose
+          : formatGET(closeSeconds);
+
+      normalized.push({
+        id,
+        station: entry.station ?? null,
+        nextStation: entry.next_station ?? entry.nextStation ?? null,
+        getOpenSeconds: openSeconds,
+        getCloseSeconds: closeSeconds,
+        durationSeconds,
+        openLabel,
+        closeLabel,
+        signalStrengthDb: this.#coerceNumber(entry.signal_strength_db ?? entry.signalStrengthDb),
+        handoverMinutes: this.#coerceNumber(entry.handover_minutes ?? entry.handoverMinutes),
+        downlinkRateKbps: this.#coerceNumber(entry.downlink_rate_kbps ?? entry.downlinkRateKbps),
+        powerMarginDeltaKw: this.#coerceNumber(entry.power_margin_delta_kw ?? entry.powerMarginDeltaKw),
+        notes: entry.notes ?? null,
+        source: entry.source ?? entry.source_ref ?? null,
+      });
+    }
+
+    normalized.sort((a, b) => a.getOpenSeconds - b.getOpenSeconds);
+    return normalized;
+  }
+
+  #parseGetSeconds(value) {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = parseGET(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+      const numeric = Number(value.trim());
+      return Number.isFinite(numeric) ? numeric : null;
+    }
+    return null;
+  }
+
+  #updateCommunications(getSeconds) {
+    if (!Array.isArray(this.communicationsSchedule) || this.communicationsSchedule.length === 0) {
+      return;
+    }
+
+    const activePass = this.#findActiveCommunicationsPass(getSeconds);
+    const currentId = this.activeCommunicationsPass?.id ?? null;
+
+    if (!activePass && currentId) {
+      this.#exitCommunicationsPass(getSeconds);
+    }
+
+    if (activePass && activePass.id !== currentId) {
+      if (currentId) {
+        this.#exitCommunicationsPass(getSeconds);
+      }
+      this.#enterCommunicationsPass(activePass, getSeconds);
+    }
+
+    if (activePass) {
+      this.#updateActiveCommunicationsPass(activePass, getSeconds);
+    }
+
+    this.#updateNextCommunicationsPass(getSeconds);
+  }
+
+  #findActiveCommunicationsPass(getSeconds) {
+    for (const pass of this.communicationsSchedule) {
+      if (
+        Number.isFinite(pass.getOpenSeconds)
+        && Number.isFinite(pass.getCloseSeconds)
+        && getSeconds >= pass.getOpenSeconds
+        && getSeconds < pass.getCloseSeconds
+      ) {
+        return pass;
+      }
+    }
+    return null;
+  }
+
+  #findNextCommunicationsPass(getSeconds) {
+    for (const pass of this.communicationsSchedule) {
+      if (Number.isFinite(pass.getOpenSeconds) && pass.getOpenSeconds > getSeconds) {
+        return pass;
+      }
+    }
+    return null;
+  }
+
+  #enterCommunicationsPass(pass, getSeconds) {
+    this.activeCommunicationsPass = pass;
+    this.activeCommunicationsPowerDeltaKw = 0;
+
+    const comms = this.state.communications;
+    comms.active = true;
+    comms.current_pass_id = pass.id;
+    comms.current_station = pass.station ?? null;
+    comms.current_next_station = pass.nextStation ?? null;
+    comms.current_window_open_seconds = pass.getOpenSeconds;
+    comms.current_window_close_seconds = pass.getCloseSeconds;
+    comms.current_window_open_get = pass.openLabel ?? formatGET(pass.getOpenSeconds);
+    comms.current_window_close_get = pass.closeLabel ?? formatGET(pass.getCloseSeconds);
+    comms.current_pass_duration_s = pass.durationSeconds ?? (pass.getCloseSeconds - pass.getOpenSeconds);
+    comms.signal_strength_db = pass.signalStrengthDb ?? null;
+    comms.downlink_rate_kbps = pass.downlinkRateKbps ?? null;
+    comms.handover_minutes = pass.handoverMinutes ?? null;
+    comms.power_margin_delta_kw = pass.powerMarginDeltaKw ?? null;
+    comms.power_load_delta_kw = 0;
+
+    const loadDelta = this.#resolvePowerLoadDelta(pass);
+    if (Number.isFinite(loadDelta) && loadDelta !== 0) {
+      this.recordPowerLoadDelta('fuel_cell_load', loadDelta, {
+        getSeconds,
+        source: 'communications',
+        note: pass.id,
+      });
+      this.activeCommunicationsPowerDeltaKw = loadDelta;
+      comms.power_load_delta_kw = loadDelta;
+    }
+
+    this.#updateActiveCommunicationsPass(pass, getSeconds);
+
+    this.logger?.log(getSeconds, `Communications pass ${pass.id} active`, {
+      station: pass.station ?? null,
+      window: `${comms.current_window_open_get} → ${comms.current_window_close_get}`,
+      signalStrengthDb: pass.signalStrengthDb ?? null,
+      downlinkRateKbps: pass.downlinkRateKbps ?? null,
+    });
+  }
+
+  #updateActiveCommunicationsPass(pass, getSeconds) {
+    const comms = this.state.communications;
+    const timeRemaining = Math.max(0, pass.getCloseSeconds - getSeconds);
+    const elapsed = Math.max(0, getSeconds - pass.getOpenSeconds);
+    const duration = pass.durationSeconds ?? (pass.getCloseSeconds - pass.getOpenSeconds);
+    const progress = duration > 0 ? Math.min(1, elapsed / duration) : null;
+
+    comms.current_window_time_remaining_s = timeRemaining;
+    comms.time_since_window_open_s = elapsed;
+    comms.current_pass_progress = progress;
+  }
+
+  #exitCommunicationsPass(getSeconds) {
+    if (!this.activeCommunicationsPass) {
+      return;
+    }
+
+    if (Number.isFinite(this.activeCommunicationsPowerDeltaKw) && this.activeCommunicationsPowerDeltaKw !== 0) {
+      this.recordPowerLoadDelta('fuel_cell_load', -this.activeCommunicationsPowerDeltaKw, {
+        getSeconds,
+        source: 'communications',
+        note: `${this.activeCommunicationsPass.id}_restore`,
+      });
+    }
+
+    this.logger?.log(getSeconds, `Communications pass ${this.activeCommunicationsPass.id} complete`, {
+      station: this.activeCommunicationsPass.station ?? null,
+    });
+
+    this.activeCommunicationsPass = null;
+    this.activeCommunicationsPowerDeltaKw = 0;
+    this.#clearCurrentCommunicationsState();
+  }
+
+  #updateNextCommunicationsPass(getSeconds) {
+    const nextPass = this.#findNextCommunicationsPass(getSeconds);
+    const comms = this.state.communications;
+
+    if (nextPass) {
+      comms.next_pass_id = nextPass.id;
+      comms.next_station = nextPass.station ?? null;
+      comms.next_window_open_seconds = nextPass.getOpenSeconds;
+      comms.next_window_open_get = nextPass.openLabel ?? formatGET(nextPass.getOpenSeconds);
+      comms.time_until_next_window_s = Math.max(0, nextPass.getOpenSeconds - getSeconds);
+    } else {
+      comms.next_pass_id = null;
+      comms.next_station = null;
+      comms.next_window_open_seconds = null;
+      comms.next_window_open_get = null;
+      comms.time_until_next_window_s = null;
+    }
+  }
+
+  #clearCurrentCommunicationsState() {
+    const comms = this.state.communications;
+    comms.active = false;
+    comms.current_pass_id = null;
+    comms.current_station = null;
+    comms.current_next_station = null;
+    comms.current_window_open_get = null;
+    comms.current_window_close_get = null;
+    comms.current_window_open_seconds = null;
+    comms.current_window_close_seconds = null;
+    comms.current_window_time_remaining_s = null;
+    comms.current_pass_duration_s = null;
+    comms.current_pass_progress = null;
+    comms.time_since_window_open_s = null;
+    comms.signal_strength_db = null;
+    comms.downlink_rate_kbps = null;
+    comms.handover_minutes = null;
+    comms.power_margin_delta_kw = null;
+    comms.power_load_delta_kw = 0;
+  }
+
+  #resolvePowerLoadDelta(pass) {
+    if (!pass) {
+      return 0;
+    }
+    const marginDelta = this.#coerceNumber(pass.powerMarginDeltaKw);
+    if (!Number.isFinite(marginDelta) || marginDelta === 0) {
+      return 0;
+    }
+    return -marginDelta;
   }
 
   #coerceNumber(value) {
