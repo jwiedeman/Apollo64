@@ -12,6 +12,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'pads.csv')),
     readFile(path.resolve(dataDir, 'consumables.json')),
     readFile(path.resolve(dataDir, 'thrusters.json')),
+    readFile(path.resolve(dataDir, 'communications_trends.json')),
   ]);
 
   const [
@@ -22,6 +23,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     padsContent,
     consumablesContent,
     thrustersContent,
+    communicationsContent,
   ] = files;
 
   const autopilotRecords = parseCsv(autopilotsContent);
@@ -69,6 +71,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const pads = buildLookup(parseCsv(padsContent), 'pad_id');
   const consumables = parseConsumables(consumablesContent, logger);
   const thrusters = parseThrusters(thrustersContent, logger);
+  const communications = parseCommunicationsTrends(communicationsContent, logger);
 
   const thrusterCraftCount = Array.isArray(thrusters?.craft) ? thrusters.craft.length : 0;
   const thrusterCount = Array.isArray(thrusters?.craft)
@@ -100,6 +103,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
         consumables: Object.keys(consumables).length,
         thrusterCraft: thrusterCraftCount,
         thrusters: thrusterCount,
+        communicationsPasses: communications.length,
       },
     });
   }
@@ -112,6 +116,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     pads,
     consumables,
     thrusters,
+    communications,
   };
 }
 
@@ -246,4 +251,65 @@ function parseThrusters(content, logger) {
     logger?.log(0, 'Failed to parse thrusters dataset', { error: error.message });
     return { craft: [] };
   }
+}
+
+function parseCommunicationsTrends(content, logger) {
+  try {
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const schedule = [];
+    for (const entry of parsed) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+
+      const id = (entry.id ?? entry.pass_id ?? entry.comm_id ?? '').trim();
+      const getOpenSeconds = parseGET(entry.get_open ?? entry.getOpen ?? entry.get_open_seconds);
+      const getCloseSeconds = parseGET(entry.get_close ?? entry.getClose ?? entry.get_close_seconds);
+
+      if (!id || !Number.isFinite(getOpenSeconds) || !Number.isFinite(getCloseSeconds)) {
+        continue;
+      }
+
+      schedule.push({
+        id,
+        station: entry.station ?? null,
+        getOpenSeconds,
+        getCloseSeconds,
+        getOpen: entry.get_open ?? entry.getOpen ?? null,
+        getClose: entry.get_close ?? entry.getClose ?? null,
+        signalStrengthDb: coerceNumber(entry.signal_strength_db ?? entry.signalStrengthDb),
+        handoverMinutes: coerceNumber(entry.handover_minutes ?? entry.handoverMinutes),
+        downlinkRateKbps: coerceNumber(entry.downlink_rate_kbps ?? entry.downlinkRateKbps),
+        powerMarginDeltaKw: coerceNumber(entry.power_margin_delta_kw ?? entry.powerMarginDeltaKw),
+        nextStation: entry.next_station ?? entry.nextStation ?? null,
+        notes: entry.notes ?? null,
+        source: entry.source ?? entry.source_ref ?? null,
+      });
+    }
+
+    schedule.sort((a, b) => a.getOpenSeconds - b.getOpenSeconds);
+    return schedule;
+  } catch (error) {
+    logger?.log(0, 'Failed to parse communications trends dataset', { error: error.message });
+    return [];
+  }
+}
+
+function coerceNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }

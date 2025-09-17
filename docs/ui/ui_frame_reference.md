@@ -73,9 +73,47 @@ Strings representing GET values are formatted as `HHH:MM:SS`.
 | `propellant.tanks` | object | Keyed by tank (`csm_sps`, `csm_rcs`, `lm_descent`, `lm_ascent`, `lm_rcs`). Each entry reports `label`, `remainingKg`, `initialKg`, `reserveKg`, `percentRemaining`, `percentAboveReserve`, `status`, and `statusMessage`. |
 | `propellant.metrics` | object | Aggregate burn totals accumulated during the run. |
 | `lifeSupport.*` | number&#124;null | Oxygen (kg), water (kg), lithium hydroxide canisters, and CO₂ partial pressure (mmHg). |
-| `communications.nextWindowOpenGet` | string&#124;null | Upcoming DSN window GET. |
+| `communications.active` | boolean | Indicates whether a DSN pass is currently active. |
+| `communications.nextWindowOpenGet` | string&#124;null | Upcoming DSN window GET label (`HHH:MM:SS`). |
+| `communications.timeUntilNextWindowSeconds` | number&#124;null | Seconds until the next DSN pass opens (or `null` if none scheduled). |
+| `communications.timeUntilNextWindowLabel` | string&#124;null | Human-readable countdown for the next DSN pass (e.g., `T-00:42:00`). |
 | `communications.lastPadId` | string&#124;null | Identifier for the most recent PAD uplink. |
+| `communications.scheduleCount` | number | Count of passes loaded from `communications_trends.json`. |
+| `communications.current` | object&#124;null | Active DSN pass summary (see below). |
+| `communications.next` | object&#124;null | Upcoming DSN pass summary (see below). |
 | `alerts` | object | Lists warnings/cautions/failures derived from resource thresholds and mission failures. |
+
+#### `communications.current`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | Active pass identifier. |
+| `station` | string&#124;null | DSN station currently supporting the mission. |
+| `nextStation` | string&#124;null | Planned handover station once the pass completes. |
+| `openGet` / `closeGet` | string&#124;null | Window open/close labels (`HHH:MM:SS`). |
+| `openSeconds` / `closeSeconds` | number&#124;null | Window open/close times in seconds. |
+| `durationSeconds` | number&#124;null | Total scheduled duration for the pass. |
+| `timeRemainingSeconds` | number&#124;null | Seconds remaining before the pass closes. |
+| `timeRemainingLabel` | string&#124;null | Countdown label (e.g., `T-00:12:30`). |
+| `timeSinceOpenSeconds` | number&#124;null | Seconds elapsed since the pass opened. |
+| `timeSinceOpenLabel` | string&#124;null | Elapsed label formatted as `T+HHH:MM:SS`. |
+| `progress` | number&#124;null | Normalized progress through the pass `[0,1]`. |
+| `signalStrengthDb` | number&#124;null | Received signal strength in dB. |
+| `downlinkRateKbps` | number&#124;null | Downlink rate for the pass. |
+| `handoverMinutes` | number&#124;null | Planned handover duration. |
+| `powerMarginDeltaKw` | number&#124;null | Power margin delta reported by the dataset. |
+| `powerLoadDeltaKw` | number&#124;null | Load delta applied to the resource model while the pass is active. |
+
+#### `communications.next`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string&#124;null | Identifier for the next DSN pass. |
+| `station` | string&#124;null | Station expected to acquire the spacecraft. |
+| `openGet` | string&#124;null | GET when the next pass opens. |
+| `openSeconds` | number&#124;null | Seconds when the next pass opens. |
+| `timeUntilOpenSeconds` | number&#124;null | Seconds until the next pass opens. |
+| `timeUntilOpenLabel` | string&#124;null | Countdown label for the next pass. |
 
 ### `autopilot`
 
