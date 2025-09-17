@@ -14,6 +14,7 @@ export class EventScheduler {
     this.resourceSystem = resourceSystem;
     this.options = options;
     this.checklistManager = options.checklistManager ?? null;
+    this.autopilotRunner = options.autopilotRunner ?? null;
     this.events = events.map((event) => this.prepareEvent(event, autopilotMap));
     this.eventMap = new Map(this.events.map((event) => [event.id, event]));
   }
@@ -82,6 +83,10 @@ export class EventScheduler {
           break;
       }
     }
+
+    if (this.autopilotRunner) {
+      this.autopilotRunner.update(currentGetSeconds, dtSeconds);
+    }
   }
 
   maybeArm(event, currentGetSeconds) {
@@ -126,6 +131,9 @@ export class EventScheduler {
         windowCloseSeconds: event.getCloseSeconds,
       });
     }
+    if (event.autopilot && this.autopilotRunner) {
+      this.autopilotRunner.start(event, currentGetSeconds);
+    }
   }
 
   maybeComplete(event, currentGetSeconds) {
@@ -154,6 +162,9 @@ export class EventScheduler {
     if (event.checklistId && this.checklistManager) {
       this.checklistManager.finalizeEvent(event.id, currentGetSeconds);
     }
+    if (this.autopilotRunner) {
+      this.autopilotRunner.finish(event.id, currentGetSeconds);
+    }
   }
 
   maybeFail(event, currentGetSeconds, reason) {
@@ -180,6 +191,9 @@ export class EventScheduler {
     });
     if (event.checklistId && this.checklistManager) {
       this.checklistManager.abortEvent(event.id, currentGetSeconds, reason);
+    }
+    if (this.autopilotRunner) {
+      this.autopilotRunner.abort(event.id, currentGetSeconds, reason);
     }
   }
 

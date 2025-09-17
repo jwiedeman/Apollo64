@@ -82,6 +82,7 @@ The HUD can be console-based during M1—rendered as a simple text grid updated 
 - **Scheduler loop:** [`js/src/sim/eventScheduler.js`](../../js/src/sim/eventScheduler.js) transitions events through `pending → armed → active → complete/failed`, applies success/failure effects into the resource system, and emits GET-stamped log entries that backstop the upcoming HUD.
 - **Checklist management:** [`js/src/sim/checklistManager.js`](../../js/src/sim/checklistManager.js) binds crew procedures to active events, auto-advancing step acknowledgement on a deterministic cadence while logging metrics for manual override tooling.
 - **Resource feedback:** [`js/src/sim/resourceSystem.js`](../../js/src/sim/resourceSystem.js) models aggregate power margin, cryo boiloff drift, Passive Thermal Control state, and baseline consumable budgets while logging hourly snapshots to quantify divergence when PTC is skipped.
+- **Autopilot runner:** [`js/src/sim/autopilotRunner.js`](../../js/src/sim/autopilotRunner.js) replays the JSON guidance scripts, logs attitude/ullage/throttle commands, and applies SPS/LM/RCS propellant consumption into the shared resource model so burn metrics surface for HUD/scoring modules.
 - **Manual actions:** [`js/src/sim/manualActionQueue.js`](../../js/src/sim/manualActionQueue.js) replays scripted manual inputs—checklist acknowledgements, resource deltas, and propellant burns—so regression runs can mimic human intervention deterministically.
 - **Logging:** [`js/src/logging/missionLogger.js`](../../js/src/logging/missionLogger.js) streams mission events to stdout and can export the run to JSON for deterministic replay validation once the HUD arrives.
 
@@ -89,6 +90,7 @@ The HUD can be console-based during M1—rendered as a simple text grid updated 
 - Manual action scripts now cover checklist overrides and resource deltas, but parity tests comparing scripted vs. auto-driven runs still need to be codified.
 - Consumable budgets seed the resource model, yet PAD-driven deltas and long-horizon trending analytics still need to be wired into the scheduler for scoring.
 - Failure hooks only propagate `failure_id` metadata; downstream remedial event arming and cascading penalties remain to be wired into the scheduler.
+- Autopilot runner currently assumes constant mass-flow rates per propulsion system; calibrate against PAD timelines and hook tolerances into the failure taxonomy so underburn/overburn conditions propagate meaningfully.
 - Deterministic log replay/regression tooling is not yet capturing frame-by-frame state, leaving validation to manual CLI runs.
 
 ## Validation & Testing

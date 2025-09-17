@@ -8,6 +8,7 @@ import { ChecklistManager } from './sim/checklistManager.js';
 import { ResourceSystem } from './sim/resourceSystem.js';
 import { ManualActionQueue } from './sim/manualActionQueue.js';
 import { Simulation } from './sim/simulation.js';
+import { AutopilotRunner } from './sim/autopilotRunner.js';
 import { formatGET, parseGET } from './utils/time.js';
 
 async function main() {
@@ -29,6 +30,7 @@ async function main() {
     logIntervalSeconds: args.logIntervalSeconds,
     consumables: missionData.consumables,
   });
+  const autopilotRunner = new AutopilotRunner(resourceSystem, logger);
 
   let manualActions = null;
   if (args.manualScriptPath) {
@@ -44,9 +46,10 @@ async function main() {
     missionData.autopilots,
     resourceSystem,
     logger,
-    {
+    { 
       checklistManager,
       failures: missionData.failures,
+      autopilotRunner,
     },
   );
 
@@ -54,6 +57,7 @@ async function main() {
     scheduler,
     resourceSystem,
     checklistManager,
+    autopilotRunner,
     manualActionQueue: manualActions,
     logger,
     tickRate: args.tickRate,
@@ -190,6 +194,29 @@ function printSummary(summary) {
   }
   if (summary.manualActions) {
     console.log('Manual action stats:', summary.manualActions);
+  }
+  if (summary.autopilot) {
+    console.log('Autopilot stats:', {
+      active: summary.autopilot.active,
+      started: summary.autopilot.started,
+      completed: summary.autopilot.completed,
+      aborted: summary.autopilot.aborted,
+      totalBurnSeconds: summary.autopilot.totalBurnSeconds,
+      totalUllageSeconds: summary.autopilot.totalUllageSeconds,
+    });
+    if (summary.autopilot.propellantKgByTank && Object.keys(summary.autopilot.propellantKgByTank).length > 0) {
+      console.log('Autopilot propellant usage (kg):', summary.autopilot.propellantKgByTank);
+    }
+    if (summary.autopilot.activeAutopilots && summary.autopilot.activeAutopilots.length > 0) {
+      console.log('Active autopilots:');
+      for (const active of summary.autopilot.activeAutopilots) {
+        const throttle = active.currentThrottle.toFixed(2);
+        const remaining = active.remainingSeconds.toFixed(1);
+        console.log(
+          `  • ${active.eventId} (${active.autopilotId}) — ${active.propulsion} throttle ${throttle}; remaining ${remaining} s`,
+        );
+      }
+    }
   }
 }
 
