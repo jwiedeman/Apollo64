@@ -138,6 +138,7 @@ npm start -- --until 015:00:00 --record-manual-script out/auto_checklists.json
 ```
 
 While the auto crew acknowledges checklist steps, the recorder captures each acknowledgement (and associated GET) into `out/auto_checklists.json`. The exported file includes metadata plus an `actions` array ready to feed back into the CLI with `--manual-script`. This enables deterministic parity tests by replaying the recorded script with `--manual-checklists` to confirm manual vs. auto runs stay in sync.
+When autopilot sequences execute DSKY macros, those Verb/Noun entries are recorded alongside checklist acknowledgements so replay scripts preserve AGC interactions for parity runs and upcoming UI prototypes.
 
 ## Automated Parity Runner
 

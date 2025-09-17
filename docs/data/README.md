@@ -42,6 +42,7 @@ Automation scripts under `autopilots/` describe maneuvers as ordered command seq
 - `throttle` — step the propulsion system to a specific throttle level.
 - `throttle_ramp` — linearly transition throttle from the current (or explicit `from`) level to the `to`/`level` target over the provided `duration` seconds. Zero-duration ramps collapse to an instantaneous throttle change.
 - `rcs_pulse` — request quantized RCS firings; the new `RcsController` resolves thruster selections from `thrusters.json`, computes propellant mass and impulse totals, and records usage against the appropriate tank.
+- `dsky_entry` — log AGC Verb/Noun macros (optionally by ID) and forward them to the manual action recorder so parity scripts and upcoming UI workflows can replay the same DSKY interactions.
 
 The LM powered descent script (`PGM_LM_PDI.json`) now uses `throttle_ramp` entries to approximate the gradual spool-up and throttle-bucket transitions captured in the Flight Journal, giving the simulation smoother mass-flow integration for descent propellant tracking.
 
