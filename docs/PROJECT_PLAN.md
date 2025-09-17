@@ -95,7 +95,7 @@ Supporting details for each milestone live in [`docs/milestones/`](milestones).
 1. **M0:** Historical ingestion and event CSV creation (see [`milestones/M0_DATA_INGESTION.md`](milestones/M0_DATA_INGESTION.md)).
 2. **M1:** Core engine (loop, scheduler, resources, PTC) documented in [`milestones/M1_CORE_SYSTEMS.md`](milestones/M1_CORE_SYSTEMS.md).
 3. **M2:** Guidance and RCS (burn execution, docking minigame) documented in [`milestones/M2_GUIDANCE_RCS.md`](milestones/M2_GUIDANCE_RCS.md).
-4. **M3:** UI/HUD and audio.
+4. **M3:** UI/HUD and audio presentation planning captured in [`milestones/M3_UI_AUDIO.md`](milestones/M3_UI_AUDIO.md).
 5. **M4:** N64 port and performance tuning.
 6. **M5:** Content pass for full Apollo 11 mission graph.
 7. **M6:** Fidelity pass aligning to GET anchors.
