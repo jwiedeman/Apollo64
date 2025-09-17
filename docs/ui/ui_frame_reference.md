@@ -87,8 +87,10 @@ Strings representing GET values are formatted as `HHH:MM:SS`.
 | `aborted` | number | Total autopilots aborted. |
 | `totalBurnSeconds` | number | Aggregate burn time. |
 | `totalUllageSeconds` | number | Aggregate ullage time. |
+| `totalRcsImpulseNs` | number | Aggregate RCS impulse delivered (Newton-seconds). |
+| `totalRcsPulses` | number | Aggregate RCS pulse firings counted across all thrusters. |
 | `propellantKgByTank` | object | Propellant consumption keyed by tank ID. |
-| `activeAutopilots[]` | array | Up to `activeAutopilotLimit` entries summarizing active scripts. |
+| `activeAutopilots[]` | array | Up to `activeAutopilotLimit` entries summarizing active scripts (each entry now exposes `rcsPulses`, `rcsImpulseNs`, and `rcsKg`). |
 | `primary` | object&#124;null | The active script with the smallest remaining time. |
 
 ### `checklists`

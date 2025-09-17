@@ -8,6 +8,7 @@ export class Simulation {
     checklistManager = null,
     manualActionQueue = null,
     autopilotRunner = null,
+    rcsController = null,
     hud = null,
     scoreSystem = null,
     logger,
@@ -18,6 +19,7 @@ export class Simulation {
     this.checklistManager = checklistManager;
     this.manualActions = manualActionQueue;
     this.autopilotRunner = autopilotRunner;
+    this.rcsController = rcsController;
     this.hud = hud;
     this.scoreSystem = scoreSystem;
     this.logger = logger;
@@ -52,6 +54,7 @@ export class Simulation {
           autopilotRunner: this.autopilotRunner,
           checklistManager: this.checklistManager,
           manualQueue: this.manualActions,
+          rcsController: this.rcsController,
         });
       }
       this.clock.advance();
@@ -63,6 +66,7 @@ export class Simulation {
     const checklistStats = this.checklistManager ? this.checklistManager.stats() : null;
     const manualStats = this.manualActions ? this.manualActions.stats() : null;
     const autopilotStats = this.autopilotRunner ? this.autopilotRunner.stats() : null;
+    const rcsStats = this.rcsController ? this.rcsController.stats() : null;
     const hudStats = this.hud ? this.hud.stats() : null;
     const scoreSummary = this.scoreSystem ? this.scoreSystem.summary() : null;
 
@@ -74,6 +78,7 @@ export class Simulation {
       checklists: checklistStats,
       manualActions: manualStats,
       autopilot: autopilotStats,
+      rcs: rcsStats,
       hud: hudStats,
       score: scoreSummary,
     });
@@ -86,6 +91,7 @@ export class Simulation {
       checklists: checklistStats,
       manualActions: manualStats,
       autopilot: autopilotStats,
+      rcs: rcsStats,
       hud: hudStats,
       score: scoreSummary,
     };

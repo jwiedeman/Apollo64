@@ -22,6 +22,7 @@ Milestone M2 layers guidance execution, reaction-control modelling, and rendezvo
 - **Pulse quantization:** Model 0.5 s minimum impulses with configurable deadbands. The PD controller from M1 should schedule pulses, clamp firing counts, and feed propellant deltas to the resource model.
 - **Mode switching:** Support rotational vs. translational control (e.g., AGC `ATT HOLD` vs. `TRANSLATION`). Include logic for hand controllers, docking reticles, and autopilot takeover when scripted docking sequences run.
 - **Thermal and power impact:** Couple high-duty pulse trains to cryo boiloff and power draw to maintain consistency with PTC modelling.
+- **Implementation progress:** `RcsController` now converts the thruster geometry pack into deterministic propellant usage and impulse metrics for new `rcs_pulse` autopilot commands, logging axis usage so HUD/score systems can surface RCS activity.
 
 ### 3. Rendezvous & Docking Scenario
 - **Scenario setup:** Instantiate the LM ascent, phasing, and rendezvous sequence with initial conditions from `docs/data/events.csv` and PAD data. The scheduler should arm the docking minigame after ascent cutoff and platform alignment steps succeed.
