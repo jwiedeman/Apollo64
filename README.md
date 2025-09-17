@@ -61,6 +61,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/ui/json_schemas.md`](docs/ui/json_schemas.md) – JSON schema definitions for upcoming checklist, panel, and workspace data packs consumed by the UI layer.
 - [`docs/ui/hud_layout.md`](docs/ui/hud_layout.md) – HUD band, pane layouts, tile-mode presets, and accessibility hooks for the Milestone M3 presentation layer.
 - [`docs/ui/component_architecture.md`](docs/ui/component_architecture.md) – Component tree, frame ingestion pipeline, tile workspace behavior, and accessibility hooks for the web/N64 UI builds.
+- [`docs/ui/view_data_bindings.md`](docs/ui/view_data_bindings.md) – Detailed data-binding catalog covering the Always-On HUD, Navigation, Controls, Systems, and Tile Mode widgets so implementation stays anchored to mission truth.
 - [`docs/ui/audio_cue_taxonomy.md`](docs/ui/audio_cue_taxonomy.md) – Cue categories, priority routing, dataset integration, and asset specs for the mission audio pipeline.
 - [`docs/scoring/commander_rating.md`](docs/scoring/commander_rating.md) – Commander rating model, telemetry inputs, and weighting used by the simulation score system.
 
