@@ -7,6 +7,14 @@ import { ManualActionRecorder } from '../logging/manualActionRecorder.js';
 import { createSimulationContext } from '../sim/simulationContext.js';
 import { formatGET, parseGET } from '../utils/time.js';
 
+const SCORE_IGNORE_PATHS = [
+  'manual',
+  'rating.manualBonus',
+  'rating.commanderScore',
+  'rating.grade',
+  'rating.breakdown.manual',
+];
+
 const DEFAULT_OPTIONS = {
   tickRate: 20,
   logIntervalSeconds: 3600,
@@ -218,6 +226,7 @@ function summarizeRun(summary, manualQueueStats = null) {
     checklists: summary.checklists?.totals ?? null,
     autopilot: summary.autopilot ?? null,
     manualActions: summary.manualActions ?? manualQueueStats ?? null,
+    score: summary.score ?? null,
   };
 }
 
@@ -230,13 +239,18 @@ function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {})
     tolerance,
     ignorePaths: ['totals.autoSteps', 'totals.manualSteps'],
   });
+  const scoreDiffs = diffObjects(autoSummary.score, manualSummary.score, {
+    tolerance,
+    ignorePaths: SCORE_IGNORE_PATHS,
+  });
 
   const passed =
     eventDiffs.length === 0 &&
     eventTimelineDiffs.length === 0 &&
     resourceDiffs.length === 0 &&
     autopilotDiffs.length === 0 &&
-    checklistDiffs.length === 0;
+    checklistDiffs.length === 0 &&
+    scoreDiffs.length === 0;
 
   return {
     passed,
@@ -245,6 +259,7 @@ function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {})
     resourceDiffs,
     autopilotDiffs,
     checklistDiffs,
+    scoreDiffs,
   };
 }
 
@@ -334,6 +349,7 @@ function printDifferences(parity) {
     ['Resource snapshot', parity.resourceDiffs],
     ['Autopilot metrics', parity.autopilotDiffs],
     ['Checklist totals', parity.checklistDiffs],
+    ['Score summary', parity.scoreDiffs],
   ];
 
   for (const [label, diffs] of groups) {

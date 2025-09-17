@@ -8,6 +8,7 @@ import { ResourceSystem } from './resourceSystem.js';
 import { AutopilotRunner } from './autopilotRunner.js';
 import { Simulation } from './simulation.js';
 import { TextHud } from '../hud/textHud.js';
+import { ScoreSystem } from './scoreSystem.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -82,6 +83,14 @@ export async function createSimulationContext({
     },
   );
 
+  const scoreSystem = new ScoreSystem({
+    resourceSystem,
+    scheduler,
+    autopilotRunner,
+    checklistManager,
+    manualQueue: manualActionQueue,
+  });
+
   const simulation = new Simulation({
     scheduler,
     resourceSystem,
@@ -89,6 +98,7 @@ export async function createSimulationContext({
     manualActionQueue,
     autopilotRunner,
     hud,
+    scoreSystem,
     logger,
     tickRate,
   });
@@ -102,6 +112,7 @@ export async function createSimulationContext({
     manualActionQueue,
     autopilotRunner,
     hud,
+    scoreSystem,
     manualActionRecorder,
     logger,
     options: {

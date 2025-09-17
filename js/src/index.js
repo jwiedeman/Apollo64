@@ -239,6 +239,21 @@ function printSummary(summary) {
       console.log('Last HUD snapshot:', summary.hud.lastSnapshot);
     }
   }
+  if (summary.score) {
+    const { rating, events, resources, manual, comms } = summary.score;
+    console.log('Score summary:', {
+      commanderScore: rating?.commanderScore,
+      baseScore: rating?.baseScore,
+      manualBonus: rating?.manualBonus,
+      grade: rating?.grade,
+      completionRatePct: events?.completionRatePct,
+      minPowerMarginPct: resources?.minPowerMarginPct,
+      minDeltaVMarginMps: resources?.minDeltaVMarginMps,
+      thermalViolationSeconds: resources?.thermalViolationSeconds,
+      commsHitRatePct: comms?.hitRatePct,
+      manualFraction: manual?.manualFraction,
+    });
+  }
 }
 
 main().catch((error) => {
