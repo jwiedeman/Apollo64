@@ -15,6 +15,25 @@ const SCORE_IGNORE_PATHS = [
   'rating.breakdown.manual',
 ];
 
+const LOG_IGNORE_MESSAGES = new Set([
+  'Manual action script loaded',
+  'Manual checklist override executed',
+  'Manual resource delta applied',
+]);
+
+const LOG_IGNORE_CONTEXT_PATHS = [
+  'actor',
+  'note',
+  'checklists.totals.autoSteps',
+  'checklists.totals.manualSteps',
+  'manualActions',
+  'score.manual',
+  'score.rating.manualBonus',
+  'score.rating.commanderScore',
+  'score.rating.grade',
+  'score.rating.breakdown.manual',
+];
+
 const DEFAULT_OPTIONS = {
   tickRate: 20,
   logIntervalSeconds: 3600,
@@ -60,7 +79,16 @@ async function main() {
   });
 
   const manualSummary = manualContext.simulation.run({ untilGetSeconds: untilSeconds });
-  const parity = compareSummaries(autoSummary, manualSummary, { tolerance: args.tolerance });
+
+  const autoLogs = autoLogger.getEntries();
+  const manualLogs = manualLogger.getEntries();
+  const parity = compareRuns({
+    autoSummary,
+    manualSummary,
+    autoLogs,
+    manualLogs,
+    tolerance: args.tolerance,
+  });
 
   const report = buildReport({
     untilSeconds,
@@ -70,6 +98,8 @@ async function main() {
     autoSummary,
     manualSummary,
     manualQueueStats: manualContext.manualActionQueue?.stats() ?? null,
+    autoLogs,
+    manualLogs,
     parity,
   });
 
@@ -188,10 +218,18 @@ function buildReport({
   autoSummary,
   manualSummary,
   manualQueueStats,
+  autoLogs,
+  manualLogs,
   parity,
 }) {
   const untilGet = formatGET(untilSeconds);
   const recorderStats = recorder.stats();
+  const logStats = parity.logStats ?? {
+    autoTotal: Array.isArray(autoLogs) ? autoLogs.length : 0,
+    manualTotal: Array.isArray(manualLogs) ? manualLogs.length : 0,
+    autoCompared: Array.isArray(autoLogs) ? autoLogs.length : 0,
+    manualCompared: Array.isArray(manualLogs) ? manualLogs.length : 0,
+  };
 
   return {
     untilGet,
@@ -209,13 +247,21 @@ function buildReport({
       events: recorderStats.events,
       actionsGenerated: recordedActionsCount,
     },
-    auto: summarizeRun(autoSummary),
-    manual: summarizeRun(manualSummary, manualQueueStats),
+    auto: summarizeRun(autoSummary, null, autoLogs),
+    manual: summarizeRun(manualSummary, manualQueueStats, manualLogs),
+    logs: {
+      autoTotal: logStats.autoTotal,
+      manualTotal: logStats.manualTotal,
+      autoCompared: logStats.autoCompared,
+      manualCompared: logStats.manualCompared,
+      ignoreMessages: Array.from(LOG_IGNORE_MESSAGES),
+      ignoreContextPaths: [...LOG_IGNORE_CONTEXT_PATHS],
+    },
     parity,
   };
 }
 
-function summarizeRun(summary, manualQueueStats = null) {
+function summarizeRun(summary, manualQueueStats = null, logEntries = null) {
   return {
     ticks: summary.ticks,
     finalGet: formatGET(summary.finalGetSeconds),
@@ -227,12 +273,25 @@ function summarizeRun(summary, manualQueueStats = null) {
     autopilot: summary.autopilot ?? null,
     manualActions: summary.manualActions ?? manualQueueStats ?? null,
     score: summary.score ?? null,
+    logs: {
+      total: Array.isArray(logEntries) ? logEntries.length : null,
+    },
   };
 }
 
-function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {}) {
+function compareRuns({
+  autoSummary,
+  manualSummary,
+  autoLogs = [],
+  manualLogs = [],
+  tolerance = 1e-6,
+  logIgnoreMessages = LOG_IGNORE_MESSAGES,
+  logIgnoreContextPaths = LOG_IGNORE_CONTEXT_PATHS,
+} = {}) {
   const eventDiffs = diffObjects(autoSummary.events, manualSummary.events, { tolerance });
-  const eventTimelineDiffs = diffObjects(autoSummary.events?.timeline, manualSummary.events?.timeline, { tolerance });
+  const eventTimelineDiffs = diffObjects(autoSummary.events?.timeline, manualSummary.events?.timeline, {
+    tolerance,
+  });
   const resourceDiffs = diffObjects(autoSummary.resources, manualSummary.resources, { tolerance });
   const autopilotDiffs = diffObjects(autoSummary.autopilot, manualSummary.autopilot, { tolerance });
   const checklistDiffs = diffObjects(autoSummary.checklists, manualSummary.checklists, {
@@ -244,13 +303,20 @@ function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {})
     ignorePaths: SCORE_IGNORE_PATHS,
   });
 
+  const logResult = diffLogs(autoLogs, manualLogs, {
+    tolerance,
+    ignoreMessages: logIgnoreMessages,
+    ignoreContextPaths: logIgnoreContextPaths,
+  });
+
   const passed =
     eventDiffs.length === 0 &&
     eventTimelineDiffs.length === 0 &&
     resourceDiffs.length === 0 &&
     autopilotDiffs.length === 0 &&
     checklistDiffs.length === 0 &&
-    scoreDiffs.length === 0;
+    scoreDiffs.length === 0 &&
+    logResult.diffs.length === 0;
 
   return {
     passed,
@@ -260,6 +326,8 @@ function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {})
     autopilotDiffs,
     checklistDiffs,
     scoreDiffs,
+    logDiffs: logResult.diffs,
+    logStats: logResult.stats,
   };
 }
 
@@ -313,6 +381,109 @@ function diffObjects(autoValue, manualValue, { tolerance = 1e-6, ignorePaths = [
   return diffs;
 }
 
+function diffLogs(
+  autoEntries,
+  manualEntries,
+  { tolerance = 1e-6, ignoreMessages = [], ignoreContextPaths = [] } = {},
+) {
+  const autoLogs = Array.isArray(autoEntries) ? autoEntries : [];
+  const manualLogs = Array.isArray(manualEntries) ? manualEntries : [];
+  const ignoreSet = ignoreMessages instanceof Set ? ignoreMessages : new Set(ignoreMessages ?? []);
+
+  const filteredAuto = filterLogsForComparison(autoLogs, ignoreSet);
+  const filteredManual = filterLogsForComparison(manualLogs, ignoreSet);
+  const diffs = [];
+
+  if (filteredAuto.length !== filteredManual.length) {
+    diffs.push({ path: 'length', auto: filteredAuto.length, manual: filteredManual.length });
+  }
+
+  const compareCount = Math.min(filteredAuto.length, filteredManual.length);
+  for (let i = 0; i < compareCount; i += 1) {
+    const autoEntry = filteredAuto[i] ?? {};
+    const manualEntry = filteredManual[i] ?? {};
+    const prefix = `#${i}`;
+
+    const autoGet = normalizeGetSeconds(autoEntry);
+    const manualGet = normalizeGetSeconds(manualEntry);
+    if (Number.isFinite(autoGet) && Number.isFinite(manualGet)) {
+      if (Math.abs(autoGet - manualGet) > tolerance) {
+        diffs.push({
+          path: `${prefix}.getSeconds`,
+          auto: autoGet,
+          manual: manualGet,
+          delta: manualGet - autoGet,
+        });
+      }
+    } else if (autoEntry.getSeconds !== manualEntry.getSeconds) {
+      diffs.push({
+        path: `${prefix}.getSeconds`,
+        auto: autoEntry.getSeconds,
+        manual: manualEntry.getSeconds,
+      });
+    }
+
+    const autoMessage = autoEntry?.message ?? null;
+    const manualMessage = manualEntry?.message ?? null;
+    if (autoMessage !== manualMessage) {
+      diffs.push({ path: `${prefix}.message`, auto: autoMessage, manual: manualMessage });
+    }
+
+    const contextDiffs = diffObjects(autoEntry.context ?? null, manualEntry.context ?? null, {
+      tolerance,
+      ignorePaths: ignoreContextPaths,
+    });
+    for (const diff of contextDiffs) {
+      const pathSuffix = diff.path ? `.context.${diff.path}` : '.context';
+      const entry = { path: `${prefix}${pathSuffix}` };
+      if ('delta' in diff) {
+        entry.delta = diff.delta;
+      }
+      if ('auto' in diff) {
+        entry.auto = diff.auto;
+      }
+      if ('manual' in diff) {
+        entry.manual = diff.manual;
+      }
+      if ('autoLength' in diff) {
+        entry.autoLength = diff.autoLength;
+      }
+      if ('manualLength' in diff) {
+        entry.manualLength = diff.manualLength;
+      }
+      diffs.push(entry);
+    }
+  }
+
+  return {
+    diffs,
+    stats: {
+      autoTotal: autoLogs.length,
+      manualTotal: manualLogs.length,
+      autoCompared: filteredAuto.length,
+      manualCompared: filteredManual.length,
+    },
+  };
+}
+
+function filterLogsForComparison(entries, ignoreSet) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return [];
+  }
+  return entries.filter((entry) => entry && !ignoreSet.has(entry.message));
+}
+
+function normalizeGetSeconds(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+  const value = entry.getSeconds ?? entry.get_seconds ?? entry.get ?? null;
+  if (Number.isFinite(value)) {
+    return Number(value);
+  }
+  return null;
+}
+
 function isPlainObject(value) {
   return value != null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -337,6 +508,21 @@ function printReport(report, { quiet }) {
     );
   }
 
+  if (report.logs) {
+    console.log(
+      `  Log entries recorded: auto ${report.logs.autoTotal}; manual ${report.logs.manualTotal}`,
+    );
+    console.log(
+      `  Log entries compared (after filters): auto ${report.logs.autoCompared}; manual ${report.logs.manualCompared}`,
+    );
+    if (Array.isArray(report.logs.ignoreMessages) && report.logs.ignoreMessages.length > 0) {
+      console.log(`  Ignored log messages: ${report.logs.ignoreMessages.join(', ')}`);
+    }
+    if (Array.isArray(report.logs.ignoreContextPaths) && report.logs.ignoreContextPaths.length > 0) {
+      console.log(`  Ignored context fields: ${report.logs.ignoreContextPaths.join(', ')}`);
+    }
+  }
+
   if (!report.parity.passed || !quiet) {
     printDifferences(report.parity);
   }
@@ -350,6 +536,7 @@ function printDifferences(parity) {
     ['Autopilot metrics', parity.autopilotDiffs],
     ['Checklist totals', parity.checklistDiffs],
     ['Score summary', parity.scoreDiffs],
+    ['Log entries', parity.logDiffs],
   ];
 
   for (const [label, diffs] of groups) {
