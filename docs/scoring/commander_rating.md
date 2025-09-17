@@ -18,8 +18,8 @@ progression unlocks (alternate missions, fault-driven scenarios, etc.).
 - **Resource margins:** minimum/maximum power margin (%), Δv reserve (m/s),
   cumulative thermal violation time (seconds above the cryo boil-off threshold),
   and propellant/power deltas pulled from `ResourceSystem.metrics`.
-- **Fault accumulation:** total scheduler failures plus resource failure IDs
-  registered during the run.
+- **Fault accumulation:** total scheduler failures plus unique resource failure IDs
+  (with taxonomy metadata) registered during the run.
 - **Manual involvement:** acknowledged checklist steps attributed to manual
   actors vs. the auto crew or scripted manual queues.
 
@@ -57,7 +57,7 @@ view. The full payload (also logged in parity reports) resembles:
     "thermalViolationSeconds": 180.0,
     "propellantUsedKg": {"csm_sps": 152.4, "csm_rcs": 12.1}
   },
-  "faults": {"eventFailures": 3, "resourceFailures": 1, "totalFaults": 4},
+  "faults": {"eventFailures": 3, "resourceFailures": 1, "resourceFailureIds": ["FAIL_TLI_UNDERBURN"], "totalFaults": 4},
   "manual": {"manualSteps": 24, "autoSteps": 86, "totalSteps": 110, "manualFraction": 0.218},
   "rating": {
     "baseScore": 83.6,

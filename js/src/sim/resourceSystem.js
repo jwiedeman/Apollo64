@@ -93,7 +93,8 @@ export class ResourceSystem {
     this.logger = logger;
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.state = deepMerge(deepClone(DEFAULT_STATE), options.initialState ?? {});
-    this.failures = new Set();
+    this.failures = new Map();
+    this.failureCatalog = new Map();
     this.metrics = {
       propellantDeltaKg: Object.create(null),
       powerDeltaKw: Object.create(null),
@@ -116,6 +117,9 @@ export class ResourceSystem {
     }
     if (options.communicationsSchedule) {
       this.configureCommunicationsSchedule(options.communicationsSchedule);
+    }
+    if (options.failureCatalog || options.failures) {
+      this.configureFailures(options.failureCatalog ?? options.failures);
     }
   }
 
@@ -168,6 +172,43 @@ export class ResourceSystem {
     this.#updateNextCommunicationsPass(0);
   }
 
+  configureFailures(catalog) {
+    this.failureCatalog.clear();
+    if (!catalog) {
+      return;
+    }
+
+    if (catalog instanceof Map) {
+      for (const [id, record] of catalog.entries()) {
+        if (!id) {
+          continue;
+        }
+        this.failureCatalog.set(String(id), record);
+      }
+      return;
+    }
+
+    if (Array.isArray(catalog)) {
+      for (const entry of catalog) {
+        const id = entry?.failure_id ?? entry?.id;
+        if (!id) {
+          continue;
+        }
+        this.failureCatalog.set(String(id), entry);
+      }
+      return;
+    }
+
+    if (typeof catalog === 'object') {
+      for (const [id, record] of Object.entries(catalog)) {
+        if (!id) {
+          continue;
+        }
+        this.failureCatalog.set(String(id), record);
+      }
+    }
+  }
+
   applyEffect(effect, { getSeconds, source, type }) {
     if (!effect || Object.keys(effect).length === 0) {
       return;
@@ -178,8 +219,39 @@ export class ResourceSystem {
     for (const [key, value] of Object.entries(effect)) {
       if (key === 'failure_id') {
         if (value) {
-          this.failures.add(value);
-          applied.failure_id = value;
+          const failure = this.recordFailure(value, { getSeconds, source, type });
+          applied.failure_id = failure ? failure.id : value;
+        }
+        continue;
+      }
+
+      if (key === 'failures' && Array.isArray(value)) {
+        const recorded = [];
+        for (const entry of value) {
+          if (!entry) {
+            continue;
+          }
+          const failureId = typeof entry === 'string'
+            ? entry
+            : entry.failure_id ?? entry.id ?? null;
+          if (!failureId) {
+            continue;
+          }
+          const note = typeof entry === 'object' ? entry.note ?? entry.reason ?? null : null;
+          const metadata = typeof entry === 'object' ? entry : null;
+          const failure = this.recordFailure(failureId, {
+            getSeconds,
+            source,
+            type,
+            note,
+            metadata,
+          });
+          if (failure) {
+            recorded.push(failure.id);
+          }
+        }
+        if (recorded.length > 0) {
+          applied.failures = recorded;
         }
         continue;
       }
@@ -201,6 +273,109 @@ export class ResourceSystem {
         applied,
       });
     }
+  }
+
+  recordFailure(
+    failureId,
+    { getSeconds = null, source = null, type = null, note = null, metadata = null } = {},
+  ) {
+    if (!failureId) {
+      return null;
+    }
+
+    const id = String(failureId).trim();
+    if (!id) {
+      return null;
+    }
+
+    const timestamp = Number.isFinite(getSeconds) ? getSeconds : null;
+    const timestampLabel = timestamp != null ? formatGET(timestamp) : null;
+    const catalogEntry = this.failureCatalog.get(id) ?? null;
+    let entry = this.failures.get(id);
+    const isNew = !entry;
+
+    if (!entry) {
+      entry = {
+        id,
+        classification: catalogEntry?.classification ?? null,
+        trigger: catalogEntry?.trigger ?? null,
+        immediateEffect: catalogEntry?.immediate_effect ?? null,
+        ongoingPenalty: catalogEntry?.ongoing_penalty ?? null,
+        recoveryActions: catalogEntry?.recovery_actions ?? null,
+        sourceRef: catalogEntry?.source_ref ?? null,
+        firstTriggeredSeconds: timestamp,
+        firstTriggered: timestampLabel,
+        lastTriggeredSeconds: timestamp,
+        lastTriggered: timestampLabel,
+        occurrences: 0,
+        sources: [],
+        lastSource: source ?? null,
+        lastType: type ?? null,
+        notes: [],
+        metadata: null,
+      };
+      this.failures.set(id, entry);
+    }
+
+    entry.occurrences += 1;
+    if (timestamp != null) {
+      entry.lastTriggeredSeconds = timestamp;
+      entry.lastTriggered = timestampLabel;
+      if (entry.firstTriggeredSeconds == null) {
+        entry.firstTriggeredSeconds = timestamp;
+        entry.firstTriggered = timestampLabel;
+      }
+    }
+
+    if (source) {
+      entry.lastSource = source;
+      if (!entry.sources.includes(source)) {
+        entry.sources.push(source);
+      }
+    }
+
+    if (type) {
+      entry.lastType = type;
+    }
+
+    if (note) {
+      entry.notes.push(note);
+    }
+
+    if (metadata && typeof metadata === 'object') {
+      entry.metadata = deepClone(metadata);
+      if (!entry.classification && metadata.classification) {
+        entry.classification = metadata.classification;
+      }
+      if (!entry.immediateEffect && metadata.immediate_effect) {
+        entry.immediateEffect = metadata.immediate_effect;
+      }
+      if (!entry.ongoingPenalty && metadata.ongoing_penalty) {
+        entry.ongoingPenalty = metadata.ongoing_penalty;
+      }
+      if (!entry.recoveryActions && metadata.recovery_actions) {
+        entry.recoveryActions = metadata.recovery_actions;
+      }
+    }
+
+    if (this.logger) {
+      const logSeconds = timestamp ?? getSeconds ?? 0;
+      const message = isNew ? `Failure latched ${id}` : `Failure ${id} repeated`;
+      const payload = {
+        failureId: id,
+        classification: entry.classification ?? null,
+        source: source ?? entry.lastSource ?? null,
+        occurrences: entry.occurrences,
+        firstTriggered: entry.firstTriggered ?? null,
+        lastTriggered: entry.lastTriggered ?? null,
+      };
+      if (note) {
+        payload.note = note;
+      }
+      this.logger.log(logSeconds, message, payload);
+    }
+
+    return entry;
   }
 
   update(dtSeconds, getSeconds) {
@@ -310,7 +485,7 @@ export class ResourceSystem {
 
   snapshot() {
     const state = deepClone(this.state);
-    state.failures = Array.from(this.failures.values());
+    state.failures = Array.from(this.failures.values()).map((failure) => deepClone(failure));
     state.budgets = deepClone(this.budgets);
     state.metrics = this.metricsSnapshot();
     return state;

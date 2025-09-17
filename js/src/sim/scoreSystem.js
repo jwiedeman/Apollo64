@@ -129,9 +129,13 @@ export class ScoreSystem {
     const metrics = resourceSnapshot?.metrics ?? null;
     const propellantDelta = metrics?.propellantDeltaKg ?? {};
     const powerDelta = metrics?.powerDeltaKw ?? {};
-    const resourceFailures = Array.isArray(resourceSnapshot?.failures)
-      ? [...resourceSnapshot.failures]
+    const resourceFailureEntries = Array.isArray(resourceSnapshot?.failures)
+      ? resourceSnapshot.failures
       : [];
+    const resourceFailureIds = resourceFailureEntries
+      .map((failure) => (failure && typeof failure === 'object' ? failure.id ?? null : failure))
+      .filter((id) => typeof id === 'string' && id.length > 0);
+    const uniqueResourceFailureIds = Array.from(new Set(resourceFailureIds));
     const autopilotStats = this.autopilotRunner?.stats?.() ?? null;
 
     const checklistStats = this.checklistManager?.stats?.() ?? null;
@@ -146,7 +150,7 @@ export class ScoreSystem {
     const eventCompletionRate = this.totalEvents > 0 ? this.completedEvents / this.totalEvents : 1;
     const eventScore = clamp(eventCompletionRate, 0, 1);
 
-    const faultCount = this.failedEvents + resourceFailures.length;
+    const faultCount = this.failedEvents + uniqueResourceFailureIds.length;
     const faultScore = this.#computeFaultScore(faultCount);
     const resourceScore = this.#computeResourceScore();
 
@@ -206,7 +210,8 @@ export class ScoreSystem {
       },
       faults: {
         eventFailures: this.failedEvents,
-        resourceFailures: resourceFailures.length,
+        resourceFailures: uniqueResourceFailureIds.length,
+        resourceFailureIds: uniqueResourceFailureIds,
         totalFaults: faultCount,
       },
       manual: {

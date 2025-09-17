@@ -48,6 +48,7 @@ export async function createSimulationContext({
     logIntervalSeconds,
     consumables: missionData.consumables,
     communicationsSchedule: missionData.communications,
+    failureCatalog: missionData.failures,
   });
 
   const rcsController = new RcsController(missionData.thrusters, resourceSystem, logger);
