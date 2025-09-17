@@ -45,5 +45,6 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
 - Future EVA extensions or DSN updates should extend these checks so nested effect payloads (e.g., `communications.next_window_open_get`, `surface_ops.eva2_complete`) stay validated as new fields appear.
 - Planned notebooks under `scripts/ingest/` can re-use the validator’s helper functions for GET parsing and reference verification so manual analyses stay aligned with the automated sweep.
 - When mission scoring hooks mature, incorporate regression checks that assert metric ranges (Δv margins, propellant draw) remain within expected tolerances.
+- Upcoming audio cue fields (`audio_cue`, `audio_channel`, DSN handover cues) should be wired into the validator once the datasets land so cue IDs resolve to the shared `audio_cues.json` pack and bus names stay canonical.
 
 Maintaining these checks keeps the mission data trustworthy for both the JS prototype and the eventual Nintendo 64 build while reducing manual verification overhead as Milestone M0 evolves.

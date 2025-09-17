@@ -26,6 +26,8 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - `UiFrameBuilder` in [`js/src/hud/uiFrameBuilder.js`](js/src/hud/uiFrameBuilder.js) consolidates scheduler, resource, autopilot, checklist, and manual queue state into deterministic `ui_frame` snapshots (documented in [`docs/ui/ui_frame_reference.md`](docs/ui/ui_frame_reference.md)) so the CLI HUD and upcoming Navigation/Controls/Systems views share a single data contract.
 - Milestone M3 UI, HUD, and audio telemetry planning in [`docs/milestones/M3_UI_AUDIO.md`](docs/milestones/M3_UI_AUDIO.md) defines presentation-layer architecture, cue taxonomy, and accessibility handoff targets for the JS prototype and N64 port.
 - Detailed HUD and pane layout specification in [`docs/ui/hud_layout.md`](docs/ui/hud_layout.md) locks in the Always-On HUD modules, Navigation/Controls/Systems view grids, tile-mode presets, and data-binding strategy that the M3 UI build will implement across the web and N64 targets.
+- UI component architecture blueprint in [`docs/ui/component_architecture.md`](docs/ui/component_architecture.md) maps the pane/component tree, `ui_frame` ingestion flow, tile workspace persistence, and accessibility hooks that keep the Always-On HUD authoritative across web and N64 builds.
+- Audio cue taxonomy and routing plan in [`docs/ui/audio_cue_taxonomy.md`](docs/ui/audio_cue_taxonomy.md) defines cue categories, priority/ducking rules, dataset hooks, and asset specs so the upcoming dispatcher can balance alerts, callouts, ambience, and UI feedback consistently.
 - Milestone M4 N64 port plan in [`docs/milestones/M4_N64_PORT.md`](docs/milestones/M4_N64_PORT.md) maps the libdragon architecture, rendering/audio budgets, input scheme, and asset pipeline for the hardware build.
 - Milestone M5 content integration roadmap in [`docs/milestones/M5_CONTENT_PASS.md`](docs/milestones/M5_CONTENT_PASS.md) itemizes the remaining dataset ingestion work, contingency branches, and ingestion tooling required for the full mission graph.
 - Milestone M6 fidelity pass outline in [`docs/milestones/M6_FIDELITY_PASS.md`](docs/milestones/M6_FIDELITY_PASS.md) defines calibration targets for timelines, propulsion, resources, and communications against Apollo 11 telemetry.
@@ -58,6 +60,8 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/ui/dsky_reference.md`](docs/ui/dsky_reference.md) – DSKY macro catalog covering alignment, burn, docking, and entry Verb/Noun pairs with prerequisite logic.
 - [`docs/ui/json_schemas.md`](docs/ui/json_schemas.md) – JSON schema definitions for upcoming checklist, panel, and workspace data packs consumed by the UI layer.
 - [`docs/ui/hud_layout.md`](docs/ui/hud_layout.md) – HUD band, pane layouts, tile-mode presets, and accessibility hooks for the Milestone M3 presentation layer.
+- [`docs/ui/component_architecture.md`](docs/ui/component_architecture.md) – Component tree, frame ingestion pipeline, tile workspace behavior, and accessibility hooks for the web/N64 UI builds.
+- [`docs/ui/audio_cue_taxonomy.md`](docs/ui/audio_cue_taxonomy.md) – Cue categories, priority routing, dataset integration, and asset specs for the mission audio pipeline.
 - [`docs/scoring/commander_rating.md`](docs/scoring/commander_rating.md) – Commander rating model, telemetry inputs, and weighting used by the simulation score system.
 
 ## Contribution Notes

@@ -12,9 +12,9 @@ port.
 - Document cross-platform considerations so the eventual N64 build can reproduce the UI and audio layer within its budgets.
 
 ## Deliverables
-- UI state aggregator and presentation layer design notes for the JS prototype (component tree, update cadence, data bindings).
+- UI state aggregator and presentation layer design notes for the JS prototype (component tree, update cadence, data bindings) documented in [`docs/ui/component_architecture.md`](../ui/component_architecture.md).
 - HUD layout specifications including timing blocks, event stack, resource gauges, and maneuver widgets.
-- Audio cue taxonomy mapped to mission events and failure classes with playback priority rules and asset references.
+- Audio cue taxonomy mapped to mission events and failure classes with playback priority rules and asset references, captured in [`docs/ui/audio_cue_taxonomy.md`](../ui/audio_cue_taxonomy.md).
 - Logging, replay, and accessibility guidelines covering color use, captioning, and control remapping hooks.
 - Panel hierarchy, DSKY macro catalog, and JSON data schema references in [`docs/ui/`](../ui) to guide panel highlighting, DSKY macros, and tile-mode presets.
 

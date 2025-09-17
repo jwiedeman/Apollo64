@@ -20,8 +20,9 @@ The recommended execution order keeps downstream dependencies satisfied:
 6. `failure_taxonomy.ipynb`
 7. `communications_trends.ipynb`
 8. `consumables_budget.ipynb`
+9. `audio_cues.ipynb`
 
-Running notebooks in this sequence ensures that event windows, checklists, PADs, autopilot metadata, and failure hooks stay synchronized before communications and consumables analytics recalculate their derivatives.
+Running notebooks in this sequence ensures that event windows, checklists, PADs, autopilot metadata, and failure hooks stay synchronized before communications, consumables, and audio cue analytics recalculate their derivatives.
 
 ## Shared Notebook Helpers
 
