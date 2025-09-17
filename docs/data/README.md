@@ -10,6 +10,8 @@ This directory contains the structured mission datasets produced during Mileston
 
 Future updates will publish the ingestion notebooks under `scripts/ingest/`, expand contingency branches, and wire the new analytics into regression notebooks as described in the milestone plan.
 
+The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/ingest/ingestlib) exposes GET parsers, typed dataset loaders, validation utilities, and provenance builders so notebooks and automation reuse consistent logic.
+
 ## Validation Harness
 
 - Run `cd js && npm run validate:data` to execute the mission dataset sweep implemented in [`../../js/src/tools/validateMissionData.js`](../../js/src/tools/validateMissionData.js).
