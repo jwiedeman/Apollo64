@@ -48,6 +48,9 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/data/VALIDATION_CHECKS.md`](docs/data/VALIDATION_CHECKS.md) – Automated dataset sweep coverage and guidance for extending the validation CLI.
 - [`docs/data/INGESTION_PIPELINE.md`](docs/data/INGESTION_PIPELINE.md) – Step-by-step workflow for running the ingestion notebooks, validating outputs, and planning future automation.
 - [`docs/ui/AGENTS.md`](docs/ui/AGENTS.md) – Front-end layout, interaction, and workspace guidelines for the Milestone M3 UI build.
+- [`docs/ui/panel_hierarchy.md`](docs/ui/panel_hierarchy.md) – Mission panel inventory with control states, checklist links, and simulation notes for CSM/LM stations.
+- [`docs/ui/dsky_reference.md`](docs/ui/dsky_reference.md) – DSKY macro catalog covering alignment, burn, docking, and entry Verb/Noun pairs with prerequisite logic.
+- [`docs/ui/json_schemas.md`](docs/ui/json_schemas.md) – JSON schema definitions for upcoming checklist, panel, and workspace data packs consumed by the UI layer.
 
 ## Contribution Notes
 - Follow the guidelines in [`AGENTS.md`](AGENTS.md) for documentation structure and future implementation phases.

@@ -51,6 +51,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - Audio cues for cautions, warnings, and optional voiceovers.
 - Text console for PAD uplinks and autopilot feedback.
 - Failure breadcrumbs highlighting causal chains (e.g., "PTC OFF → cryo boiloff ↑ → fuel cell ΔP ↓").
+- Panel switch maps, DSKY macro catalog, and workspace schemas documented in [`docs/ui/`](ui) to keep UI prerequisites aligned with mission procedures.
 
 ## 5. Failure Taxonomy
 - **Success:** All milestones within spec.
