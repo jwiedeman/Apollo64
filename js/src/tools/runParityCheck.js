@@ -213,6 +213,7 @@ function summarizeRun(summary, manualQueueStats = null) {
     finalGet: formatGET(summary.finalGetSeconds),
     eventCounts: summary.events?.counts ?? null,
     upcomingEvents: summary.events?.upcoming ?? [],
+    eventTimeline: summary.events?.timeline ?? null,
     resources: summary.resources ?? null,
     checklists: summary.checklists?.totals ?? null,
     autopilot: summary.autopilot ?? null,
@@ -222,6 +223,7 @@ function summarizeRun(summary, manualQueueStats = null) {
 
 function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {}) {
   const eventDiffs = diffObjects(autoSummary.events, manualSummary.events, { tolerance });
+  const eventTimelineDiffs = diffObjects(autoSummary.events?.timeline, manualSummary.events?.timeline, { tolerance });
   const resourceDiffs = diffObjects(autoSummary.resources, manualSummary.resources, { tolerance });
   const autopilotDiffs = diffObjects(autoSummary.autopilot, manualSummary.autopilot, { tolerance });
   const checklistDiffs = diffObjects(autoSummary.checklists, manualSummary.checklists, {
@@ -231,6 +233,7 @@ function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {})
 
   const passed =
     eventDiffs.length === 0 &&
+    eventTimelineDiffs.length === 0 &&
     resourceDiffs.length === 0 &&
     autopilotDiffs.length === 0 &&
     checklistDiffs.length === 0;
@@ -238,6 +241,7 @@ function compareSummaries(autoSummary, manualSummary, { tolerance = 1e-6 } = {})
   return {
     passed,
     eventDiffs,
+    eventTimelineDiffs,
     resourceDiffs,
     autopilotDiffs,
     checklistDiffs,
@@ -326,6 +330,7 @@ function printReport(report, { quiet }) {
 function printDifferences(parity) {
   const groups = [
     ['Event counts', parity.eventDiffs],
+    ['Event timeline', parity.eventTimelineDiffs],
     ['Resource snapshot', parity.resourceDiffs],
     ['Autopilot metrics', parity.autopilotDiffs],
     ['Checklist totals', parity.checklistDiffs],

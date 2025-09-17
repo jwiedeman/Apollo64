@@ -176,6 +176,12 @@ function printSummary(summary) {
   console.log(`Ticks executed: ${summary.ticks}`);
   console.log(`Final GET: ${formatGET(summary.finalGetSeconds)}`);
   console.log('Event counts:', summary.events.counts);
+  if (summary.events?.timeline) {
+    const timelineEntries = Object.values(summary.events.timeline);
+    const totalEvents = timelineEntries.length;
+    const completedEvents = timelineEntries.filter((entry) => entry?.status === 'complete').length;
+    console.log(`Event timeline recorded: ${completedEvents}/${totalEvents} events complete.`);
+  }
   if (summary.events.upcoming.length > 0) {
     console.log('Upcoming events:');
     for (const event of summary.events.upcoming) {
