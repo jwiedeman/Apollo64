@@ -96,10 +96,10 @@ Supporting details for each milestone live in [`docs/milestones/`](milestones).
 2. **M1:** Core engine (loop, scheduler, resources, PTC) documented in [`milestones/M1_CORE_SYSTEMS.md`](milestones/M1_CORE_SYSTEMS.md).
 3. **M2:** Guidance and RCS (burn execution, docking minigame) documented in [`milestones/M2_GUIDANCE_RCS.md`](milestones/M2_GUIDANCE_RCS.md).
 4. **M3:** UI/HUD and audio presentation planning captured in [`milestones/M3_UI_AUDIO.md`](milestones/M3_UI_AUDIO.md).
-5. **M4:** N64 port and performance tuning.
-6. **M5:** Content pass for full Apollo 11 mission graph.
-7. **M6:** Fidelity pass aligning to GET anchors.
-8. **M7:** Stability, fault injection, and long-run soak tests.
+5. **M4:** N64 port and performance tuning documented in [`milestones/M4_N64_PORT.md`](milestones/M4_N64_PORT.md).
+6. **M5:** Content pass for the full Apollo 11 mission graph detailed in [`milestones/M5_CONTENT_PASS.md`](milestones/M5_CONTENT_PASS.md).
+7. **M6:** Fidelity pass aligning to GET anchors covered in [`milestones/M6_FIDELITY_PASS.md`](milestones/M6_FIDELITY_PASS.md).
+8. **M7:** Stability, fault injection, and long-run soak tests defined in [`milestones/M7_STABILITY_FAULTS.md`](milestones/M7_STABILITY_FAULTS.md).
 
 ## 12. Stage Consequence Table (Excerpt)
 

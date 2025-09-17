@@ -17,6 +17,9 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - Milestone M2 planning notes outline guidance, RCS, and docking system requirements in [`docs/milestones/M2_GUIDANCE_RCS.md`](docs/milestones/M2_GUIDANCE_RCS.md) to steer upcoming implementation work.
 - Milestone M3 UI, HUD, and audio telemetry planning in [`docs/milestones/M3_UI_AUDIO.md`](docs/milestones/M3_UI_AUDIO.md) defines presentation-layer architecture, cue taxonomy, and accessibility handoff targets for the JS prototype and N64 port.
 - Milestone M4 N64 port plan in [`docs/milestones/M4_N64_PORT.md`](docs/milestones/M4_N64_PORT.md) maps the libdragon architecture, rendering/audio budgets, input scheme, and asset pipeline for the hardware build.
+- Milestone M5 content integration roadmap in [`docs/milestones/M5_CONTENT_PASS.md`](docs/milestones/M5_CONTENT_PASS.md) itemizes the remaining dataset ingestion work, contingency branches, and ingestion tooling required for the full mission graph.
+- Milestone M6 fidelity pass outline in [`docs/milestones/M6_FIDELITY_PASS.md`](docs/milestones/M6_FIDELITY_PASS.md) defines calibration targets for timelines, propulsion, resources, and communications against Apollo 11 telemetry.
+- Milestone M7 stability plan in [`docs/milestones/M7_STABILITY_FAULTS.md`](docs/milestones/M7_STABILITY_FAULTS.md) details soak-testing strategy, fault injection coverage, and automation expectations for release readiness.
 - Manual action recorder in [`js/src/logging/manualActionRecorder.js`](js/src/logging/manualActionRecorder.js) can capture auto-advanced checklist steps and export them via the CLI `--record-manual-script` flag for deterministic manual-vs-auto parity runs.
 
 ## Immediate Priorities
@@ -32,6 +35,9 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/milestones/M2_GUIDANCE_RCS.md`](docs/milestones/M2_GUIDANCE_RCS.md) – Guidance execution, RCS modelling, and docking gameplay plan.
 - [`docs/milestones/M3_UI_AUDIO.md`](docs/milestones/M3_UI_AUDIO.md) – UI, HUD, audio telemetry, and accessibility planning for the prototype and N64 targets.
 - [`docs/milestones/M4_N64_PORT.md`](docs/milestones/M4_N64_PORT.md) – N64 port architecture, performance validation plan, and Controller Pak integration roadmap.
+- [`docs/milestones/M5_CONTENT_PASS.md`](docs/milestones/M5_CONTENT_PASS.md) – Complete mission dataset integration, contingency coverage, and ingest tooling roadmap.
+- [`docs/milestones/M6_FIDELITY_PASS.md`](docs/milestones/M6_FIDELITY_PASS.md) – Calibration plan for timelines, resources, and communications fidelity.
+- [`docs/milestones/M7_STABILITY_FAULTS.md`](docs/milestones/M7_STABILITY_FAULTS.md) – Stability, fault injection, soak testing, and automation strategy.
 - [`docs/data/README.md`](docs/data/README.md) – Normalized mission datasets produced during Milestone M0 (currently covering launch through splashdown).
 - [`docs/data/VALIDATION_CHECKS.md`](docs/data/VALIDATION_CHECKS.md) – Automated dataset sweep coverage and guidance for extending the validation CLI.
 
