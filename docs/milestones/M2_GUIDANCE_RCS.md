@@ -31,7 +31,7 @@ Milestone M2 layers guidance execution, reaction-control modelling, and rendezvo
 
 ## Data & Tooling Updates
 - **Autopilot assets:** Expand JSON profiles with additional metadata (`throttle_ramp`, `attitude_profile`, `translation_sequence`). Create placeholder files for LM ascent guidance and docking assist autopilots if not already present.
-- **Thruster configuration:** Produce reference tables for RCS jets, including thrust (lbf), specific impulse, location, and feed tank. These feed both JS prototype calculations and the eventual N64 build.
+- **Thruster configuration:** Reference `docs/data/thrusters.json` for the initial CSM/LM RCS cluster tables (thrust, Isp, cluster angle, control axes) and expand them with refined vectors as tuning data becomes available. These feed both JS prototype calculations and the eventual N64 build.
 - **Tuning notebooks:** Plan for Python notebooks under `scripts/ingest/` (or similar) that replay burns and rendezvous sequences, plotting attitude error and propellant usage against historical baselines.
 
 ## HUD & Telemetry Enhancements

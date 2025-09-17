@@ -76,6 +76,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - Convert event CSVs into binary packs for runtime.
 - Template PAD generator for uplink messages.
 - Fault library with parameterized triggers/remedies.
+- Thruster geometry dataset mapping CSM/LM RCS clusters (`docs/data/thrusters.json`) with control axes and baseline thrust/impulse figures for the guidance milestone.
 
 ## 9. Telemetry, Scoring, Progression
 - Track Δv, propellant, electrical margins, thermal violations, comms hits/misses.

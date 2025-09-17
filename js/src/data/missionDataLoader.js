@@ -11,6 +11,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'failures.csv')),
     readFile(path.resolve(dataDir, 'pads.csv')),
     readFile(path.resolve(dataDir, 'consumables.json')),
+    readFile(path.resolve(dataDir, 'thrusters.json')),
   ]);
 
   const [
@@ -20,6 +21,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     failuresContent,
     padsContent,
     consumablesContent,
+    thrustersContent,
   ] = files;
 
   const autopilotRecords = parseCsv(autopilotsContent);
@@ -66,6 +68,26 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const failures = buildLookup(parseCsv(failuresContent), 'failure_id');
   const pads = buildLookup(parseCsv(padsContent), 'pad_id');
   const consumables = parseConsumables(consumablesContent, logger);
+  const thrusters = parseThrusters(thrustersContent, logger);
+
+  const thrusterCraftCount = Array.isArray(thrusters?.craft) ? thrusters.craft.length : 0;
+  const thrusterCount = Array.isArray(thrusters?.craft)
+    ? thrusters.craft.reduce((total, craft) => {
+        const clusters = craft?.rcs?.clusters;
+        if (!Array.isArray(clusters)) {
+          return total;
+        }
+        return (
+          total
+          + clusters.reduce((clusterTotal, cluster) => {
+            if (!Array.isArray(cluster?.thrusters)) {
+              return clusterTotal;
+            }
+            return clusterTotal + cluster.thrusters.length;
+          }, 0)
+        );
+      }, 0)
+    : 0;
 
   if (logger) {
     logger.log(0, 'Mission data loaded', {
@@ -76,6 +98,8 @@ export async function loadMissionData(dataDir, { logger } = {}) {
         failures: failures.size,
         pads: pads.size,
         consumables: Object.keys(consumables).length,
+        thrusterCraft: thrusterCraftCount,
+        thrusters: thrusterCount,
       },
     });
   }
@@ -87,6 +111,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     failures,
     pads,
     consumables,
+    thrusters,
   };
 }
 
@@ -207,5 +232,18 @@ function parseConsumables(content, logger) {
   } catch (error) {
     logger?.log(0, 'Failed to parse consumables dataset', { error: error.message });
     return {};
+  }
+}
+
+function parseThrusters(content, logger) {
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== 'object') {
+      return { craft: [] };
+    }
+    return parsed;
+  } catch (error) {
+    logger?.log(0, 'Failed to parse thrusters dataset', { error: error.message });
+    return { craft: [] };
   }
 }

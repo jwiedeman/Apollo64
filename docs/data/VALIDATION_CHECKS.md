@@ -37,6 +37,8 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
   - Validate Deep Space Network support fields (`dsn_shift_hours`, `next_window_open_get`).
 - **Communications trends:**
   - Parse `communications_trends.json`, verify GET windows, ensure signal-strength and handover metrics are numeric, and confirm station handovers reference expected identifiers.
+- **Thrusters:**
+  - Parse `thrusters.json`, ensure each craft and RCS cluster defines unique IDs, verify translation/torque axis enums, confirm thrust/Isp/min impulse values resolve (using defaults when needed), and cross-check that referenced propellant tanks exist in `consumables.json`.
 
 ## Extending the Sweep
 

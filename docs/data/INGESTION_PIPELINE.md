@@ -16,9 +16,10 @@ The recommended execution order keeps downstream dependencies satisfied:
 2. `checklist_builder.ipynb`
 3. `pad_parser.ipynb`
 4. `autopilot_catalog.ipynb`
-5. `failure_taxonomy.ipynb`
-6. `communications_trends.ipynb`
-7. `consumables_budget.ipynb`
+5. `thruster_geometry.ipynb`
+6. `failure_taxonomy.ipynb`
+7. `communications_trends.ipynb`
+8. `consumables_budget.ipynb`
 
 Running notebooks in this sequence ensures that event windows, checklists, PADs, autopilot metadata, and failure hooks stay synchronized before communications and consumables analytics recalculate their derivatives.
 
