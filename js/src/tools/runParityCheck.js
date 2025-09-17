@@ -34,6 +34,7 @@ async function main() {
     autoAdvanceChecklists: true,
     checklistStepSeconds: args.checklistStepSeconds,
     manualActionRecorder: recorder,
+    hudOptions: { enabled: false },
   });
 
   const autoSummary = autoContext.simulation.run({ untilGetSeconds: untilSeconds });
@@ -47,6 +48,7 @@ async function main() {
     autoAdvanceChecklists: false,
     checklistStepSeconds: args.checklistStepSeconds,
     manualActions: recordedActions,
+    hudOptions: { enabled: false },
   });
 
   const manualSummary = manualContext.simulation.run({ untilGetSeconds: untilSeconds });

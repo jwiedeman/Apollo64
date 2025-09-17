@@ -11,6 +11,7 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 - Streams mission log messages with GET stamps and can export them to JSON for regression playback (`src/logging/missionLogger.js`).
 - Replays autopilot JSON sequences through `AutopilotRunner` (`src/sim/autopilotRunner.js`), issuing ullage, attitude, and throttle commands while subtracting SPS/LM/RCS propellant usage from the shared resource model.
 - Captures auto-advanced checklist acknowledgements and exports them as deterministic manual action scripts when `--record-manual-script` is provided, enabling parity runs without relying on auto crew logic (`src/logging/manualActionRecorder.js`).
+- Emits periodic text HUD snapshots (`src/hud/textHud.js`) summarizing event status, resource margins, propellant usage, checklist activity, and manual action queues so long running simulations remain legible from the CLI.
 
 ## Running the Prototype
 ```
@@ -25,6 +26,8 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `--manual-checklists` – Disable auto-advance so external tools or manual operators can acknowledge steps.
 - `--manual-script <path>` – Path to a manual action script JSON file to replay during the run.
 - `--record-manual-script <path>` – Capture auto crew acknowledgements into a manual action script for deterministic parity testing.
+- `--hud-interval <seconds>` – Override how often the CLI HUD snapshot is emitted (default `600`).
+- `--no-hud`/`--disable-hud` – Suppress the CLI HUD output entirely (useful for minimal logs or scripted runs).
 
 ## Manual vs. Auto Parity Harness
 
