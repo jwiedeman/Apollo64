@@ -73,8 +73,15 @@ export class ResourceSystem {
     this.metrics = {
       propellantDeltaKg: Object.create(null),
       powerDeltaKw: Object.create(null),
+      deltaV: {
+        usedMps: 0,
+        recoveredMps: 0,
+      },
     };
     this.budgets = {};
+    this.propellantConfig = {
+      csm_sps: null,
+    };
     this._logCountdown = this.options.logIntervalSeconds;
 
     if (options.consumables) {
@@ -107,14 +114,7 @@ export class ResourceSystem {
       this.state.power.battery_charge_pct = power.batteries.initial_soc_pct;
     }
 
-    if (Number.isFinite(propellant.csm_sps?.usable_delta_v_mps)) {
-      this.state.delta_v_margin_mps = propellant.csm_sps.usable_delta_v_mps;
-    }
-    this.#assignPropellantBudget('csm_sps_kg', propellant.csm_sps?.initial_kg);
-    this.#assignPropellantBudget('csm_rcs_kg', propellant.csm_rcs?.initial_kg);
-    this.#assignPropellantBudget('lm_descent_kg', propellant.lm_descent?.initial_kg);
-    this.#assignPropellantBudget('lm_ascent_kg', propellant.lm_ascent?.initial_kg);
-    this.#assignPropellantBudget('lm_rcs_kg', propellant.lm_rcs?.initial_kg);
+    this.#configurePropellantBudgets(propellant);
 
     if (Number.isFinite(lifeSupport.oxygen?.initial_kg)) {
       this.state.lifeSupport.oxygen_kg = lifeSupport.oxygen.initial_kg;
@@ -147,7 +147,11 @@ export class ResourceSystem {
         continue;
       }
 
-      const result = this.#applyValue(this.state, key, value, []);
+      const result = this.#applyValue(this.state, key, value, [], {
+        getSeconds,
+        source,
+        type,
+      });
       if (result !== undefined) {
         applied[key] = result;
       }
@@ -217,6 +221,13 @@ export class ResourceSystem {
     const next = Math.max(0, previous + delta);
     this.state.propellant[normalizedKey] = next;
     this.#recordPropellantDelta(normalizedKey, next - previous);
+    this.#updateDerivedMetricsForPropellant(normalizedKey, {
+      previous,
+      next,
+      getSeconds,
+      source,
+      note,
+    });
 
     this.logger?.log(getSeconds, `Propellant update for ${normalizedKey} from ${source}`, {
       source,
@@ -270,6 +281,7 @@ export class ResourceSystem {
     return {
       propellantDeltaKg: { ...this.metrics.propellantDeltaKg },
       powerDeltaKw: { ...this.metrics.powerDeltaKw },
+      deltaV: { ...this.metrics.deltaV },
     };
   }
 
@@ -288,7 +300,7 @@ export class ResourceSystem {
     this.state.propellant[key] = initialKg;
   }
 
-  #applyValue(target, key, value, path) {
+  #applyValue(target, key, value, path, context) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const container = typeof target[key] === 'object' && target[key] !== null
         ? target[key]
@@ -296,7 +308,7 @@ export class ResourceSystem {
       target[key] = container;
       const nested = {};
       for (const [nestedKey, nestedValue] of Object.entries(value)) {
-        const result = this.#applyValue(container, nestedKey, nestedValue, [...path, key]);
+        const result = this.#applyValue(container, nestedKey, nestedValue, [...path, key], context);
         if (result !== undefined) {
           nested[nestedKey] = result;
         }
@@ -312,6 +324,7 @@ export class ResourceSystem {
       const next = previous + value;
       target[key] = next;
       this.#recordDelta(path, key, value);
+      this.#handleNumericUpdate(path, key, previous, next, context);
       return { value: next, delta: value };
     }
 
@@ -342,5 +355,144 @@ export class ResourceSystem {
 
   #recordPropellantDelta(tankKey, delta) {
     this.metrics.propellantDeltaKg[tankKey] = (this.metrics.propellantDeltaKg[tankKey] ?? 0) + delta;
+  }
+
+  #configurePropellantBudgets(propellant) {
+    const csmSps = propellant.csm_sps ?? {};
+    const initialSpsKg = this.#coerceNumber(csmSps.initial_kg);
+    const reserveSpsKg = this.#coerceNumber(csmSps.reserve_kg);
+    const usableDeltaVMps = this.#coerceNumber(csmSps.usable_delta_v_mps);
+
+    if (Number.isFinite(usableDeltaVMps)) {
+      this.state.delta_v_margin_mps = usableDeltaVMps;
+    }
+
+    this.propellantConfig.csm_sps = {
+      initialKg: initialSpsKg,
+      reserveKg: reserveSpsKg,
+      usableDeltaVMps,
+    };
+
+    this.#assignPropellantBudget('csm_sps_kg', csmSps.initial_kg);
+    this.#assignPropellantBudget('csm_rcs_kg', propellant.csm_rcs?.initial_kg);
+    this.#assignPropellantBudget('lm_descent_kg', propellant.lm_descent?.initial_kg);
+    this.#assignPropellantBudget('lm_ascent_kg', propellant.lm_ascent?.initial_kg);
+    this.#assignPropellantBudget('lm_rcs_kg', propellant.lm_rcs?.initial_kg);
+
+    this.#recalculateDeltaVFromPropellant();
+  }
+
+  #recalculateDeltaVFromPropellant() {
+    const config = this.propellantConfig.csm_sps;
+    if (!config) {
+      return;
+    }
+
+    const { initialKg, reserveKg, usableDeltaVMps } = config;
+    if (!Number.isFinite(initialKg) || !Number.isFinite(reserveKg) || !Number.isFinite(usableDeltaVMps)) {
+      return;
+    }
+
+    const usableKg = initialKg - reserveKg;
+    if (!(usableKg > 0)) {
+      return;
+    }
+
+    const current = this.#coerceNumber(this.state.propellant?.csm_sps_kg);
+    if (!Number.isFinite(current)) {
+      return;
+    }
+
+    const remainingAboveReserve = Math.max(0, current - reserveKg);
+    const fraction = Math.max(0, Math.min(1, remainingAboveReserve / usableKg));
+    this.state.delta_v_margin_mps = fraction * usableDeltaVMps;
+  }
+
+  #handleNumericUpdate(path, key, previous, next, context = {}) {
+    if (!Array.isArray(path) || path.length === 0) {
+      return;
+    }
+
+    if (path[0] !== 'propellant') {
+      return;
+    }
+
+    const normalizedKey = key.endsWith('_kg') ? key : `${key}_kg`;
+    this.#updateDerivedMetricsForPropellant(normalizedKey, {
+      previous,
+      next,
+      getSeconds: context?.getSeconds ?? 0,
+      source: context?.source ?? 'effect',
+      note: context?.type ?? null,
+    });
+  }
+
+  #updateDerivedMetricsForPropellant(tankKey, { previous, next, getSeconds, source, note }) {
+    if (tankKey !== 'csm_sps_kg') {
+      return;
+    }
+
+    const config = this.propellantConfig.csm_sps;
+    if (!config) {
+      return;
+    }
+
+    const { initialKg, reserveKg, usableDeltaVMps } = config;
+    if (!Number.isFinite(initialKg) || !Number.isFinite(reserveKg) || !Number.isFinite(usableDeltaVMps)) {
+      return;
+    }
+
+    const usableKg = initialKg - reserveKg;
+    if (!(usableKg > 0)) {
+      return;
+    }
+
+    const previousAboveReserve = Math.max(0, previous - reserveKg);
+    const nextAboveReserve = Math.max(0, next - reserveKg);
+    const fractionBefore = Math.max(0, Math.min(1, previousAboveReserve / usableKg));
+    const fractionAfter = Math.max(0, Math.min(1, nextAboveReserve / usableKg));
+
+    const marginBefore = fractionBefore * usableDeltaVMps;
+    const marginAfter = fractionAfter * usableDeltaVMps;
+    const deltaMargin = marginAfter - marginBefore;
+
+    if (!Number.isFinite(marginBefore) || !Number.isFinite(marginAfter)) {
+      return;
+    }
+
+    this.state.delta_v_margin_mps = Math.max(0, Math.min(usableDeltaVMps, marginAfter));
+
+    if (Math.abs(deltaMargin) > (this.options.epsilon ?? 1e-6)) {
+      if (deltaMargin < 0) {
+        this.metrics.deltaV.usedMps += -deltaMargin;
+      } else {
+        this.metrics.deltaV.recoveredMps += deltaMargin;
+      }
+
+      this.logger?.log(getSeconds, 'Delta-v margin updated from SPS propellant change', {
+        source,
+        note,
+        deltaVMps: deltaMargin,
+        newMarginMps: this.state.delta_v_margin_mps,
+      });
+    }
+  }
+
+  #coerceNumber(value) {
+    if (value == null) {
+      return null;
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
   }
 }

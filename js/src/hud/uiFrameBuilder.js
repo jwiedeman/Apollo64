@@ -189,9 +189,12 @@ export class UiFrameBuilder {
       ptcActive: snapshot.ptc_active ?? null,
     };
 
+    const deltaVMetrics = snapshot.metrics?.deltaV ?? {};
     const deltaV = {
       totalMps: this.#coerceNumber(snapshot.delta_v_margin_mps),
       csmSpsMps: this.#coerceNumber(snapshot.delta_v_margin_mps),
+      usedMps: this.#coerceNumber(deltaVMetrics.usedMps),
+      recoveredMps: this.#coerceNumber(deltaVMetrics.recoveredMps),
     };
 
     const lifeSupport = {
