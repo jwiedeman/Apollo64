@@ -35,10 +35,12 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
 - **Consumables:**
   - Parse the JSON payload and warn when numeric baselines (propellant, power, life support) are missing or non-numeric.
   - Validate Deep Space Network support fields (`dsn_shift_hours`, `next_window_open_get`).
+- **Communications trends:**
+  - Parse `communications_trends.json`, verify GET windows, ensure signal-strength and handover metrics are numeric, and confirm station handovers reference expected identifiers.
 
 ## Extending the Sweep
 
-- New surface EVA and transearth communication entries should append coverage here—add schema-specific checks to prevent accidental omissions as the dataset grows.
+- Future EVA extensions or DSN updates should extend these checks so nested effect payloads (e.g., `communications.next_window_open_get`, `surface_ops.eva2_complete`) stay validated as new fields appear.
 - Planned notebooks under `scripts/ingest/` can re-use the validator’s helper functions for GET parsing and reference verification so manual analyses stay aligned with the automated sweep.
 - When mission scoring hooks mature, incorporate regression checks that assert metric ranges (Δv margins, propellant draw) remain within expected tolerances.
 

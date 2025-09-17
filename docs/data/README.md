@@ -4,10 +4,10 @@ This directory contains the structured mission datasets produced during Mileston
 
 ## Current Coverage
 - Launch through transearth coast, atmospheric entry, and splashdown (GET 000:00:00 → 195:25:00).
-- Passive Thermal Control monitoring, MCC-1/2/3/4 PAD flows and execution logic, LOI-focused P52 realignment, DOI planning, LM separation and powered descent, landing/post-landing safing, surface EVA-1 prep/egress/traverse/closeout, ascent rendezvous guidance, TEI preparation and burn execution, MCC-5 return correction, transearth DSN communications passes, entry PAD alignment, service module jettison, and recovery procedures captured in the events, checklists, PADs, and autopilot packs defined by [`../milestones/M0_DATA_INGESTION.md`](../milestones/M0_DATA_INGESTION.md).
+- Passive Thermal Control monitoring, MCC-1/2/3/4 PAD flows and execution logic, LOI-focused P52 realignment, DOI planning, LM separation and powered descent, landing/post-landing safing, surface EVA-1 prep/egress/traverse/closeout **plus the contingency EVA-2 extension**, ascent rendezvous guidance, TEI preparation and burn execution, MCC-5 return correction, transearth DSN communications passes with signal-strength trend analytics, entry PAD alignment, service module jettison, and recovery procedures captured in the events, checklists, PADs, and autopilot packs defined by [`../milestones/M0_DATA_INGESTION.md`](../milestones/M0_DATA_INGESTION.md).
 - Provenance log linking each record to the primary reference used.
 
-Future updates will add the second EVA timeline, refine transearth comm trend analytics, and publish validation notebooks under `scripts/ingest/` as described in the milestone plan.
+Future updates will publish the ingestion notebooks under `scripts/ingest/`, expand contingency branches, and wire the new analytics into regression notebooks as described in the milestone plan.
 
 ## Validation Harness
 
@@ -25,6 +25,7 @@ Future updates will add the second EVA timeline, refine transearth comm trend an
 - `pads.csv` – Uplink cards for burns and corrections.
 - `provenance.md` – Source citations for every record range.
 - `consumables.json` – Baseline power, propellant, and life-support budgets with notes and references to the Mission Operations Report and Flight Plan.
+- `communications_trends.json` – DSN pass analytics (signal strength, handover duration, power deltas) for transearth coast support.
 
 These files use UTF-8 encoding with Unix line endings and can be imported into spreadsheets or parsed directly by ingestion tooling.
 
