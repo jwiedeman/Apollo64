@@ -83,6 +83,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - Track Δv, propellant, electrical margins, thermal violations, comms hits/misses.
 - Commander Rating factors mission success, margins preserved, manual contribution, and faults incurred.
 - Unlocks include alternate missions (Apollo 8 flyby, Apollo 13 emergency profile).
+- Commander rating implementation details live in [`docs/scoring/commander_rating.md`](scoring/commander_rating.md) so telemetry sources and weighting stay aligned with the simulator.
 
 ## 10. QA & Risk Controls
 - Deterministic fixed-step sim with linting of event graphs.

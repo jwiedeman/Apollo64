@@ -290,22 +290,6 @@ export class TextHud {
     };
   }
 
-  #summarizeChecklists(stats) {
-    if (!stats) {
-      return null;
-    }
-
-    const limit = Math.max(0, Number(this.options.activeChecklistLimit) || 0);
-    const active = limit > 0 ? stats.active.slice(0, limit) : stats.active.slice();
-    const chip = this.#selectChecklistChip(stats.active);
-
-    return {
-      totals: stats.totals,
-      active,
-      chip,
-    };
-  }
-
   #formatMessage(snapshot) {
     const parts = [];
 

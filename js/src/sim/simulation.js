@@ -9,6 +9,7 @@ export class Simulation {
     manualActionQueue = null,
     autopilotRunner = null,
     hud = null,
+    scoreSystem = null,
     logger,
     tickRate = 20,
   }) {
@@ -18,6 +19,7 @@ export class Simulation {
     this.manualActions = manualActionQueue;
     this.autopilotRunner = autopilotRunner;
     this.hud = hud;
+    this.scoreSystem = scoreSystem;
     this.logger = logger;
     this.clock = new SimulationClock({ tickRate });
     this.tickRate = tickRate;
@@ -34,6 +36,15 @@ export class Simulation {
       }
       this.scheduler.update(currentGet, dtSeconds);
       this.resourceSystem.update(dtSeconds, currentGet);
+      if (this.scoreSystem) {
+        this.scoreSystem.update(currentGet, dtSeconds, {
+          scheduler: this.scheduler,
+          resourceSystem: this.resourceSystem,
+          autopilotRunner: this.autopilotRunner,
+          checklistManager: this.checklistManager,
+          manualQueue: this.manualActions,
+        });
+      }
       if (this.hud) {
         this.hud.update(currentGet, {
           scheduler: this.scheduler,
@@ -53,6 +64,7 @@ export class Simulation {
     const manualStats = this.manualActions ? this.manualActions.stats() : null;
     const autopilotStats = this.autopilotRunner ? this.autopilotRunner.stats() : null;
     const hudStats = this.hud ? this.hud.stats() : null;
+    const scoreSummary = this.scoreSystem ? this.scoreSystem.summary() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       ticks,
@@ -63,6 +75,7 @@ export class Simulation {
       manualActions: manualStats,
       autopilot: autopilotStats,
       hud: hudStats,
+      score: scoreSummary,
     });
 
     return {
@@ -74,6 +87,7 @@ export class Simulation {
       manualActions: manualStats,
       autopilot: autopilotStats,
       hud: hudStats,
+      score: scoreSummary,
     };
   }
 }
