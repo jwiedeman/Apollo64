@@ -65,6 +65,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - **Physics:** Patched-conic two-body model, 20 Hz fixed simulation, RK2/RK4 integration, analytic drag during entry.
 - **Attitude & RCS loops:** PD controllers with pulse quantization and PTC maintenance.
 - **Resources:** Fuel cell power tied to cryogenic states, CO₂ accumulation, and comms windows governing PAD delivery.
+- **Manual input loop:** `ManualActionQueue` mediates checklist acknowledgements, resource deltas, propellant burns, and DSKY macros for parity with automated runs; the UI contract lives in [`docs/ui/manual_actions_reference.md`](ui/manual_actions_reference.md) so future front-ends dispatch deterministic actions against the same schema.
 
 ## 7. N64 Implementation Plan
 - **Tech stack:** libdragon, 320×240 at 30 fps, wireframe rendering, ADPCM audio.

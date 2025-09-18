@@ -46,6 +46,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - Manual action recorder in [`js/src/logging/manualActionRecorder.js`](js/src/logging/manualActionRecorder.js) can capture auto-advanced checklist steps and export them via the CLI `--record-manual-script` flag for deterministic manual-vs-auto parity runs.
 - `ManualActionQueue` now accepts `dsky_entry` actions so scripted runs and future UI flows can log Verb/Noun inputs and macro payloads for AGC integration while keeping the mission log authoritative.
 - `AutopilotRunner` now interprets `dsky_entry` commands, logging Verb/Noun payloads and forwarding them to the manual action recorder so recorded scripts retain AGC macro usage for parity replays and UI prototypes.
+- Manual interaction contract documented in [`docs/ui/manual_actions_reference.md`](docs/ui/manual_actions_reference.md) so the upcoming UI dispatcher, parity tooling, and ingestion notebooks share a single source of truth for queueing checklist acknowledgements, resource deltas, propellant burns, and DSKY macros.
 - Autopilot authoring reference in [`docs/data/autopilot_scripts.md`](docs/data/autopilot_scripts.md) details the CSV/JSON schema, command vocabulary, propulsion metadata, and validation workflow so new burn profiles stay aligned with the simulator and parity harness.
 - Ingestion workflow planning under [`scripts/ingest/`](scripts/ingest/README.md) and [`docs/data/INGESTION_PIPELINE.md`](docs/data/INGESTION_PIPELINE.md) now documents how future dataset updates move from annotated sources into the CSV/JSON packs, including notebook sequencing, validation checkpoints, and automation hooks.
 - Shared Python helpers under [`scripts/ingest/ingestlib/`](scripts/ingest/ingestlib) expose GET utilities, typed dataset loaders, validation routines, and provenance table builders so notebooks and future automation reuse a single source of truth.
@@ -80,6 +81,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/ui/component_architecture.md`](docs/ui/component_architecture.md) – Component tree, frame ingestion pipeline, tile workspace behavior, and accessibility hooks for the web/N64 UI builds.
 - [`docs/ui/view_data_bindings.md`](docs/ui/view_data_bindings.md) – Detailed data-binding catalog covering the Always-On HUD, Navigation, Controls, Systems, and Tile Mode widgets so implementation stays anchored to mission truth.
 - [`docs/ui/audio_cue_taxonomy.md`](docs/ui/audio_cue_taxonomy.md) – Cue categories, priority routing, dataset integration, and asset specs for the mission audio pipeline.
+- [`docs/ui/manual_actions_reference.md`](docs/ui/manual_actions_reference.md) – Runtime contract for enqueuing manual checklist acknowledgements, resource deltas, propellant burns, and DSKY macros from the UI or parity tooling.
 - [`docs/scoring/commander_rating.md`](docs/scoring/commander_rating.md) – Commander rating model, telemetry inputs, and weighting used by the simulation score system.
 
 ## Contribution Notes
