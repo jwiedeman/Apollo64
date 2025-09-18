@@ -1,0 +1,401 @@
+{
+  "version": 1,
+  "description": "Apollo 11 audio cue catalog for HUD and mission callouts",
+  "buses": [
+    {
+      "id": "alerts",
+      "name": "Alerts",
+      "description": "Master alarm and caution tones that pre-empt other playback.",
+      "maxConcurrent": 1,
+      "ducking": [
+        { "target": "ambience", "gainDb": -12 },
+        { "target": "dialogue", "gainDb": -6 }
+      ]
+    },
+    {
+      "id": "dialogue",
+      "name": "Mission Dialogue",
+      "description": "Historical CapCom and crew callouts.",
+      "maxConcurrent": 1,
+      "ducking": [
+        { "target": "ambience", "gainDb": -8 }
+      ]
+    },
+    {
+      "id": "telemetry",
+      "name": "Telemetry Hints",
+      "description": "Short cues that mark burns, comm windows, and PTC state changes.",
+      "maxConcurrent": 2,
+      "ducking": [
+        { "target": "ambience", "gainDb": -6 }
+      ]
+    },
+    {
+      "id": "ui",
+      "name": "UI Feedback",
+      "description": "Checklist ticks, invalid toggle buzzes, and workspace interactions.",
+      "maxConcurrent": 4
+    },
+    {
+      "id": "ambience",
+      "name": "Ambience",
+      "description": "Looped cabin hum, LM idle ambience, and surface atmospherics.",
+      "maxConcurrent": 1
+    }
+  ],
+  "categories": [
+    {
+      "id": "alert",
+      "name": "Critical Alerts",
+      "bus": "alerts",
+      "defaultPriority": 95,
+      "cooldownSeconds": 0,
+      "description": "Master alarm and caution tones triggered by failures or escalating resource thresholds."
+    },
+    {
+      "id": "callout",
+      "name": "Mission Callouts",
+      "bus": "dialogue",
+      "defaultPriority": 70,
+      "cooldownSeconds": 2,
+      "description": "Historical CapCom and crew announcements that punctuate major events."
+    },
+    {
+      "id": "telemetry",
+      "name": "Telemetry Markers",
+      "bus": "telemetry",
+      "defaultPriority": 50,
+      "cooldownSeconds": 0.5,
+      "description": "Navigation, burn, and communications beeps that aid situational awareness."
+    },
+    {
+      "id": "ui",
+      "name": "UI Feedback",
+      "bus": "ui",
+      "defaultPriority": 30,
+      "cooldownSeconds": 0.1,
+      "description": "Confirmation and error sounds for checklist and panel interactions."
+    },
+    {
+      "id": "ambient",
+      "name": "Ambient Beds",
+      "bus": "ambience",
+      "defaultPriority": 10,
+      "cooldownSeconds": 0,
+      "description": "Looped beds that establish cockpit and lunar surface atmosphere."
+    }
+  ],
+  "cues": [
+    {
+      "id": "alerts.master_alarm",
+      "name": "Master Alarm",
+      "category": "alert",
+      "priority": 100,
+      "lengthSeconds": 2.0,
+      "loop": true,
+      "cooldownSeconds": 0,
+      "loudnessLufs": -16,
+      "assets": {
+        "web": "audio/alerts/master_alarm.ogg",
+        "n64": "audio/alerts/master_alarm.adpcm"
+      },
+      "subtitle": "MASTER ALARM",
+      "tags": ["failure", "critical"],
+      "source": "Apollo 11 Caution and Warning System procedures, Mission Operations Report Section 3.8",
+      "notes": "Latched while hard failures or cascading recoverable faults remain active."
+    },
+    {
+      "id": "alerts.master_caution",
+      "name": "Master Caution",
+      "category": "alert",
+      "priority": 88,
+      "lengthSeconds": 1.6,
+      "loop": false,
+      "cooldownSeconds": 8,
+      "loudnessLufs": -18,
+      "assets": {
+        "web": "audio/alerts/master_caution.ogg",
+        "n64": "audio/alerts/master_caution.adpcm"
+      },
+      "subtitle": "MASTER CAUTION",
+      "tags": ["caution"],
+      "source": "Apollo 11 CSM Caution and Warning operations checklist",
+      "notes": "Single-shot chime when resource margins cross caution thresholds or guidance mode changes."
+    },
+    {
+      "id": "callouts.go_for_tli",
+      "name": "Go For TLI",
+      "category": "callout",
+      "priority": 72,
+      "lengthSeconds": 3.2,
+      "loop": false,
+      "cooldownSeconds": 4,
+      "assets": {
+        "web": "audio/callouts/go_for_tli.ogg",
+        "n64": "audio/callouts/go_for_tli.adpcm"
+      },
+      "subtitle": "CAPCOM: 'Apollo 11, you are Go for TLI.'",
+      "tags": ["capcom", "tli"],
+      "source": "Apollo 11 Flight Journal Day 1, 002:41:00 GET",
+      "notes": "Plays as the TLI burn window opens after the go/no-go poll completes."
+    },
+    {
+      "id": "callouts.transposition",
+      "name": "CSM-LM Transposition Complete",
+      "category": "callout",
+      "priority": 68,
+      "lengthSeconds": 4.0,
+      "loop": false,
+      "cooldownSeconds": 6,
+      "assets": {
+        "web": "audio/callouts/transposition.ogg",
+        "n64": "audio/callouts/transposition.adpcm"
+      },
+      "subtitle": "Collins: 'Transposition and docking complete.'",
+      "tags": ["transposition", "docking"],
+      "source": "Apollo 11 Flight Journal Day 1, 003:16:20 GET",
+      "notes": "Highlights the CSM docking with the LM stack before TLI ignition."
+    },
+    {
+      "id": "callouts.contact_light",
+      "name": "Contact Light",
+      "category": "callout",
+      "priority": 75,
+      "lengthSeconds": 2.5,
+      "loop": false,
+      "cooldownSeconds": 6,
+      "assets": {
+        "web": "audio/callouts/contact_light.ogg",
+        "n64": "audio/callouts/contact_light.adpcm"
+      },
+      "subtitle": "Aldrin: 'Contact light.'",
+      "tags": ["landing", "lm"],
+      "source": "Apollo 11 Flight Journal Day 5, 102:45:36 GET",
+      "notes": "Triggers at LM descent final approach when the probe touches the lunar surface."
+    },
+    {
+      "id": "callouts.tranquility_base",
+      "name": "Tranquility Base",
+      "category": "callout",
+      "priority": 74,
+      "lengthSeconds": 5.0,
+      "loop": false,
+      "cooldownSeconds": 10,
+      "assets": {
+        "web": "audio/callouts/tranquility_base.ogg",
+        "n64": "audio/callouts/tranquility_base.adpcm"
+      },
+      "subtitle": "Armstrong: 'Houston, Tranquility Base here. The Eagle has landed.'",
+      "tags": ["landing", "crew"],
+      "source": "Apollo 11 Flight Journal Day 5, 102:45:40 GET",
+      "notes": "Marks LM touchdown and transitions ambience to surface bed."
+    },
+    {
+      "id": "callouts.one_small_step",
+      "name": "One Small Step",
+      "category": "callout",
+      "priority": 73,
+      "lengthSeconds": 6.5,
+      "loop": false,
+      "cooldownSeconds": 12,
+      "assets": {
+        "web": "audio/callouts/one_small_step.ogg",
+        "n64": "audio/callouts/one_small_step.adpcm"
+      },
+      "subtitle": "Armstrong: 'That's one small step for man...'",
+      "tags": ["eva", "surface"],
+      "source": "Apollo 11 Flight Journal Day 5, 109:24:15 GET",
+      "notes": "Surface EVA ingress milestone; cues surface ambient swap and mission log highlight."
+    },
+    {
+      "id": "telemetry.dsn_acquire",
+      "name": "DSN Acquisition",
+      "category": "telemetry",
+      "priority": 55,
+      "lengthSeconds": 1.2,
+      "loop": false,
+      "cooldownSeconds": 0,
+      "assets": {
+        "web": "audio/telemetry/dsn_acquire.ogg",
+        "n64": "audio/telemetry/dsn_acquire.adpcm"
+      },
+      "subtitle": "DSN tone",
+      "tags": ["dsn", "communications"],
+      "source": "Apollo 11 Flight Plan Section 8 DSN schedule notes",
+      "notes": "Plays when a communications pass opens; pairs with a separate loss tone on handover."
+    },
+    {
+      "id": "telemetry.dsn_loss",
+      "name": "DSN Loss of Signal",
+      "category": "telemetry",
+      "priority": 56,
+      "lengthSeconds": 1.2,
+      "loop": false,
+      "cooldownSeconds": 0,
+      "assets": {
+        "web": "audio/telemetry/dsn_loss.ogg",
+        "n64": "audio/telemetry/dsn_loss.adpcm"
+      },
+      "subtitle": "LOS tone",
+      "tags": ["dsn", "communications"],
+      "source": "Apollo 11 Flight Plan Section 8 DSN schedule notes",
+      "notes": "Signals the end of support from a DSN station as handover begins."
+    },
+    {
+      "id": "telemetry.burn_start",
+      "name": "Burn Start",
+      "category": "telemetry",
+      "priority": 58,
+      "lengthSeconds": 0.8,
+      "loop": false,
+      "cooldownSeconds": 0.5,
+      "assets": {
+        "web": "audio/telemetry/burn_start.ogg",
+        "n64": "audio/telemetry/burn_start.adpcm"
+      },
+      "subtitle": "Burn start tone",
+      "tags": ["burn", "autopilot"],
+      "source": "Apollo 11 Mission Operations Report Section 3.3 guidance monitoring cues",
+      "notes": "Single beep when SPS or DPS throttle rises above 5%, paired with telemetry.burn_complete."
+    },
+    {
+      "id": "telemetry.burn_complete",
+      "name": "Burn Complete",
+      "category": "telemetry",
+      "priority": 57,
+      "lengthSeconds": 0.9,
+      "loop": false,
+      "cooldownSeconds": 0.5,
+      "assets": {
+        "web": "audio/telemetry/burn_complete.ogg",
+        "n64": "audio/telemetry/burn_complete.adpcm"
+      },
+      "subtitle": "Burn complete tone",
+      "tags": ["burn", "autopilot"],
+      "source": "Apollo 11 Mission Operations Report Section 3.3 guidance monitoring cues",
+      "notes": "Pairs with telemetry.burn_start to bracket SPS/DPS maneuver execution windows."
+    },
+    {
+      "id": "telemetry.ptc_entry",
+      "name": "PTC Entry",
+      "category": "telemetry",
+      "priority": 52,
+      "lengthSeconds": 1.0,
+      "loop": false,
+      "cooldownSeconds": 0,
+      "assets": {
+        "web": "audio/telemetry/ptc_entry.ogg",
+        "n64": "audio/telemetry/ptc_entry.adpcm"
+      },
+      "subtitle": "PTC tone",
+      "tags": ["ptc", "thermal"],
+      "source": "Apollo 11 Flight Journal Day 2 Passive Thermal Control commentary",
+      "notes": "Confirms the simulator enters or exits Passive Thermal Control; also feeds the Always-On HUD indicator."
+    },
+    {
+      "id": "ui.checklist_step_complete",
+      "name": "Checklist Step Complete",
+      "category": "ui",
+      "priority": 32,
+      "lengthSeconds": 0.35,
+      "loop": false,
+      "cooldownSeconds": 0,
+      "assets": {
+        "web": "audio/ui/checklist_step.ogg",
+        "n64": "audio/ui/checklist_step.adpcm"
+      },
+      "subtitle": "Checklist tick",
+      "tags": ["checklist", "ui"],
+      "source": "Apollo 11 Flight Plan procedural cadence notes",
+      "notes": "Short tick confirming manual or auto acknowledgement of a checklist step."
+    },
+    {
+      "id": "ui.invalid_toggle",
+      "name": "Invalid Toggle",
+      "category": "ui",
+      "priority": 34,
+      "lengthSeconds": 0.45,
+      "loop": false,
+      "cooldownSeconds": 0.2,
+      "assets": {
+        "web": "audio/ui/invalid_toggle.ogg",
+        "n64": "audio/ui/invalid_toggle.adpcm"
+      },
+      "subtitle": "Error buzz",
+      "tags": ["ui", "error"],
+      "source": "Apollo 11 panel dependency notes used in controls view",
+      "notes": "Plays when a switch change violates prerequisite dependencies or a checklist predicate fails."
+    },
+    {
+      "id": "ui.panel_focus",
+      "name": "Panel Focus",
+      "category": "ui",
+      "priority": 28,
+      "lengthSeconds": 0.25,
+      "loop": false,
+      "cooldownSeconds": 0.1,
+      "assets": {
+        "web": "audio/ui/panel_focus.ogg",
+        "n64": "audio/ui/panel_focus.adpcm"
+      },
+      "subtitle": "Focus tap",
+      "tags": ["ui", "navigation"],
+      "source": "Apollo 11 console workflow notes from Mission Operations Report Section 3.10",
+      "notes": "Light tap as operators cycle HUD focus between panel workspaces."
+    },
+    {
+      "id": "ambient.csm_cabin_hum",
+      "name": "CSM Cabin Hum",
+      "category": "ambient",
+      "priority": 12,
+      "lengthSeconds": 60.0,
+      "loop": true,
+      "cooldownSeconds": 0,
+      "loudnessLufs": -20,
+      "assets": {
+        "web": "audio/ambience/csm_cabin_hum.ogg",
+        "n64": "audio/ambience/csm_cabin_hum.adpcm"
+      },
+      "subtitle": null,
+      "tags": ["ambience", "csm"],
+      "source": "Apollo 11 onboard audio characterizations published in the Mission Operations Report",
+      "notes": "Default ambience when the crew is in the Command Module outside of EVA operations."
+    },
+    {
+      "id": "ambient.lm_cabin_idle",
+      "name": "LM Cabin Idle",
+      "category": "ambient",
+      "priority": 13,
+      "lengthSeconds": 75.0,
+      "loop": true,
+      "cooldownSeconds": 0,
+      "loudnessLufs": -22,
+      "assets": {
+        "web": "audio/ambience/lm_cabin_idle.ogg",
+        "n64": "audio/ambience/lm_cabin_idle.adpcm"
+      },
+      "subtitle": null,
+      "tags": ["ambience", "lm"],
+      "source": "Apollo 11 Lunar Module environmental audio captured in Mission Operations Report Section 3.8",
+      "notes": "LM ECS fan and instrumentation ambience used during powered descent prep and ascent checkout."
+    },
+    {
+      "id": "ambient.surface_tranquility",
+      "name": "Surface Tranquility",
+      "category": "ambient",
+      "priority": 14,
+      "lengthSeconds": 90.0,
+      "loop": true,
+      "cooldownSeconds": 0,
+      "loudnessLufs": -24,
+      "assets": {
+        "web": "audio/ambience/surface_tranquility.ogg",
+        "n64": "audio/ambience/surface_tranquility.adpcm"
+      },
+      "subtitle": null,
+      "tags": ["ambience", "surface"],
+      "source": "Apollo 11 EVA surface audio beds documented in Flight Journal Day 5 EVA transcripts",
+      "notes": "Windless lunar surface bed with suit pump hum and distant radio static for EVA playback."
+    }
+  ]
+}

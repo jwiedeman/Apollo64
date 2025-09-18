@@ -4,6 +4,7 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 
 ## Current Prototype Features
 - Loads `docs/data/*.csv` and autopilot JSON packs into typed runtime structures (`src/data/missionDataLoader.js`).
+- Parses the shared audio cue catalog (`docs/data/audio_cues.json`) alongside the mission datasets so the simulation context can expose bus/category metadata for HUD/audio prototyping.
 - Runs a fixed-step (20 Hz by default) mission loop that arms, activates, and completes events based on prerequisites and GET windows (`src/sim/eventScheduler.js`, `src/sim/simulation.js`).
 - Applies success/failure effects into a resource model with thermal drift modelling for PTC coverage and baseline consumable budgets sourced from `docs/data/consumables.json` (`src/sim/resourceSystem.js`).
 - Tracks checklist-driven events with automatic or manual step acknowledgement scheduling so crew procedures gate event completion (`src/sim/checklistManager.js`).
@@ -68,6 +69,7 @@ The exporter writes a JSON payload containing metadata, the simulation summary, 
 ## Module Overview
 - `src/index.js` – CLI entrypoint that wires the loader, scheduler, resource model, and simulation loop.
 - `src/data/missionDataLoader.js` – CSV/JSON ingestion with autopilot duration estimation and checklist/failure maps.
+- `src/sim/simulationContext.js` – Wraps the loader output (including audio cue metadata) into HUD/resource/autopilot subsystems for CLI runs and upcoming UI layers.
 - `src/sim/eventScheduler.js` – Handles prerequisite gating, activation, completion, and failure effects.
 - `src/sim/resourceSystem.js` – Tracks power/thermal deltas, Passive Thermal Control status, and failure hooks.
 - `src/utils/` – Helpers for GET parsing and CSV decoding without external dependencies.

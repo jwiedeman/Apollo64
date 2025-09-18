@@ -13,6 +13,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'consumables.json')),
     readFile(path.resolve(dataDir, 'thrusters.json')),
     readFile(path.resolve(dataDir, 'communications_trends.json')),
+    readFile(path.resolve(dataDir, 'audio_cues.json')),
   ]);
 
   const [
@@ -24,6 +25,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     consumablesContent,
     thrustersContent,
     communicationsContent,
+    audioCueContent,
   ] = files;
 
   const autopilotRecords = parseCsv(autopilotsContent);
@@ -72,6 +74,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const consumables = parseConsumables(consumablesContent, logger);
   const thrusters = parseThrusters(thrustersContent, logger);
   const communications = parseCommunicationsTrends(communicationsContent, logger);
+  const audioCues = parseAudioCues(audioCueContent, logger);
 
   const thrusterCraftCount = Array.isArray(thrusters?.craft) ? thrusters.craft.length : 0;
   const thrusterCount = Array.isArray(thrusters?.craft)
@@ -104,6 +107,9 @@ export async function loadMissionData(dataDir, { logger } = {}) {
         thrusterCraft: thrusterCraftCount,
         thrusters: thrusterCount,
         communicationsPasses: communications.length,
+        audioBuses: audioCues.buses.length,
+        audioCategories: audioCues.categories.length,
+        audioCues: audioCues.cues.length,
       },
     });
   }
@@ -117,6 +123,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     consumables,
     thrusters,
     communications,
+    audioCues,
   };
 }
 
@@ -296,6 +303,28 @@ function parseCommunicationsTrends(content, logger) {
   } catch (error) {
     logger?.log(0, 'Failed to parse communications trends dataset', { error: error.message });
     return [];
+  }
+}
+
+function parseAudioCues(content, logger) {
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== 'object') {
+      return { version: null, description: '', buses: [], categories: [], cues: [] };
+    }
+
+    const { buses, categories, cues, version, description, ...rest } = parsed;
+    return {
+      version: typeof version === 'number' ? version : Number.isFinite(Number(version)) ? Number(version) : null,
+      description: typeof description === 'string' ? description : '',
+      buses: Array.isArray(buses) ? buses : [],
+      categories: Array.isArray(categories) ? categories : [],
+      cues: Array.isArray(cues) ? cues : [],
+      ...rest,
+    };
+  } catch (error) {
+    logger?.log(0, 'Failed to parse audio cues dataset', { error: error.message });
+    return { version: null, description: '', buses: [], categories: [], cues: [] };
   }
 }
 

@@ -58,7 +58,7 @@ export async function createSimulationContext({
     manualActionRecorder,
   });
 
-  const hudConfig = { ...(hudOptions ?? {}) };
+  const hudConfig = { audioCues: missionData.audioCues, ...(hudOptions ?? {}) };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);
   const hud = new TextHud({
     logger,
@@ -129,6 +129,7 @@ export async function createSimulationContext({
     uiFrameBuilder,
     scoreSystem,
     manualActionRecorder,
+    audioCues: missionData.audioCues,
     logger,
     options: {
       dataDir: resolvedDataDir,
