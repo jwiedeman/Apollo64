@@ -58,6 +58,57 @@ describe('UiFrameBuilder', () => {
       },
     };
 
+    const scoreSummary = {
+      missionDurationSeconds: 90,
+      events: {
+        total: 4,
+        completed: 3,
+        failed: 1,
+        pending: 0,
+        completionRatePct: 75,
+      },
+      comms: {
+        total: 2,
+        completed: 1,
+        failed: 1,
+        hitRatePct: 50,
+      },
+      resources: {
+        minPowerMarginPct: 12,
+        maxPowerMarginPct: 55,
+        minDeltaVMarginMps: -20,
+        maxDeltaVMarginMps: 4,
+        thermalViolationSeconds: 120,
+        thermalViolationEvents: 1,
+        propellantUsedKg: { csm_sps: 8.5 },
+        powerDeltaKw: { fuel_cells: -0.4 },
+      },
+      faults: {
+        eventFailures: 1,
+        resourceFailures: 2,
+        totalFaults: 3,
+        resourceFailureIds: ['FAIL_COMM_PASS_MISSED', 'FAIL_POWER_LOW'],
+      },
+      manual: {
+        manualSteps: 4,
+        autoSteps: 6,
+        totalSteps: 10,
+        manualFraction: 0.4,
+      },
+      rating: {
+        baseScore: 72.5,
+        manualBonus: 4.0,
+        commanderScore: 76.5,
+        grade: 'C',
+        breakdown: {
+          events: { score: 0.8, weight: 0.4 },
+          resources: { score: 0.65, weight: 0.3 },
+          faults: { score: 0.5, weight: 0.2 },
+          manual: { score: 0.4, weight: 0.1 },
+        },
+      },
+    };
+
     const frame = builder.build(90, {
       scheduler: {
         stats: () => ({
@@ -158,6 +209,9 @@ describe('UiFrameBuilder', () => {
           dskyEntries: 0,
         }),
       },
+      scoreSystem: {
+        summary: () => scoreSummary,
+      },
     });
 
     assert.equal(frame.time.getSeconds, 90);
@@ -185,5 +239,15 @@ describe('UiFrameBuilder', () => {
     assert.ok(frame.resourceHistory);
     assert.equal(frame.resourceHistory.meta.enabled, true);
     assert.equal(frame.resourceHistory.power.length, 1);
+
+    assert.ok(frame.score);
+    assert.equal(frame.score.rating.commanderScore, 76.5);
+    assert.equal(frame.score.rating.grade, 'C');
+    assert.equal(frame.score.events.completed, 3);
+    assert.deepEqual(frame.score.resources.propellantUsedKg, { csm_sps: 8.5 });
+    assert.deepEqual(frame.score.faults.resourceFailureIds, [
+      'FAIL_COMM_PASS_MISSED',
+      'FAIL_POWER_LOW',
+    ]);
   });
 });

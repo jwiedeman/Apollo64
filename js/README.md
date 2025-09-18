@@ -13,6 +13,7 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 - Captures auto-advanced checklist acknowledgements and exports them as deterministic manual action scripts when `--record-manual-script` is provided, enabling parity runs without relying on auto crew logic (`src/logging/manualActionRecorder.js`).
 - Emits periodic text HUD snapshots (`src/hud/textHud.js`) summarizing event status, resource margins, propellant usage, checklist activity, and manual action queues so long running simulations remain legible from the CLI.
 - Exports deterministic `ui_frame` sequences for front-end prototyping through the new CLI in [`src/tools/exportUiFrames.js`](src/tools/exportUiFrames.js).
+- Carries the commander rating snapshot (`frame.score`) through both the CLI HUD and UI frame exporter so mission performance data is available to text output, saved frames, and future UI bindings.
 
 ## Running the Prototype
 ```

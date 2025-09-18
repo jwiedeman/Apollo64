@@ -168,6 +168,15 @@ export class TextHud {
       }
     }
 
+    const rating = snapshot.score?.rating;
+    if (rating) {
+      const commanderScoreLabel = this.#formatNumber(rating.commanderScore, 1);
+      if (commanderScoreLabel !== 'n/a') {
+        const grade = rating.grade ? ` (${rating.grade})` : '';
+        parts.push(`Score ${commanderScoreLabel}${grade}`.trim());
+      }
+    }
+
     const alerts = snapshot.alerts ?? {};
     const warningCount = alerts.warnings?.length ?? 0;
     const cautionCount = alerts.cautions?.length ?? 0;

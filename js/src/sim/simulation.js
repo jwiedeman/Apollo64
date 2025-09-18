@@ -55,6 +55,7 @@ export class Simulation {
           checklistManager: this.checklistManager,
           manualQueue: this.manualActions,
           rcsController: this.rcsController,
+          scoreSystem: this.scoreSystem,
         });
       }
       if (typeof onTick === 'function') {
