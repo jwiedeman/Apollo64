@@ -80,9 +80,17 @@ metrics so trend widgets can consume the same telemetry as the HUD.
 | `thermal.cryoBoiloffRatePctPerHr` | number&#124;null | Cryogenic boil-off rate. |
 | `thermal.state` | string&#124;null | Thermal balance label (e.g., `PTC_STABLE`). |
 | `thermal.ptcActive` | boolean&#124;null | Passive Thermal Control status. |
-| `deltaV.totalMps` | number&#124;null | Remaining Δv margin (m/s). |
-| `deltaV.usedMps` | number&#124;null | Δv consumed via SPS propellant draw (m/s). |
-| `deltaV.recoveredMps` | number&#124;null | Δv margin regained from propellant additions (m/s). |
+| `deltaV.totalMps` | number&#124;null | Remaining Δv margin across all propulsion stages (m/s). |
+| `deltaV.totalBaseMps` | number&#124;null | Base Δv computed from current propellant loads before penalties/bonuses. |
+| `deltaV.totalAdjustmentMps` | number&#124;null | Net adjustments applied by failures, manual penalties, or bonuses (m/s). |
+| `deltaV.totalUsableMps` | number&#124;null | Total Δv theoretically available from configured stages (m/s). |
+| `deltaV.usedMps` | number&#124;null | Δv consumed via propellant draw (m/s). |
+| `deltaV.recoveredMps` | number&#124;null | Δv margin regained from propellant additions or positive adjustments (m/s). |
+| `deltaV.primaryStageId` | string&#124;null | Stage the HUD should emphasize (defaults to `csm_sps` when present). |
+| `deltaV.primaryStageMps` | number&#124;null | Δv margin for the emphasized stage (m/s). |
+| `deltaV.csmSpsMps` | number&#124;null | Convenience alias for the CSM SPS stage margin. |
+| `deltaV.legacyCsmSpsMps` | number&#124;null | Legacy SPS-only margin retained for backward compatibility. |
+| `deltaV.stages` | object | Map of propulsion stage IDs to detailed margin entries (see below). |
 | `propellant.tanks` | object | Keyed by tank (`csm_sps`, `csm_rcs`, `lm_descent`, `lm_ascent`, `lm_rcs`). Each entry reports `label`, `remainingKg`, `initialKg`, `reserveKg`, `percentRemaining`, `percentAboveReserve`, `status`, and `statusMessage`. |
 | `propellant.metrics` | object | Aggregate burn totals accumulated during the run. |
 | `lifeSupport.*` | number&#124;null | Oxygen (kg), water (kg), lithium hydroxide canisters, and CO₂ partial pressure (mmHg). |
@@ -127,6 +135,19 @@ metrics so trend widgets can consume the same telemetry as the HUD.
 | `openSeconds` | number&#124;null | Seconds when the next pass opens. |
 | `timeUntilOpenSeconds` | number&#124;null | Seconds until the next pass opens. |
 | `timeUntilOpenLabel` | string&#124;null | Countdown label for the next pass. |
+
+#### `resources.deltaV.stages.<stageId>`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | Stage identifier (e.g., `csm_sps`, `lm_descent`, `lm_ascent`). |
+| `label` | string&#124;null | Human-readable stage label supplied by consumables data or runtime effects. |
+| `marginMps` | number&#124;null | Remaining Δv margin for the stage after adjustments (m/s). |
+| `baseMps` | number&#124;null | Base Δv computed from current propellant mass (m/s). |
+| `adjustmentMps` | number&#124;null | Adjustment applied on top of the base margin (positive or negative). |
+| `usableMps` | number&#124;null | Total usable Δv budget for the stage derived from consumables (m/s). |
+| `percentAvailable` | number&#124;null | Remaining percentage of the stage's usable Δv budget. |
+| `tank` | string&#124;null | Propellant tank key powering the stage (e.g., `csm_sps_kg`). |
 
 ### `autopilot`
 
