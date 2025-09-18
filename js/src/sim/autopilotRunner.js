@@ -18,6 +18,7 @@ export class AutopilotRunner {
     this.manualActionRecorder = manualActionRecorder ?? null;
 
     this.active = new Map();
+    this.completedEvents = new Map();
     this.metrics = {
       started: 0,
       completed: 0,
@@ -28,6 +29,7 @@ export class AutopilotRunner {
       totalRcsImpulseNs: 0,
       totalRcsPulses: 0,
       dskyEntries: 0,
+      totalThrottleIntegralSeconds: 0,
     };
     this.lastUpdateGetSeconds = 0;
   }
@@ -83,6 +85,7 @@ export class AutopilotRunner {
         rcsPulses: 0,
         rcsImpulseNs: 0,
         dskyEntries: 0,
+        throttleIntegralSeconds: 0,
       },
     };
 
@@ -96,6 +99,7 @@ export class AutopilotRunner {
       propulsion: state.propulsion.type,
     });
 
+    this.#initializeExpectedMetrics(state);
     // Process any commands scheduled exactly at time 0.
     this.#processCommands(state, startGetSeconds);
   }
@@ -119,17 +123,17 @@ export class AutopilotRunner {
   finish(eventId, getSeconds) {
     const state = this.active.get(eventId);
     if (!state) {
-      return;
+      return null;
     }
     this.#processCommands(state, getSeconds);
     this.#applyContinuousEffects(state, getSeconds);
-    this.#complete(state, getSeconds, { reason: 'event_complete' });
+    return this.#complete(state, getSeconds, { reason: 'event_complete' });
   }
 
   abort(eventId, getSeconds, reason = 'event_failed') {
     const state = this.active.get(eventId);
     if (!state) {
-      return;
+      return null;
     }
 
     this.#applyContinuousEffects(state, getSeconds);
@@ -145,6 +149,11 @@ export class AutopilotRunner {
       rcsPulses: state.metrics.rcsPulses,
       rcsImpulseNs: state.metrics.rcsImpulseNs,
       dskyEntries: state.metrics.dskyEntries,
+    });
+
+    return this.#storeCompletedEvent(state, getSeconds, {
+      status: 'aborted',
+      reason,
     });
   }
 
@@ -198,11 +207,24 @@ export class AutopilotRunner {
       totalUllageSeconds: this.metrics.totalUllageSeconds,
       totalRcsImpulseNs: this.metrics.totalRcsImpulseNs,
       totalRcsPulses: this.metrics.totalRcsPulses,
+      totalThrottleIntegralSeconds: this.metrics.totalThrottleIntegralSeconds,
       totalDskyEntries: this.metrics.dskyEntries,
       propellantKgByTank: { ...this.metrics.propellantKgByTank },
       activeAutopilots,
       primary,
     };
+  }
+
+  consumeEventSummary(eventId) {
+    const summary = this.completedEvents.get(eventId);
+    if (summary) {
+      this.completedEvents.delete(eventId);
+    }
+    return summary ?? null;
+  }
+
+  getEventSummary(eventId) {
+    return this.completedEvents.get(eventId) ?? null;
   }
 
   #processCommands(state, currentGetSeconds) {
@@ -551,6 +573,13 @@ export class AutopilotRunner {
       note: 'autopilot_throttle',
     });
     state.metrics.burnSeconds += deltaSeconds;
+    if (massFlowKgPerSec > 0) {
+      const integralSeconds = usageKg / massFlowKgPerSec;
+      if (Number.isFinite(integralSeconds)) {
+        state.metrics.throttleIntegralSeconds += integralSeconds;
+        this.metrics.totalThrottleIntegralSeconds += integralSeconds;
+      }
+    }
     state.currentThrottle = endThrottle;
     return usageKg;
   }
@@ -625,6 +654,8 @@ export class AutopilotRunner {
       rcsImpulseNs: state.metrics.rcsImpulseNs,
       dskyEntries: state.metrics.dskyEntries,
     });
+
+    return this.#storeCompletedEvent(state, getSeconds, { status: 'complete', reason });
   }
 
   #resolveDuration(event) {
@@ -770,6 +801,145 @@ export class AutopilotRunner {
     }
     const normalized = this.#normalizeTankKey(tankKey);
     this.metrics.propellantKgByTank[normalized] = (this.metrics.propellantKgByTank[normalized] ?? 0) + deltaKg;
+  }
+
+  #initializeExpectedMetrics(state) {
+    const durationSeconds = Number.isFinite(state.durationSeconds) ? state.durationSeconds : 0;
+    state.expected = this.#estimateExpectedUsage(state.sequence, durationSeconds, state.propulsion);
+  }
+
+  #estimateExpectedUsage(sequence, durationSeconds, propulsion) {
+    const commands = Array.isArray(sequence) ? sequence : [];
+    const throttleEpsilon = this.options.throttleEpsilon ?? DEFAULT_OPTIONS.throttleEpsilon;
+    let time = 0;
+    let throttle = 0;
+    let throttleIntegral = 0;
+    let burnSeconds = 0;
+    let ullageSeconds = 0;
+
+    for (const command of commands) {
+      const rawTime = Number(command.time ?? time);
+      const commandTime = Number.isFinite(rawTime) ? Math.max(0, rawTime) : time;
+
+      if (commandTime > time) {
+        const gap = commandTime - time;
+        throttleIntegral += throttle * gap;
+        if (throttle > throttleEpsilon) {
+          burnSeconds += gap;
+        }
+        time = commandTime;
+      } else if (commandTime < time) {
+        time = commandTime;
+      }
+
+      const name = String(command.command ?? command.cmd ?? '').trim().toLowerCase();
+      switch (name) {
+        case 'throttle': {
+          throttle = this.#clamp01(command.level ?? command.value ?? throttle);
+          break;
+        }
+        case 'throttle_ramp': {
+          const duration = Math.max(0, Number(command.duration ?? command.ramp_duration ?? 0));
+          const fromLevel = this.#clamp01(
+            command.from ?? command.from_level ?? command.start_level ?? command.start ?? throttle,
+          );
+          const toLevel = this.#clamp01(
+            command.to ?? command.to_level ?? command.level ?? command.target ?? throttle,
+          );
+
+          if (duration <= throttleEpsilon) {
+            throttle = toLevel;
+            break;
+          }
+
+          const average = (fromLevel + toLevel) * 0.5;
+          throttleIntegral += average * duration;
+          burnSeconds += this.#computeRampBurnSeconds(fromLevel, toLevel, duration, throttleEpsilon);
+          throttle = toLevel;
+          time += duration;
+          break;
+        }
+        case 'ullage_fire': {
+          const ullageDuration = Math.max(0, Number(command.duration ?? 0));
+          ullageSeconds += ullageDuration;
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    if (durationSeconds > time) {
+      const tail = durationSeconds - time;
+      throttleIntegral += throttle * tail;
+      if (throttle > throttleEpsilon) {
+        burnSeconds += tail;
+      }
+    }
+
+    const massFlow = propulsion?.massFlowKgPerSec ?? 0;
+    const propellantKg = massFlow > 0 ? throttleIntegral * massFlow : null;
+    const ullageRate = propulsion?.ullage?.massFlowKgPerSec ?? 0;
+    const ullageKg = ullageRate > 0 ? ullageSeconds * ullageRate : null;
+
+    return {
+      burnSeconds,
+      throttleIntegralSeconds: throttleIntegral,
+      propellantKg,
+      ullageSeconds,
+      ullageKg,
+    };
+  }
+
+  #computeRampBurnSeconds(startLevel, endLevel, duration, epsilon) {
+    if (duration <= 0) {
+      return 0;
+    }
+    if (Math.abs(startLevel - endLevel) <= epsilon) {
+      return startLevel > epsilon ? duration : 0;
+    }
+    const slope = (endLevel - startLevel) / duration;
+    if (slope === 0) {
+      return startLevel > epsilon ? duration : 0;
+    }
+    if (startLevel > epsilon && endLevel > epsilon) {
+      return duration;
+    }
+    if (startLevel <= epsilon && endLevel <= epsilon) {
+      // Entire ramp below threshold.
+      if (startLevel === endLevel) {
+        return 0;
+      }
+    }
+
+    const crossTime = (epsilon - startLevel) / slope;
+    if (slope > 0) {
+      if (endLevel <= epsilon) {
+        return 0;
+      }
+      const start = Number.isFinite(crossTime) ? Math.max(0, Math.min(duration, crossTime)) : 0;
+      return start <= 0 ? duration : duration - start;
+    }
+
+    if (startLevel <= epsilon) {
+      return 0;
+    }
+    const end = Number.isFinite(crossTime) ? Math.max(0, Math.min(duration, crossTime)) : duration;
+    return end >= duration ? duration : end;
+  }
+
+  #clamp01(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    if (numeric <= 0) {
+      return 0;
+    }
+    if (numeric >= 1) {
+      return 1;
+    }
+    return numeric;
   }
 
   #resolveThrottleForInterval(state, startSeconds, endSeconds) {
@@ -970,6 +1140,72 @@ export class AutopilotRunner {
     const next = state.sequence[state.nextCommandIndex];
     const time = Number(next.time ?? 0);
     return Number.isFinite(time) ? time : null;
+  }
+
+  #storeCompletedEvent(state, getSeconds, { status, reason }) {
+    const metrics = { ...state.metrics };
+    const expected = state.expected ? { ...state.expected } : null;
+    const summary = {
+      eventId: state.eventId,
+      autopilotId: state.autopilotId,
+      completedAtSeconds: getSeconds,
+      status,
+      reason,
+      metrics,
+      expected,
+      propulsion: state.propulsion,
+      deviations: {},
+    };
+
+    if (expected) {
+      if (Number.isFinite(metrics.burnSeconds) && Number.isFinite(expected.burnSeconds)) {
+        summary.deviations.burnSeconds = metrics.burnSeconds - expected.burnSeconds;
+      }
+      if (Number.isFinite(metrics.throttleIntegralSeconds) && Number.isFinite(expected.throttleIntegralSeconds)) {
+        summary.deviations.throttleIntegralSeconds =
+          metrics.throttleIntegralSeconds - expected.throttleIntegralSeconds;
+      }
+      if (Number.isFinite(metrics.propellantKg) && Number.isFinite(expected.propellantKg)) {
+        const deltaKg = metrics.propellantKg - expected.propellantKg;
+        summary.deviations.propellantKg = deltaKg;
+        const deltaVPerKg = this.#deltaVPerKg(state.propulsion.tankKey);
+        if (Number.isFinite(deltaVPerKg)) {
+          summary.deviations.deltaVMps = deltaKg * deltaVPerKg;
+        }
+      }
+      if (Number.isFinite(metrics.ullageSeconds) && Number.isFinite(expected.ullageSeconds)) {
+        summary.deviations.ullageSeconds = metrics.ullageSeconds - expected.ullageSeconds;
+      }
+      if (Number.isFinite(metrics.rcsKg) && Number.isFinite(expected.ullageKg)) {
+        summary.deviations.ullageKg = metrics.rcsKg - expected.ullageKg;
+      }
+    }
+
+    this.completedEvents.set(state.eventId, summary);
+    return summary;
+  }
+
+  #deltaVPerKg(tankKey) {
+    if (!tankKey || !this.resourceSystem?.propellantConfig) {
+      return null;
+    }
+    const normalized = this.#normalizeTankKey(tankKey);
+    if (normalized !== 'csm_sps') {
+      return null;
+    }
+    const config = this.resourceSystem.propellantConfig.csm_sps;
+    if (!config) {
+      return null;
+    }
+    const { initialKg, reserveKg, usableDeltaVMps } = config;
+    if (!Number.isFinite(initialKg) || !Number.isFinite(reserveKg) || !Number.isFinite(usableDeltaVMps)) {
+      return null;
+    }
+    const usableKg = initialKg - reserveKg;
+    if (!(usableKg > 0)) {
+      return null;
+    }
+    return usableDeltaVMps / usableKg;
   }
 }
 

@@ -48,6 +48,8 @@ Automation scripts under `autopilots/` describe maneuvers as ordered command seq
 
 The LM powered descent script (`PGM_LM_PDI.json`) now uses `throttle_ramp` entries to approximate the gradual spool-up and throttle-bucket transitions captured in the Flight Journal, giving the simulation smoother mass-flow integration for descent propellant tracking.
 
+Autopilot metadata in `autopilots.csv` now feeds tolerance envelopes directly into the scheduler; burn duration, propellant usage, and derived Δv deltas beyond the documented limits trigger the corresponding failure effects.
+
 ## Manual Action Scripts
 
 Milestone M1 introduced a manual action scripting system that can drive checklist acknowledgements and resource deltas deterministically. Script structure, examples, and usage notes live in [`manual_scripts/README.md`](manual_scripts/README.md) to keep the CLI harness and future HUD implementations in sync.
