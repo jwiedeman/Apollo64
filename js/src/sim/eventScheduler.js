@@ -36,6 +36,7 @@ export class EventScheduler {
       expectedDurationSeconds,
       requiresDurationGate,
       requiresChecklist: hasChecklist,
+      lastAutopilotSummary: null,
     };
   }
 
@@ -149,6 +150,23 @@ export class EventScheduler {
       return;
     }
 
+    let autopilotSummary = null;
+    if (event.autopilot && this.autopilotRunner) {
+      this.autopilotRunner.finish(event.id, currentGetSeconds);
+      autopilotSummary =
+        this.autopilotRunner.consumeEventSummary(event.id)
+        ?? null;
+      const toleranceFailure = this.evaluateAutopilotTolerance(event, autopilotSummary);
+      if (toleranceFailure) {
+        event.lastAutopilotSummary = autopilotSummary;
+        this.failEvent(event, currentGetSeconds, toleranceFailure.reason, {
+          abortAutopilot: false,
+          context: toleranceFailure.context,
+        });
+        return;
+      }
+    }
+
     event.status = STATUS.COMPLETE;
     event.completionTimeSeconds = currentGetSeconds;
     this.logger.log(currentGetSeconds, `Event ${event.id} complete`, {
@@ -162,8 +180,11 @@ export class EventScheduler {
     if (event.checklistId && this.checklistManager) {
       this.checklistManager.finalizeEvent(event.id, currentGetSeconds);
     }
-    if (this.autopilotRunner) {
-      this.autopilotRunner.finish(event.id, currentGetSeconds);
+    if (autopilotSummary) {
+      event.lastAutopilotSummary = autopilotSummary;
+    } else if (this.autopilotRunner && event.autopilot) {
+      event.lastAutopilotSummary =
+        this.autopilotRunner.consumeEventSummary(event.id) ?? null;
     }
   }
 
@@ -180,21 +201,7 @@ export class EventScheduler {
       return;
     }
 
-    event.status = STATUS.FAILED;
-    this.logger.log(currentGetSeconds, `Event ${event.id} failed — ${reason}`, {
-      phase: event.phase,
-    });
-    this.resourceSystem.applyEffect(event.failureEffects, {
-      getSeconds: currentGetSeconds,
-      source: event.id,
-      type: 'failure',
-    });
-    if (event.checklistId && this.checklistManager) {
-      this.checklistManager.abortEvent(event.id, currentGetSeconds, reason);
-    }
-    if (this.autopilotRunner) {
-      this.autopilotRunner.abort(event.id, currentGetSeconds, reason);
-    }
+    this.failEvent(event, currentGetSeconds, reason);
   }
 
   arePrerequisitesComplete(event) {
@@ -255,5 +262,197 @@ export class EventScheduler {
       }));
 
     return { counts, upcoming, timeline };
+  }
+
+  failEvent(event, currentGetSeconds, reason, { abortAutopilot = true, context = {} } = {}) {
+    if (event.status === STATUS.COMPLETE || event.status === STATUS.FAILED) {
+      return;
+    }
+
+    event.status = STATUS.FAILED;
+    event.completionTimeSeconds = currentGetSeconds;
+    this.logger.log(currentGetSeconds, `Event ${event.id} failed — ${reason}`, {
+      phase: event.phase,
+      ...context,
+    });
+    this.resourceSystem.applyEffect(event.failureEffects, {
+      getSeconds: currentGetSeconds,
+      source: event.id,
+      type: 'failure',
+    });
+    if (event.checklistId && this.checklistManager) {
+      this.checklistManager.abortEvent(event.id, currentGetSeconds, reason);
+    }
+    let autopilotSummary = null;
+    if (this.autopilotRunner && (event.autopilot || abortAutopilot)) {
+      if (abortAutopilot) {
+        this.autopilotRunner.abort(event.id, currentGetSeconds, reason);
+      }
+      autopilotSummary = this.autopilotRunner.consumeEventSummary(event.id) ?? null;
+    }
+    if (autopilotSummary) {
+      event.lastAutopilotSummary = autopilotSummary;
+    }
+  }
+
+  evaluateAutopilotTolerance(event, summary) {
+    if (!event?.autopilot || !summary) {
+      return null;
+    }
+
+    const tolerances = event.autopilot.tolerances ?? {};
+    const epsilon = 1e-6;
+
+    if (summary.status === 'aborted') {
+      return {
+        reason: 'Autopilot aborted',
+        context: { autopilotId: summary.autopilotId, autopilotStatus: summary.status },
+      };
+    }
+
+    const checks = [
+      this.#evaluateMetric({
+        label: 'burn duration',
+        actual: summary.metrics?.burnSeconds,
+        expected: summary.expected?.burnSeconds,
+        deviation: summary.deviations?.burnSeconds,
+        absoluteTolerance: tolerances?.burn_seconds,
+        percentTolerance: tolerances?.burn_seconds_pct,
+        epsilon,
+      }),
+      this.#evaluateMetric({
+        label: 'propellant usage',
+        actual: summary.metrics?.propellantKg,
+        expected: summary.expected?.propellantKg,
+        deviation: summary.deviations?.propellantKg,
+        absoluteTolerance: tolerances?.propellant_kg,
+        percentTolerance: tolerances?.propellant_pct,
+        epsilon,
+      }),
+      this.#evaluateMetric({
+        label: 'Δv',
+        actual: summary.deviations?.deltaVMps,
+        expected: 0,
+        deviation: summary.deviations?.deltaVMps,
+        absoluteTolerance: this.#resolveDeltaVTolerance(tolerances),
+        percentTolerance: null,
+        epsilon,
+        unit: 'm/s',
+      }),
+    ];
+
+    for (const result of checks) {
+      if (result?.failed) {
+        return {
+          reason: `${result.label} out of tolerance`,
+          context: {
+            autopilotId: summary.autopilotId,
+            metric: result.label,
+            deviation: result.deviation,
+            allowed: result.allowed,
+            unit: result.unit,
+          },
+        };
+      }
+    }
+
+    return null;
+  }
+
+  #evaluateMetric({
+    label,
+    actual,
+    expected,
+    deviation,
+    absoluteTolerance,
+    percentTolerance,
+    epsilon,
+    unit = null,
+  }) {
+    const resolvedActual = Number.isFinite(actual) ? actual : null;
+    const resolvedExpected = Number.isFinite(expected) ? expected : null;
+    const resolvedDeviation = Number.isFinite(deviation)
+      ? deviation
+      : resolvedActual != null && resolvedExpected != null
+        ? resolvedActual - resolvedExpected
+        : null;
+
+    if (resolvedDeviation == null) {
+      return null;
+    }
+
+    const absolute = this.#coerceNumber(absoluteTolerance);
+    const percent = this.#coerceNumber(percentTolerance);
+
+    let allowed = null;
+    if (absolute != null && absolute >= 0) {
+      allowed = absolute;
+    }
+    if (percent != null && percent >= 0 && resolvedExpected != null) {
+      const relative = Math.abs(resolvedExpected) * percent;
+      if (allowed == null) {
+        allowed = relative;
+      } else {
+        allowed = Math.max(allowed, relative);
+      }
+    }
+
+    if (allowed == null) {
+      return null;
+    }
+
+    if (Math.abs(resolvedDeviation) > allowed + (epsilon ?? 0)) {
+      return {
+        failed: true,
+        label,
+        deviation: resolvedDeviation,
+        allowed,
+        unit,
+      };
+    }
+
+    return {
+      failed: false,
+      label,
+      deviation: resolvedDeviation,
+      allowed,
+      unit,
+    };
+  }
+
+  #resolveDeltaVTolerance(tolerances) {
+    if (!tolerances) {
+      return null;
+    }
+
+    const deltaVMps = this.#coerceNumber(tolerances.delta_v_mps);
+    if (Number.isFinite(deltaVMps) && deltaVMps >= 0) {
+      return deltaVMps;
+    }
+
+    const deltaVFps = this.#coerceNumber(tolerances.delta_v_ft_s);
+    if (Number.isFinite(deltaVFps) && deltaVFps >= 0) {
+      return deltaVFps / 3.280839895013123;
+    }
+
+    return null;
+  }
+
+  #coerceNumber(value) {
+    if (value == null) {
+      return null;
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return null;
+      }
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
   }
 }
