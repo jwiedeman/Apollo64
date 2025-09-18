@@ -22,6 +22,8 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
 - **Autopilots:**
   - Confirm each CSV record has a unique `autopilot_id` and a resolvable JSON script.
   - Inspect the JSON sequence for monotonically ordered `time`+`duration` spans and flag invalid step definitions.
+  - Validate command payloads (throttle ranges, ullage durations, DSKY macros, RCS pulse metadata) so malformed steps are caught before guidance tuning.
+  - Cross-check `rcs_pulse` craft/thruster references against `thrusters.json` and ensure referenced propellant tanks exist in `consumables.json`.
   - Parse the `tolerances` JSON payload to surface malformed input before guidance tuning begins.
   - Parse the `propulsion` JSON payload, verifying tank identifiers, numeric mass-flow entries (kg/s or lb/s), and nested
     ullage definitions when provided.
