@@ -27,7 +27,7 @@ export class Simulation {
     this.tickRate = tickRate;
   }
 
-  run({ untilGetSeconds }) {
+  run({ untilGetSeconds, onTick = null } = {}) {
     const dtSeconds = 1 / this.tickRate;
     let ticks = 0;
 
@@ -56,6 +56,23 @@ export class Simulation {
           manualQueue: this.manualActions,
           rcsController: this.rcsController,
         });
+      }
+      if (typeof onTick === 'function') {
+        const shouldContinue = onTick({
+          getSeconds: currentGet,
+          dtSeconds,
+          scheduler: this.scheduler,
+          resourceSystem: this.resourceSystem,
+          autopilotRunner: this.autopilotRunner,
+          checklistManager: this.checklistManager,
+          manualQueue: this.manualActions,
+          rcsController: this.rcsController,
+          hud: this.hud,
+          scoreSystem: this.scoreSystem,
+        });
+        if (shouldContinue === false) {
+          break;
+        }
       }
       this.clock.advance();
       ticks += 1;

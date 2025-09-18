@@ -12,6 +12,7 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 - Replays autopilot JSON sequences through `AutopilotRunner` (`src/sim/autopilotRunner.js`), issuing ullage, attitude, and throttle commands while subtracting SPS/LM/RCS propellant usage from the shared resource model.
 - Captures auto-advanced checklist acknowledgements and exports them as deterministic manual action scripts when `--record-manual-script` is provided, enabling parity runs without relying on auto crew logic (`src/logging/manualActionRecorder.js`).
 - Emits periodic text HUD snapshots (`src/hud/textHud.js`) summarizing event status, resource margins, propellant usage, checklist activity, and manual action queues so long running simulations remain legible from the CLI.
+- Exports deterministic `ui_frame` sequences for front-end prototyping through the new CLI in [`src/tools/exportUiFrames.js`](src/tools/exportUiFrames.js).
 
 ## Running the Prototype
 ```
@@ -44,6 +45,24 @@ The harness executes an auto-advance baseline run, records the resulting manual 
 - `--quiet` / `--verbose` – Control mission log verbosity during the paired runs (quiet by default).
 
 Parity runs consume the same script format documented under [`docs/data/manual_scripts/README.md`](../docs/data/manual_scripts/README.md).
+
+## UI Frame Exporter
+
+Capture mission-state snapshots for UI prototyping or automated tests with:
+
+```
+npm run export:ui-frames -- --until 020:00:00 --interval 300 --output out/ui_frames.json --pretty
+```
+
+Key options:
+
+- `--start <GET>` – Begin capturing frames at a specific GET (default `000:00:00`).
+- `--interval <seconds>` – Sampling cadence for frames (default `600`).
+- `--max-frames <count>` – Optional cap on exported frames.
+- `--include-history` / `--no-history` – Toggle resource-history buffers in each frame (enabled by default).
+- `--manual-checklists` / `--manual-script <path>` – Mirror CLI controls to disable auto-advance or replay a manual script while exporting.
+
+The exporter writes a JSON payload containing metadata, the simulation summary, and an ordered array of `ui_frame` objects that follow the schema documented in [`docs/ui/ui_frame_reference.md`](../docs/ui/ui_frame_reference.md).
 
 ## Module Overview
 - `src/index.js` – CLI entrypoint that wires the loader, scheduler, resource model, and simulation loop.
