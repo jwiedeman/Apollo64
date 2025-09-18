@@ -16,7 +16,7 @@ port.
 - HUD layout specifications including timing blocks, event stack, resource gauges, and maneuver widgets.
 - Audio cue taxonomy mapped to mission events and failure classes with playback priority rules and asset references, captured in [`docs/ui/audio_cue_taxonomy.md`](../ui/audio_cue_taxonomy.md).
 - Committed Apollo 11 cue catalog at [`docs/data/audio_cues.json`](../data/audio_cues.json) with buses, categories, metadata, and sources wired into the loader/validator so UI and dispatcher work can reference a single dataset.
-- Logging, replay, and accessibility guidelines covering color use, captioning, and control remapping hooks.
+- Logging, replay, and accessibility guidelines covering color use, captioning, and control remapping hooks documented in [`docs/ui/logging_accessibility_guidelines.md`](../ui/logging_accessibility_guidelines.md).
 - Panel hierarchy, DSKY macro catalog, and JSON data schema references in [`docs/ui/`](../ui) to guide panel highlighting, DSKY macros, and tile-mode presets.
 
 ## UI Architecture & Data Flow
