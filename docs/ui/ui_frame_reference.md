@@ -17,6 +17,10 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
 - **Determinism:** Inputs are read-only snapshots from the simulation systems. No
   builder method mutates upstream objects; consumers may safely cache frames for
   replay and parity checks.
+- **Exporter:** The CLI at [`js/src/tools/exportUiFrames.js`](../../js/src/tools/exportUiFrames.js)
+  records mission runs into ordered frame sequences (with metadata + summary) so UI
+  prototyping, accessibility audits, and regression fixtures rely on the same
+  `ui_frame` schema as the live HUD.
 
 ## Top-Level Shape
 
