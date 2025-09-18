@@ -42,6 +42,8 @@ Each checklist groups procedural steps under a mission phase and references pane
 }
 ```
 
+The first bundle following this schema now lives in [`checklists.json`](checklists.json), covering translunar injection prep through transearth return milestones pulled from the Apollo 11 flight plan.
+
 ### Field Reference
 
 - `id` (string, required): Stable checklist identifier matching mission data.
@@ -112,6 +114,8 @@ The panel pack enumerates switch layouts, state machines, and dependencies for b
   ]
 }
 ```
+
+An initial slice of the CSM and LM cockpit is published in [`panels.json`](panels.json), mapping hotspots, control defaults, telemetry bindings, and alert triggers for eleven priority panels.
 
 ### Field Reference
 
