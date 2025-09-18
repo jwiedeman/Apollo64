@@ -32,12 +32,14 @@
     "lm_descent": {
       "initial_kg": 8165,
       "reserve_kg": 140,
+      "usable_delta_v_mps": 792.5,
       "reference": "Apollo 11 Mission Operations Report, Table 3-VI",
       "notes": "LM descent stage prop load (18,000 lb) with hover reserve."
     },
     "lm_ascent": {
       "initial_kg": 2350,
       "reserve_kg": 45,
+      "usable_delta_v_mps": 1386.8,
       "reference": "Apollo 11 Mission Operations Report, Table 3-VI",
       "notes": "LM ascent stage prop load plus rendezvous contingency margin."
     },

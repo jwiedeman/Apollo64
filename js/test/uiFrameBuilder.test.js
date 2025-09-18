@@ -26,6 +26,40 @@ describe('UiFrameBuilder', () => {
           lm_ascent: { initial_kg: 40, reserve_kg: 5 },
         },
       },
+      delta_v_margin_mps: 3950,
+      delta_v: {
+        total: {
+          margin_mps: 3950,
+          base_mps: 4000,
+          adjustment_mps: -50,
+          usable_delta_v_mps: 4000,
+        },
+        stages: {
+          csm_sps: {
+            margin_mps: 1950,
+            base_mps: 2000,
+            adjustment_mps: -50,
+            usable_delta_v_mps: 2000,
+            label: 'CSM SPS',
+            tank: 'csm_sps_kg',
+          },
+          lm_descent: {
+            margin_mps: 800,
+            base_mps: 800,
+            adjustment_mps: 0,
+            usable_delta_v_mps: 800,
+            tank: 'lm_descent_kg',
+          },
+          lm_ascent: {
+            margin_mps: 1200,
+            base_mps: 1200,
+            adjustment_mps: 0,
+            usable_delta_v_mps: 1200,
+            label: 'LM APS',
+            tank: 'lm_ascent_kg',
+          },
+        },
+      },
       power_margin_pct: 18,
       cryo_boiloff_rate_pct_per_hr: 3.1,
       power: {
@@ -33,6 +67,9 @@ describe('UiFrameBuilder', () => {
         fuel_cell_output_kw: 3.6,
       },
       thermal_balance_state: 'PTC_STABLE',
+      metrics: {
+        deltaV: { usedMps: 12.5, recoveredMps: 1.5 },
+      },
       failures: [
         {
           id: 'FAIL_COMM_PASS_MISSED',
@@ -218,6 +255,17 @@ describe('UiFrameBuilder', () => {
     assert.equal(frame.events.upcoming.length, 1);
     assert.equal(frame.events.next.id, 'EVT1');
     assert.equal(frame.events.next.tMinusLabel, 'T-000:00:30');
+
+    const deltaVSummary = frame.resources.deltaV;
+    assert.equal(deltaVSummary.totalMps, 3950);
+    assert.equal(deltaVSummary.totalBaseMps, 4000);
+    assert.equal(deltaVSummary.totalAdjustmentMps, -50);
+    assert.equal(deltaVSummary.csmSpsMps, 1950);
+    assert.equal(deltaVSummary.usedMps, 12.5);
+    assert.equal(deltaVSummary.recoveredMps, 1.5);
+    assert.equal(deltaVSummary.primaryStageId, 'csm_sps');
+    assert.equal(deltaVSummary.stages.csm_sps.marginMps, 1950);
+    assert.equal(deltaVSummary.stages.lm_descent.label, 'LM Descent');
 
     const propellant = frame.resources.propellant.tanks;
     assert.equal(propellant.csm_sps.percentRemaining, 75);

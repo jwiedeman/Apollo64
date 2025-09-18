@@ -210,11 +210,64 @@ export class UiFrameBuilder {
     };
 
     const deltaVMetrics = snapshot.metrics?.deltaV ?? {};
+    const deltaVState = snapshot.delta_v ?? {};
+    const totalState = deltaVState.total ?? {};
+    const stageStates = deltaVState.stages && typeof deltaVState.stages === 'object'
+      ? deltaVState.stages
+      : {};
+    const legacyMargin = this.#coerceNumber(snapshot.delta_v_margin_mps);
+    const totalMargin = this.#coerceNumber(totalState.margin_mps);
+    const totalBase = this.#coerceNumber(totalState.base_mps);
+    const totalAdjustment = this.#coerceNumber(totalState.adjustment_mps);
+    const totalUsable = this.#coerceNumber(totalState.usable_delta_v_mps);
+
+    const stageSummaries = {};
+    for (const [stageId, stage] of Object.entries(stageStates)) {
+      if (!stage || typeof stage !== 'object') {
+        continue;
+      }
+      const margin = this.#coerceNumber(stage.margin_mps);
+      const base = this.#coerceNumber(stage.base_mps);
+      const adjustment = this.#coerceNumber(stage.adjustment_mps);
+      const usable = this.#coerceNumber(stage.usable_delta_v_mps);
+      const label = stage.label ?? this.#formatStageLabel(stageId);
+      const percentAvailable =
+        Number.isFinite(usable)
+        && usable > 0
+        && Number.isFinite(margin)
+          ? this.#roundNumber((Math.max(0, margin) / usable) * 100, 1)
+          : null;
+
+      stageSummaries[stageId] = {
+        id: stageId,
+        label,
+        marginMps: Number.isFinite(margin) ? this.#roundNumber(margin, 1) : null,
+        baseMps: Number.isFinite(base) ? this.#roundNumber(base, 1) : null,
+        adjustmentMps: Number.isFinite(adjustment) ? this.#roundNumber(adjustment, 1) : null,
+        usableMps: Number.isFinite(usable) ? this.#roundNumber(usable, 1) : null,
+        percentAvailable,
+        tank: stage.tank ?? null,
+      };
+    }
+
+    const totalMpsValue = Number.isFinite(totalMargin) ? totalMargin : legacyMargin;
+    const primaryStageId = stageSummaries.csm_sps ? 'csm_sps' : Object.keys(stageSummaries)[0] ?? null;
     const deltaV = {
-      totalMps: this.#coerceNumber(snapshot.delta_v_margin_mps),
-      csmSpsMps: this.#coerceNumber(snapshot.delta_v_margin_mps),
+      totalMps: Number.isFinite(totalMpsValue) ? this.#roundNumber(totalMpsValue, 1) : null,
+      totalBaseMps: Number.isFinite(totalBase) ? this.#roundNumber(totalBase, 1) : null,
+      totalAdjustmentMps: Number.isFinite(totalAdjustment) ? this.#roundNumber(totalAdjustment, 1) : null,
+      totalUsableMps: Number.isFinite(totalUsable) ? this.#roundNumber(totalUsable, 1) : null,
+      legacyCsmSpsMps: Number.isFinite(legacyMargin) ? this.#roundNumber(legacyMargin, 1) : null,
+      stages: stageSummaries,
       usedMps: this.#coerceNumber(deltaVMetrics.usedMps),
       recoveredMps: this.#coerceNumber(deltaVMetrics.recoveredMps),
+      primaryStageId,
+      primaryStageMps:
+        primaryStageId && stageSummaries[primaryStageId]?.marginMps != null
+          ? stageSummaries[primaryStageId].marginMps
+          : null,
+      csmSpsMps: stageSummaries.csm_sps?.marginMps
+        ?? (Number.isFinite(legacyMargin) ? this.#roundNumber(legacyMargin, 1) : null),
     };
 
     const lifeSupport = {
@@ -555,6 +608,23 @@ export class UiFrameBuilder {
       result[key] = numeric;
     }
     return result;
+  }
+
+  #formatStageLabel(stageId) {
+    if (!stageId) {
+      return null;
+    }
+    if (stageId === 'csm_sps') {
+      return 'CSM SPS';
+    }
+    if (stageId === 'lm_descent') {
+      return 'LM Descent';
+    }
+    if (stageId === 'lm_ascent') {
+      return 'LM Ascent';
+    }
+    const spaced = stageId.replace(/_/g, ' ');
+    return spaced.replace(/\b([a-z])/g, (match, letter) => letter.toUpperCase());
   }
 
   #coerceNumber(value) {

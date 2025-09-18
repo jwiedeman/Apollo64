@@ -6,6 +6,15 @@ const DEFAULT_STATE = {
   thermal_balance_state: 'UNINITIALIZED',
   ptc_active: false,
   delta_v_margin_mps: 0,
+  delta_v: {
+    total: {
+      base_mps: 0,
+      adjustment_mps: 0,
+      margin_mps: 0,
+      usable_delta_v_mps: 0,
+    },
+    stages: {},
+  },
   power: {
     fuel_cell_output_kw: 0,
     fuel_cell_load_kw: 0,
@@ -107,6 +116,12 @@ const RECOVERY_RATES = {
   cryoPerSecond: 0.015 / 3600,
 };
 
+const DELTA_V_STAGE_CONFIG = [
+  { id: 'csm_sps', tankKey: 'csm_sps_kg', label: 'CSM SPS' },
+  { id: 'lm_descent', tankKey: 'lm_descent_kg', label: 'LM Descent' },
+  { id: 'lm_ascent', tankKey: 'lm_ascent_kg', label: 'LM Ascent' },
+];
+
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -145,9 +160,8 @@ export class ResourceSystem {
       },
     };
     this.budgets = {};
-    this.propellantConfig = {
-      csm_sps: null,
-    };
+    this.propellantConfig = Object.create(null);
+    this.deltaVStageByTank = Object.create(null);
     this.communicationsSchedule = [];
     this.activeCommunicationsPass = null;
     this.activeCommunicationsPowerDeltaKw = 0;
@@ -310,6 +324,22 @@ export class ResourceSystem {
         }
         if (recorded.length > 0) {
           applied.failures = recorded;
+        }
+        continue;
+      }
+
+      if (key === 'delta_v_margin_mps') {
+        const deltaResult = this.#applyDeltaVMarginDelta(value, { getSeconds, source, type });
+        if (deltaResult) {
+          applied.delta_v_margin_mps = deltaResult;
+        }
+        continue;
+      }
+
+      if (key === 'delta_v') {
+        const deltaObject = this.#applyDeltaVEffect(value, { getSeconds, source, type });
+        if (deltaObject) {
+          applied.delta_v = deltaObject;
         }
         continue;
       }
@@ -842,54 +872,260 @@ export class ResourceSystem {
   }
 
   #configurePropellantBudgets(propellant) {
-    const csmSps = propellant.csm_sps ?? {};
-    const initialSpsKg = this.#coerceNumber(csmSps.initial_kg);
-    const reserveSpsKg = this.#coerceNumber(csmSps.reserve_kg);
-    const usableDeltaVMps = this.#coerceNumber(csmSps.usable_delta_v_mps);
+    this.propellantConfig = Object.create(null);
+    this.deltaVStageByTank = Object.create(null);
 
-    if (Number.isFinite(usableDeltaVMps)) {
-      this.state.delta_v_margin_mps = usableDeltaVMps;
+    const propellantData = propellant && typeof propellant === 'object' ? propellant : {};
+
+    for (const stage of DELTA_V_STAGE_CONFIG) {
+      const rawStage = propellantData[stage.id] ?? {};
+      const initialKg = this.#coerceNumber(rawStage.initial_kg);
+      const reserveKg = this.#coerceNumber(rawStage.reserve_kg);
+      const usableDeltaVMps = this.#coerceNumber(rawStage.usable_delta_v_mps);
+
+      this.propellantConfig[stage.id] = {
+        initialKg,
+        reserveKg,
+        usableDeltaVMps,
+        tankKey: stage.tankKey,
+        label: stage.label,
+      };
+
+      if (stage.tankKey) {
+        this.deltaVStageByTank[stage.tankKey] = stage.id;
+        this.#assignPropellantBudget(stage.tankKey, rawStage.initial_kg);
+      }
+
+      this.#ensureDeltaVStage(stage.id, {
+        usableDeltaVMps,
+        label: stage.label,
+        tankKey: stage.tankKey,
+      });
     }
 
-    this.propellantConfig.csm_sps = {
-      initialKg: initialSpsKg,
-      reserveKg: reserveSpsKg,
-      usableDeltaVMps,
-    };
+    this.#assignPropellantBudget('csm_rcs_kg', propellantData.csm_rcs?.initial_kg);
+    this.#assignPropellantBudget('lm_rcs_kg', propellantData.lm_rcs?.initial_kg);
 
-    this.#assignPropellantBudget('csm_sps_kg', csmSps.initial_kg);
-    this.#assignPropellantBudget('csm_rcs_kg', propellant.csm_rcs?.initial_kg);
-    this.#assignPropellantBudget('lm_descent_kg', propellant.lm_descent?.initial_kg);
-    this.#assignPropellantBudget('lm_ascent_kg', propellant.lm_ascent?.initial_kg);
-    this.#assignPropellantBudget('lm_rcs_kg', propellant.lm_rcs?.initial_kg);
+    for (const [key, value] of Object.entries(propellantData)) {
+      if (DELTA_V_STAGE_CONFIG.some((stage) => stage.id === key)) {
+        continue;
+      }
+      const tankKey = `${key}_kg`;
+      this.#assignPropellantBudget(tankKey, value?.initial_kg);
+    }
 
     this.#recalculateDeltaVFromPropellant();
   }
 
-  #recalculateDeltaVFromPropellant() {
-    const config = this.propellantConfig.csm_sps;
-    if (!config) {
-      return;
+  #ensureDeltaVState() {
+    if (!this.state.delta_v || typeof this.state.delta_v !== 'object') {
+      this.state.delta_v = {
+        total: {
+          base_mps: 0,
+          adjustment_mps: 0,
+          margin_mps: 0,
+          usable_delta_v_mps: 0,
+        },
+        stages: {},
+      };
     }
 
-    const { initialKg, reserveKg, usableDeltaVMps } = config;
-    if (!Number.isFinite(initialKg) || !Number.isFinite(reserveKg) || !Number.isFinite(usableDeltaVMps)) {
-      return;
+    if (!this.state.delta_v.total || typeof this.state.delta_v.total !== 'object') {
+      this.state.delta_v.total = {
+        base_mps: 0,
+        adjustment_mps: 0,
+        margin_mps: 0,
+        usable_delta_v_mps: 0,
+      };
+    }
+
+    if (!this.state.delta_v.stages || typeof this.state.delta_v.stages !== 'object') {
+      this.state.delta_v.stages = {};
+    }
+
+    return this.state.delta_v;
+  }
+
+  #ensureDeltaVStage(stageId, { usableDeltaVMps = null, label = null, tankKey = null } = {}) {
+    if (!stageId) {
+      return null;
+    }
+
+    const container = this.#ensureDeltaVState();
+    if (!container.stages[stageId] || typeof container.stages[stageId] !== 'object') {
+      container.stages[stageId] = {
+        id: stageId,
+        base_mps: 0,
+        adjustment_mps: 0,
+        margin_mps: 0,
+        usable_delta_v_mps: Number.isFinite(usableDeltaVMps) ? usableDeltaVMps : null,
+        label: label ?? null,
+        tank: tankKey ?? null,
+      };
+      return container.stages[stageId];
+    }
+
+    const stage = container.stages[stageId];
+    const coerce = (value) => {
+      const numeric = this.#coerceNumber(value);
+      return typeof numeric === 'number' ? numeric : 0;
+    };
+    stage.base_mps = coerce(stage.base_mps);
+    stage.adjustment_mps = coerce(stage.adjustment_mps);
+    stage.margin_mps = coerce(stage.margin_mps);
+    if (Number.isFinite(usableDeltaVMps)) {
+      stage.usable_delta_v_mps = usableDeltaVMps;
+    } else if (!Number.isFinite(stage.usable_delta_v_mps)) {
+      stage.usable_delta_v_mps = null;
+    }
+    if (label && !stage.label) {
+      stage.label = label;
+    }
+    if (tankKey && !stage.tank) {
+      stage.tank = tankKey;
+    }
+    return stage;
+  }
+
+  #resolveDeltaVStageLabel(stageId) {
+    if (!stageId) {
+      return 'delta-v stage';
+    }
+    const config = this.propellantConfig?.[stageId];
+    if (config?.label) {
+      return config.label;
+    }
+    const stage = this.state.delta_v?.stages?.[stageId];
+    if (stage?.label) {
+      return stage.label;
+    }
+    return stageId;
+  }
+
+  #calculateStageBaseDeltaV(amountKg, config) {
+    if (!config) {
+      return 0;
+    }
+
+    const initialKg = this.#coerceNumber(config.initialKg);
+    const reserveKg = this.#coerceNumber(config.reserveKg);
+    const usableDeltaVMps = this.#coerceNumber(config.usableDeltaVMps);
+    if (typeof initialKg !== 'number' || typeof reserveKg !== 'number' || typeof usableDeltaVMps !== 'number') {
+      return 0;
     }
 
     const usableKg = initialKg - reserveKg;
     if (!(usableKg > 0)) {
-      return;
+      return 0;
     }
 
-    const current = this.#coerceNumber(this.state.propellant?.csm_sps_kg);
-    if (!Number.isFinite(current)) {
-      return;
+    const current = this.#coerceNumber(amountKg);
+    if (typeof current !== 'number') {
+      return 0;
     }
 
     const remainingAboveReserve = Math.max(0, current - reserveKg);
     const fraction = Math.max(0, Math.min(1, remainingAboveReserve / usableKg));
-    this.state.delta_v_margin_mps = fraction * usableDeltaVMps;
+    return fraction * usableDeltaVMps;
+  }
+
+  #clampDeltaV(value, max) {
+    const numeric = this.#coerceNumber(value);
+    if (typeof numeric !== 'number') {
+      return 0;
+    }
+
+    const maxNumeric = this.#coerceNumber(max);
+    let result = numeric;
+    if (typeof maxNumeric === 'number' && maxNumeric >= 0) {
+      result = Math.min(maxNumeric, numeric);
+    }
+    return Math.max(0, result);
+  }
+
+  #recalculateTotalDeltaV() {
+    const container = this.#ensureDeltaVState();
+
+    let totalBase = 0;
+    let totalAdjustment = 0;
+    let totalMargin = 0;
+    let totalUsable = 0;
+
+    for (const [stageId, stage] of Object.entries(container.stages)) {
+      if (!stage || typeof stage !== 'object') {
+        continue;
+      }
+
+      const base = this.#coerceNumber(stage.base_mps);
+      const adjustment = this.#coerceNumber(stage.adjustment_mps);
+      const usable = this.#coerceNumber(stage.usable_delta_v_mps);
+      const margin = this.#coerceNumber(stage.margin_mps);
+
+      const baseValue = typeof base === 'number' ? base : 0;
+      const adjustmentValue = typeof adjustment === 'number' ? adjustment : 0;
+      const marginValue = typeof margin === 'number'
+        ? margin
+        : this.#clampDeltaV(baseValue + adjustmentValue, usable);
+
+      stage.base_mps = baseValue;
+      stage.adjustment_mps = adjustmentValue;
+      stage.margin_mps = marginValue;
+      if (typeof usable === 'number' && usable >= 0) {
+        stage.usable_delta_v_mps = usable;
+        totalUsable += usable;
+      } else if (typeof stage.usable_delta_v_mps === 'number' && stage.usable_delta_v_mps >= 0) {
+        totalUsable += stage.usable_delta_v_mps;
+      }
+
+      totalBase += baseValue;
+      totalAdjustment += adjustmentValue;
+      totalMargin += marginValue;
+    }
+
+    container.total.base_mps = totalBase;
+    container.total.adjustment_mps = totalAdjustment;
+    container.total.margin_mps = totalMargin;
+    container.total.usable_delta_v_mps = totalUsable;
+    this.state.delta_v_margin_mps = totalMargin;
+    return container.total;
+  }
+
+  #recalculateDeltaVFromPropellant() {
+    const propellantState = this.state.propellant ?? {};
+
+    for (const stage of DELTA_V_STAGE_CONFIG) {
+      const config = this.propellantConfig?.[stage.id];
+      if (!config) {
+        continue;
+      }
+
+      const stageState = this.#ensureDeltaVStage(stage.id, {
+        usableDeltaVMps: config.usableDeltaVMps,
+        label: config.label,
+        tankKey: config.tankKey,
+      });
+
+      const amountKg = stage.tankKey ? propellantState[stage.tankKey] : null;
+      const base = this.#calculateStageBaseDeltaV(amountKg, config);
+      const currentAdjustment = this.#coerceNumber(stageState.adjustment_mps);
+      const adjustmentValue = typeof currentAdjustment === 'number' ? currentAdjustment : 0;
+      const margin = this.#clampDeltaV(base + adjustmentValue, config.usableDeltaVMps);
+
+      stageState.base_mps = base;
+      stageState.margin_mps = margin;
+      stageState.adjustment_mps = margin - base;
+      stageState.usable_delta_v_mps = Number.isFinite(config.usableDeltaVMps)
+        ? config.usableDeltaVMps
+        : stageState.usable_delta_v_mps ?? null;
+      if (!stageState.label && config.label) {
+        stageState.label = config.label;
+      }
+      if (!stageState.tank && config.tankKey) {
+        stageState.tank = config.tankKey;
+      }
+    }
+
+    this.#recalculateTotalDeltaV();
   }
 
   #handleNumericUpdate(path, key, previous, next, context = {}) {
@@ -912,54 +1148,231 @@ export class ResourceSystem {
   }
 
   #updateDerivedMetricsForPropellant(tankKey, { previous, next, getSeconds, source, note }) {
-    if (tankKey !== 'csm_sps_kg') {
+    const stageId = this.deltaVStageByTank?.[tankKey];
+    if (!stageId) {
       return;
     }
 
-    const config = this.propellantConfig.csm_sps;
+    const config = this.propellantConfig?.[stageId];
     if (!config) {
       return;
     }
 
-    const { initialKg, reserveKg, usableDeltaVMps } = config;
-    if (!Number.isFinite(initialKg) || !Number.isFinite(reserveKg) || !Number.isFinite(usableDeltaVMps)) {
+    const stageState = this.#ensureDeltaVStage(stageId, {
+      usableDeltaVMps: config.usableDeltaVMps,
+      label: config.label,
+      tankKey: config.tankKey,
+    });
+
+    const previousBase = this.#calculateStageBaseDeltaV(previous, config);
+    const nextBase = this.#calculateStageBaseDeltaV(next, config);
+    const adjustment = this.#coerceNumber(stageState.adjustment_mps);
+    const adjustmentValue = typeof adjustment === 'number' ? adjustment : 0;
+    const previousMargin = this.#clampDeltaV(previousBase + adjustmentValue, config.usableDeltaVMps);
+    const nextMargin = this.#clampDeltaV(nextBase + adjustmentValue, config.usableDeltaVMps);
+
+    stageState.base_mps = nextBase;
+    stageState.margin_mps = nextMargin;
+    stageState.adjustment_mps = nextMargin - nextBase;
+    stageState.usable_delta_v_mps = Number.isFinite(config.usableDeltaVMps)
+      ? config.usableDeltaVMps
+      : stageState.usable_delta_v_mps ?? null;
+
+    this.#recalculateTotalDeltaV();
+
+    const deltaMargin = nextMargin - previousMargin;
+    this.#recordDeltaVMarginChange(stageId, deltaMargin, {
+      getSeconds,
+      source,
+      note,
+      reason: 'propellant_change',
+    });
+  }
+
+  #recordDeltaVMarginChange(stageId, deltaMargin, { getSeconds = 0, source = 'effect', note = null, reason = null } = {}) {
+    if (!Number.isFinite(deltaMargin) || Math.abs(deltaMargin) <= (this.options.epsilon ?? 1e-6)) {
       return;
     }
 
-    const usableKg = initialKg - reserveKg;
-    if (!(usableKg > 0)) {
-      return;
+    if (deltaMargin < 0) {
+      this.metrics.deltaV.usedMps += -deltaMargin;
+    } else if (deltaMargin > 0) {
+      this.metrics.deltaV.recoveredMps += deltaMargin;
     }
 
-    const previousAboveReserve = Math.max(0, previous - reserveKg);
-    const nextAboveReserve = Math.max(0, next - reserveKg);
-    const fractionBefore = Math.max(0, Math.min(1, previousAboveReserve / usableKg));
-    const fractionAfter = Math.max(0, Math.min(1, nextAboveReserve / usableKg));
+    const label = this.#resolveDeltaVStageLabel(stageId);
+    const message = reason === 'propellant_change'
+      ? `Delta-v margin updated for ${label} propellant change`
+      : `Delta-v margin adjusted for ${label}`;
 
-    const marginBefore = fractionBefore * usableDeltaVMps;
-    const marginAfter = fractionAfter * usableDeltaVMps;
-    const deltaMargin = marginAfter - marginBefore;
+    this.logger?.log(getSeconds, message, {
+      source,
+      note,
+      stage: stageId,
+      deltaVMps: deltaMargin,
+      newMarginMps: this.state.delta_v?.stages?.[stageId]?.margin_mps ?? null,
+      baseMps: this.state.delta_v?.stages?.[stageId]?.base_mps ?? null,
+      adjustmentMps: this.state.delta_v?.stages?.[stageId]?.adjustment_mps ?? null,
+      totalMarginMps: this.state.delta_v_margin_mps,
+      reason,
+    });
+  }
 
-    if (!Number.isFinite(marginBefore) || !Number.isFinite(marginAfter)) {
-      return;
+  #adjustDeltaVStage(stageId, deltaMps, context = {}) {
+    const delta = this.#coerceNumber(deltaMps);
+    if (!stageId || typeof delta !== 'number' || delta === 0) {
+      return null;
     }
 
-    this.state.delta_v_margin_mps = Math.max(0, Math.min(usableDeltaVMps, marginAfter));
+    const config = this.propellantConfig?.[stageId] ?? null;
+    const stageState = this.#ensureDeltaVStage(stageId, {
+      usableDeltaVMps: config?.usableDeltaVMps,
+      label: config?.label,
+      tankKey: config?.tankKey,
+    });
 
-    if (Math.abs(deltaMargin) > (this.options.epsilon ?? 1e-6)) {
-      if (deltaMargin < 0) {
-        this.metrics.deltaV.usedMps += -deltaMargin;
-      } else {
-        this.metrics.deltaV.recoveredMps += deltaMargin;
+    const base = this.#coerceNumber(stageState.base_mps);
+    const currentBase = typeof base === 'number' ? base : 0;
+    const adjustment = this.#coerceNumber(stageState.adjustment_mps);
+    const previousAdjustment = typeof adjustment === 'number' ? adjustment : 0;
+    const usable = config?.usableDeltaVMps ?? stageState.usable_delta_v_mps ?? null;
+    const previousMarginValue = this.#clampDeltaV(currentBase + previousAdjustment, usable);
+
+    const margin = this.#clampDeltaV(currentBase + previousAdjustment + delta, usable);
+    const newAdjustment = margin - currentBase;
+
+    stageState.base_mps = currentBase;
+    stageState.margin_mps = margin;
+    stageState.adjustment_mps = newAdjustment;
+    if (Number.isFinite(config?.usableDeltaVMps)) {
+      stageState.usable_delta_v_mps = config.usableDeltaVMps;
+    }
+
+    this.state.delta_v.stages[stageId] = stageState;
+    this.#recalculateTotalDeltaV();
+
+    const actualDelta = margin - previousMarginValue;
+    this.#recordDeltaVMarginChange(stageId, actualDelta, {
+      getSeconds: context?.getSeconds ?? 0,
+      source: context?.source ?? 'effect',
+      note: context?.type ?? null,
+      reason: 'adjustment',
+    });
+
+    return {
+      stage: stageId,
+      deltaMps: actualDelta,
+      newMarginMps: margin,
+      adjustmentMps: newAdjustment,
+      baseMps: currentBase,
+      totalMarginMps: this.state.delta_v_margin_mps,
+    };
+  }
+
+  #getPrimaryDeltaVStageId() {
+    if (this.propellantConfig?.csm_sps) {
+      return 'csm_sps';
+    }
+
+    for (const stage of DELTA_V_STAGE_CONFIG) {
+      if (this.propellantConfig?.[stage.id]) {
+        return stage.id;
       }
-
-      this.logger?.log(getSeconds, 'Delta-v margin updated from SPS propellant change', {
-        source,
-        note,
-        deltaVMps: deltaMargin,
-        newMarginMps: this.state.delta_v_margin_mps,
-      });
     }
+
+    const stages = this.state.delta_v?.stages ?? {};
+    const keys = Object.keys(stages);
+    return keys.length > 0 ? keys[0] : null;
+  }
+
+  #applyDeltaVMarginDelta(delta, context = {}) {
+    const normalized = this.#coerceNumber(delta);
+    if (typeof normalized !== 'number' || normalized === 0) {
+      return undefined;
+    }
+
+    const stageId = this.#getPrimaryDeltaVStageId();
+    if (!stageId) {
+      return undefined;
+    }
+
+    return this.#adjustDeltaVStage(stageId, normalized, context);
+  }
+
+  #extractDeltaVAdjustment(value) {
+    if (value == null) {
+      return null;
+    }
+    if (typeof value === 'number' || typeof value === 'string') {
+      const numeric = this.#coerceNumber(value);
+      return typeof numeric === 'number' ? numeric : null;
+    }
+    if (typeof value !== 'object') {
+      return null;
+    }
+    if (value.adjustment_mps != null) {
+      const numeric = this.#coerceNumber(value.adjustment_mps);
+      return typeof numeric === 'number' ? numeric : null;
+    }
+    if (value.delta_mps != null) {
+      const numeric = this.#coerceNumber(value.delta_mps);
+      return typeof numeric === 'number' ? numeric : null;
+    }
+    if (value.delta != null) {
+      const numeric = this.#coerceNumber(value.delta);
+      return typeof numeric === 'number' ? numeric : null;
+    }
+    return null;
+  }
+
+  #applyDeltaVEffect(value, context = {}) {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const updates = [];
+    const processStage = (stageId, stageValue) => {
+      const delta = this.#extractDeltaVAdjustment(stageValue);
+      if (typeof delta !== 'number' || delta === 0) {
+        return;
+      }
+      const result = this.#adjustDeltaVStage(stageId, delta, context);
+      if (result) {
+        updates.push(result);
+      }
+    };
+
+    if (value.stages && typeof value.stages === 'object') {
+      for (const [stageId, stageValue] of Object.entries(value.stages)) {
+        processStage(stageId, stageValue);
+      }
+    }
+
+    if (value.adjustments && typeof value.adjustments === 'object') {
+      for (const [stageId, stageValue] of Object.entries(value.adjustments)) {
+        processStage(stageId, stageValue);
+      }
+    }
+
+    for (const [key, stageValue] of Object.entries(value)) {
+      if (key === 'stages' || key === 'adjustments' || key === 'total') {
+        continue;
+      }
+      processStage(key, stageValue);
+    }
+
+    if (updates.length === 0) {
+      return undefined;
+    }
+
+    return {
+      stages: updates,
+      total: {
+        marginMps: this.state.delta_v_margin_mps,
+        baseMps: this.state.delta_v?.total?.base_mps ?? null,
+        adjustmentMps: this.state.delta_v?.total?.adjustment_mps ?? null,
+      },
+    };
   }
 
   #normalizeCommunicationsSchedule(schedule) {
