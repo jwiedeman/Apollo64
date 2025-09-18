@@ -28,6 +28,7 @@ async function main() {
   validateEvents(eventRecords, { autopilotMap, checklistMap, failureMap, context });
 
   await validateConsumables(context);
+  validateAutopilotPropellantReferences(context);
   await validateCommunicationsTrends(context);
   await validateThrusters(context);
   await validateAudioCues(context);
@@ -58,6 +59,16 @@ async function readCsvFile(relativePath, context) {
     return [];
   }
 }
+
+const KNOWN_AUTOPILOT_COMMANDS = new Set([
+  'attitude_hold',
+  'ullage_fire',
+  'throttle',
+  'throttle_ramp',
+  'rcs_pulse',
+  'dsky_entry',
+  'dsky_macro',
+]);
 
 async function validateAutopilots(records, context) {
   const autopilots = new Map();
@@ -100,6 +111,12 @@ async function validateAutopilots(records, context) {
     if (record.propulsion) {
       const propulsion = parseJsonField(record.propulsion, `Autopilot ${id} propulsion`, context);
       if (propulsion && typeof propulsion === 'object') {
+        const tankReference = normalizeString(
+          propulsion.tank ?? propulsion.tank_key ?? propulsion.propellant ?? null,
+        );
+        if (tankReference) {
+          trackReference(context, 'autopilotPropellantTanks', tankReference);
+        }
         if (propulsion.type != null && typeof propulsion.type !== 'string') {
           addWarning(context, `Autopilot ${id} propulsion type should be a string`);
         }
@@ -128,9 +145,14 @@ async function validateAutopilots(records, context) {
           if (typeof propulsion.ullage !== 'object') {
             addError(context, `Autopilot ${id} propulsion ullage must be an object`);
           } else {
-            const ullageTank = propulsion.ullage.tank ?? propulsion.ullage.tank_key ?? propulsion.ullage.propellant;
+            const ullageTank =
+              propulsion.ullage.tank ?? propulsion.ullage.tank_key ?? propulsion.ullage.propellant;
             if (ullageTank != null && typeof ullageTank !== 'string') {
               addWarning(context, `Autopilot ${id} propulsion ullage tank should be a string`);
+            }
+            const ullageTankReference = normalizeString(ullageTank ?? null);
+            if (ullageTankReference) {
+              trackReference(context, 'autopilotPropellantTanks', ullageTankReference);
             }
             const ullageKgRaw = propulsion.ullage.mass_flow_kg_per_s ?? propulsion.ullage.massFlowKgPerSec;
             if (ullageKgRaw != null && !isFiniteNumber(ullageKgRaw)) {
@@ -178,9 +200,171 @@ function validateAutopilotSequence(sequence, autopilotId, context) {
         `Autopilot ${autopilotId} step ${index} ends at ${endTime}s before previous end ${maxEndTime}s — verify sequencing order`,
       );
     }
+    const commandName = String(step.command ?? step.cmd ?? '').trim().toLowerCase();
+    if (!commandName) {
+      addWarning(context, `${stepLabel} is missing a command name`);
+    } else {
+      validateAutopilotCommand(step, commandName, autopilotId, index, context);
+    }
     if (endTime > maxEndTime) {
       maxEndTime = endTime;
     }
+  }
+}
+
+function validateAutopilotCommand(step, commandName, autopilotId, index, context) {
+  const label = `Autopilot ${autopilotId} step ${index}`;
+
+  if (!KNOWN_AUTOPILOT_COMMANDS.has(commandName)) {
+    addWarning(context, `${label} uses unknown command ${commandName}`);
+    return;
+  }
+
+  switch (commandName) {
+    case 'attitude_hold': {
+      const target = step.target;
+      if (!target || typeof target !== 'object') {
+        addWarning(context, `${label} attitude_hold target should include roll_deg/pitch_deg/yaw_deg values`);
+        break;
+      }
+      for (const axis of ['roll_deg', 'pitch_deg', 'yaw_deg']) {
+        const value = target[axis];
+        if (!isFiniteNumber(value)) {
+          addWarning(context, `${label} attitude_hold target.${axis} should be numeric`);
+        }
+      }
+      break;
+    }
+    case 'ullage_fire': {
+      const duration = toFiniteNumber(
+        step.duration ?? step.seconds ?? step.impulse ?? step.pulse_seconds ?? null,
+      );
+      if (duration == null || duration <= 0) {
+        addWarning(context, `${label} ullage_fire duration should be greater than zero seconds`);
+      }
+      break;
+    }
+    case 'throttle': {
+      const level = toFiniteNumber(step.level ?? step.value ?? step.target ?? null);
+      if (level == null) {
+        addWarning(context, `${label} throttle command is missing a level/value field`);
+      } else if (level < 0 || level > 1) {
+        addWarning(context, `${label} throttle level ${level} should be between 0 and 1`);
+      }
+      break;
+    }
+    case 'throttle_ramp': {
+      const duration = toFiniteNumber(step.duration ?? step.ramp_duration ?? null);
+      if (duration == null || duration <= 0) {
+        addWarning(context, `${label} throttle_ramp duration should be greater than zero seconds`);
+      }
+      const targetLevel = toFiniteNumber(
+        step.to ?? step.to_level ?? step.level ?? step.target ?? null,
+      );
+      if (targetLevel == null) {
+        addWarning(context, `${label} throttle_ramp is missing a target level`);
+      } else if (targetLevel < 0 || targetLevel > 1) {
+        addWarning(context, `${label} throttle_ramp target level ${targetLevel} should be between 0 and 1`);
+      }
+      const startLevel = toFiniteNumber(
+        step.from ?? step.from_level ?? step.start_level ?? step.start ?? null,
+      );
+      if (startLevel != null && (startLevel < 0 || startLevel > 1)) {
+        addWarning(context, `${label} throttle_ramp start level ${startLevel} should be between 0 and 1`);
+      }
+      break;
+    }
+    case 'rcs_pulse': {
+      const duration = toFiniteNumber(
+        step.duration ?? step.seconds ?? step.impulse ?? step.pulse_seconds ?? null,
+      );
+      if (duration == null || duration <= 0) {
+        addWarning(context, `${label} rcs_pulse duration should be greater than zero seconds`);
+      }
+      const craftId = normalizeString(step.craft ?? step.craft_id ?? step.vehicle ?? null);
+      if (craftId) {
+        trackReference(context, 'autopilotCraftIds', craftId);
+      }
+      const tankKey = normalizeString(step.tank ?? step.tank_key ?? step.propellant_tank ?? null);
+      if (tankKey) {
+        trackReference(context, 'autopilotPropellantTanks', tankKey);
+      }
+      const axis = normalizeString(step.axis ?? step.translation_axis ?? null);
+      const torqueAxis = normalizeString(step.torque_axis ?? step.attitude_axis ?? null);
+      const thrustersRaw = step.thrusters ?? step.thruster_ids ?? null;
+      const thrusterTokens = Array.isArray(thrustersRaw)
+        ? thrustersRaw
+        : typeof thrustersRaw === 'string'
+          ? thrustersRaw.split(',').map((entry) => entry.trim()).filter((entry) => entry.length > 0)
+          : [];
+      const thrusterIds = thrusterTokens
+        .map((entry) => normalizeString(entry))
+        .filter((entry) => entry.length > 0);
+      if (!axis && !torqueAxis && thrusterIds.length === 0) {
+        addWarning(
+          context,
+          `${label} rcs_pulse should specify a translation axis, torque axis, or thruster list`,
+        );
+      }
+      if (thrusterIds.length > 0) {
+        trackReferenceList(context, 'autopilotThrusterIds', thrusterIds);
+      }
+      const count = toFiniteNumber(step.count ?? step.pulses ?? step.repeat ?? null);
+      if (count != null) {
+        if (count <= 0) {
+          addWarning(context, `${label} rcs_pulse count should be greater than zero`);
+        } else if (!Number.isInteger(count)) {
+          addWarning(context, `${label} rcs_pulse count ${count} should be an integer`);
+        }
+      }
+      const dutyCycle = toFiniteNumber(step.duty_cycle ?? step.duty ?? step.duty_factor ?? null);
+      if (dutyCycle != null && (dutyCycle <= 0 || dutyCycle > 1)) {
+        addWarning(context, `${label} rcs_pulse duty cycle ${dutyCycle} should be between 0 and 1`);
+      }
+      break;
+    }
+    case 'dsky_entry':
+    case 'dsky_macro': {
+      const commandLabel = commandName;
+      const macroId = normalizeString(
+        step.macro ?? step.macro_id ?? step.macroId ?? null,
+      );
+      const verb = toFiniteNumber(step.verb ?? step.verb_id ?? null);
+      const noun = toFiniteNumber(step.noun ?? step.noun_id ?? null);
+      if (!macroId && verb == null && noun == null) {
+        addWarning(context, `${label} ${commandLabel} should include a macro id or Verb/Noun pair`);
+      }
+      if (verb != null && (!Number.isInteger(verb) || verb < 0 || verb > 99)) {
+        addWarning(context, `${label} ${commandLabel} verb ${verb} should be an integer between 0 and 99`);
+      }
+      if (noun != null && (!Number.isInteger(noun) || noun < 0 || noun > 99)) {
+        addWarning(context, `${label} ${commandLabel} noun ${noun} should be an integer between 0 and 99`);
+      }
+      const program = step.program ?? step.agc_program ?? step.agcProgram ?? null;
+      if (program != null && typeof program !== 'string') {
+        addWarning(context, `${label} ${commandLabel} program should be a string when present`);
+      }
+      const registers = step.registers
+        ?? step.values
+        ?? step.register_values
+        ?? step.registerValues
+        ?? null;
+      if (registers != null && !(typeof registers === 'object')) {
+        addWarning(context, `${label} ${commandLabel} registers should be an object or array`);
+      }
+      const sequence = step.sequence
+        ?? step.inputs
+        ?? step.key_sequence
+        ?? step.keySequence
+        ?? step.steps
+        ?? null;
+      if (sequence != null && !(Array.isArray(sequence) || typeof sequence === 'string')) {
+        addWarning(context, `${label} ${commandLabel} sequence should be a string or array`);
+      }
+      break;
+    }
+    default:
+      break;
   }
 }
 
@@ -524,6 +708,20 @@ async function validateConsumables(context) {
     context.stats.consumablesSections = Object.keys(data).length;
   } catch (error) {
     addError(context, `Failed to read consumables.json: ${error.message}`);
+  }
+}
+
+function validateAutopilotPropellantReferences(context) {
+  const tankReferences = context.refs?.autopilotPropellantTanks;
+  const knownTanks = context.refs?.propellantTanks;
+  if (!tankReferences || tankReferences.size === 0 || !knownTanks || knownTanks.size === 0) {
+    return;
+  }
+
+  for (const tankKey of tankReferences) {
+    if (!knownTanks.has(tankKey)) {
+      addWarning(context, `Autopilot references unknown propellant tank ${tankKey}`);
+    }
   }
 }
 
@@ -993,6 +1191,29 @@ async function validateThrusters(context) {
 
   context.stats.thrusterCraft = craftIds.size;
   context.stats.thrusters = thrusterCount;
+  context.refs.rcsCraftIds = craftIds;
+  context.refs.rcsThrusterIds = thrusterIds;
+  validateAutopilotRcsReferences(context, { craftIds, thrusterIds });
+}
+
+function validateAutopilotRcsReferences(context, { craftIds, thrusterIds }) {
+  const craftReferences = context.refs?.autopilotCraftIds;
+  if (craftReferences && craftReferences.size > 0) {
+    for (const craftId of craftReferences) {
+      if (!craftIds.has(craftId)) {
+        addWarning(context, `Autopilot references unknown RCS craft ${craftId}`);
+      }
+    }
+  }
+
+  const thrusterReferences = context.refs?.autopilotThrusterIds;
+  if (thrusterReferences && thrusterReferences.size > 0) {
+    for (const thrusterId of thrusterReferences) {
+      if (!thrusterIds.has(thrusterId)) {
+        addWarning(context, `Autopilot references unknown RCS thruster ${thrusterId}`);
+      }
+    }
+  }
 }
 
 function parseJsonField(value, label, context) {
@@ -1041,6 +1262,30 @@ function parseList(value) {
     .split(',')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function trackReference(context, refKey, value) {
+  if (!value || value.length === 0) {
+    return;
+  }
+  if (!context.refs[refKey]) {
+    context.refs[refKey] = new Set();
+  }
+  context.refs[refKey].add(value);
+}
+
+function trackReferenceList(context, refKey, values) {
+  if (!values || values.length === 0) {
+    return;
+  }
+  if (!context.refs[refKey]) {
+    context.refs[refKey] = new Set();
+  }
+  for (const value of values) {
+    if (value && value.length > 0) {
+      context.refs[refKey].add(value);
+    }
+  }
 }
 
 function validateEffectPayload(effect, context, label) {
@@ -1162,6 +1407,16 @@ function toFiniteNumber(value) {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function normalizeString(value) {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return '';
 }
 
 function addError(context, message) {
