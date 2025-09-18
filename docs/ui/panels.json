@@ -1,0 +1,2417 @@
+{
+  "version": 1,
+  "panels": [
+    {
+      "id": "CSM_FLIGHT_CONTROL",
+      "name": "Flight Control & Guidance",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_flight_control.svg",
+        "hotspots": [
+          {
+            "controlId": "CMC_MODE",
+            "x": 72,
+            "y": 68,
+            "width": 84,
+            "height": 70
+          },
+          {
+            "controlId": "IMU_FINE_ALIGN",
+            "x": 176,
+            "y": 68,
+            "width": 64,
+            "height": 70
+          },
+          {
+            "controlId": "FDAI_SOURCE",
+            "x": 256,
+            "y": 68,
+            "width": 64,
+            "height": 70
+          },
+          {
+            "controlId": "ATTITUDE_HOLD",
+            "x": 336,
+            "y": 68,
+            "width": 88,
+            "height": 70
+          },
+          {
+            "controlId": "DAP_RATE",
+            "x": 432,
+            "y": 68,
+            "width": 76,
+            "height": 70
+          },
+          {
+            "controlId": "FDAI_SCALE",
+            "x": 520,
+            "y": 68,
+            "width": 72,
+            "height": 70
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "CMC_MODE",
+          "type": "enum",
+          "label": "CMC MODE",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF",
+              "drawKw": 0.0
+            },
+            {
+              "id": "STBY",
+              "label": "STBY",
+              "drawKw": 0.05
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO",
+              "drawKw": 0.12
+            },
+            {
+              "id": "FREE",
+              "label": "FREE",
+              "drawKw": 0.1
+            }
+          ],
+          "defaultState": "STBY",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_CMC"
+            }
+          ],
+          "telemetry": {
+            "flag": "cmcMode",
+            "resource": "power.fuel_cell_load_kw"
+          },
+          "effects": [
+            {
+              "type": "autopilot",
+              "id": "cmcAuthority"
+            }
+          ]
+        },
+        {
+          "id": "IMU_FINE_ALIGN",
+          "type": "enum",
+          "label": "IMU FINE ALIGN",
+          "states": [
+            {
+              "id": "SLEW",
+              "label": "SLEW"
+            },
+            {
+              "id": "ALIGN",
+              "label": "ALIGN"
+            }
+          ],
+          "defaultState": "SLEW",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_FDAI"
+            }
+          ],
+          "telemetry": {
+            "flag": "imuAlignMode"
+          },
+          "effects": [
+            {
+              "type": "event",
+              "id": "alignmentReady"
+            }
+          ]
+        },
+        {
+          "id": "FDAI_SOURCE",
+          "type": "enum",
+          "label": "FDAI SOURCE",
+          "states": [
+            {
+              "id": "CMC",
+              "label": "CMC"
+            },
+            {
+              "id": "SCS",
+              "label": "SCS"
+            }
+          ],
+          "defaultState": "CMC",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_FDAI"
+            }
+          ],
+          "telemetry": {
+            "flag": "fdaiSource"
+          },
+          "effects": [
+            {
+              "type": "hud",
+              "id": "navballSource"
+            }
+          ]
+        },
+        {
+          "id": "ATTITUDE_HOLD",
+          "type": "enum",
+          "label": "ATT HOLD",
+          "states": [
+            {
+              "id": "AUTO",
+              "label": "AUTO"
+            },
+            {
+              "id": "SCS",
+              "label": "SCS"
+            },
+            {
+              "id": "CMC",
+              "label": "CMC"
+            }
+          ],
+          "defaultState": "CMC",
+          "dependencies": [
+            {
+              "type": "control",
+              "panel": "CSM_FLIGHT_CONTROL",
+              "id": "CMC_MODE",
+              "states": [
+                "STBY",
+                "AUTO",
+                "FREE"
+              ]
+            }
+          ],
+          "telemetry": {
+            "flag": "attHoldMode"
+          },
+          "effects": [
+            {
+              "type": "autopilot",
+              "id": "attitudeHold"
+            }
+          ]
+        },
+        {
+          "id": "DAP_RATE",
+          "type": "enum",
+          "label": "DAP RATE",
+          "states": [
+            {
+              "id": "LOW",
+              "label": "LOW"
+            },
+            {
+              "id": "MED",
+              "label": "MED"
+            },
+            {
+              "id": "HIGH",
+              "label": "HIGH"
+            }
+          ],
+          "defaultState": "LOW",
+          "dependencies": [
+            {
+              "type": "control",
+              "panel": "CSM_SCS_DAP",
+              "id": "DAP_CONFIG",
+              "states": [
+                "CSM_1",
+                "CSM_2",
+                "DOCKED"
+              ]
+            }
+          ],
+          "telemetry": {
+            "flag": "dapRate"
+          },
+          "effects": [
+            {
+              "type": "rcs",
+              "id": "dapRateChange"
+            }
+          ]
+        },
+        {
+          "id": "FDAI_SCALE",
+          "type": "enum",
+          "label": "FDAI SCALE",
+          "states": [
+            {
+              "id": "SCALE_5",
+              "label": "5\u00b0"
+            },
+            {
+              "id": "SCALE_10",
+              "label": "10\u00b0"
+            },
+            {
+              "id": "SCALE_20",
+              "label": "20\u00b0"
+            }
+          ],
+          "defaultState": "SCALE_10",
+          "telemetry": {
+            "flag": "fdaiScale"
+          },
+          "effects": [
+            {
+              "type": "hud",
+              "id": "navballScale"
+            }
+          ]
+        }
+      ],
+      "alerts": [
+        {
+          "id": "CMC_MODE_DISABLED",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "flag": "autopilotPending"
+              },
+              {
+                "control": "CMC_MODE",
+                "state": "OFF"
+              }
+            ]
+          },
+          "message": "CMC MODE OFF while an automated program is queued"
+        }
+      ]
+    },
+    {
+      "id": "CSM_RCS_MANAGEMENT",
+      "name": "RCS Management",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_rcs_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "RCS_QUAD_ENABLE_A",
+            "x": 82,
+            "y": 72,
+            "width": 64,
+            "height": 64
+          },
+          {
+            "controlId": "RCS_QUAD_ENABLE_B",
+            "x": 164,
+            "y": 72,
+            "width": 64,
+            "height": 64
+          },
+          {
+            "controlId": "RCS_HELIUM_ISOL",
+            "x": 246,
+            "y": 72,
+            "width": 72,
+            "height": 64
+          },
+          {
+            "controlId": "RCS_HEATER_A",
+            "x": 332,
+            "y": 72,
+            "width": 72,
+            "height": 64
+          },
+          {
+            "controlId": "RCS_DIRECT_ULLAGE",
+            "x": 418,
+            "y": 72,
+            "width": 96,
+            "height": 64
+          },
+          {
+            "controlId": "PTC_TRIM_RATE",
+            "x": 526,
+            "y": 72,
+            "width": 72,
+            "height": 64
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "RCS_QUAD_ENABLE_A",
+          "type": "toggle",
+          "label": "QUAD A",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "ON",
+              "label": "ON",
+              "propellantKg": 0.0
+            }
+          ],
+          "defaultState": "ON",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_RCS_HEATERS"
+            }
+          ],
+          "telemetry": {
+            "flag": "rcsQuadA",
+            "resource": "propellant.csm_rcs_kg"
+          }
+        },
+        {
+          "id": "RCS_QUAD_ENABLE_B",
+          "type": "toggle",
+          "label": "QUAD B",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "ON",
+              "label": "ON",
+              "propellantKg": 0.0
+            }
+          ],
+          "defaultState": "ON",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_RCS_HEATERS"
+            }
+          ],
+          "telemetry": {
+            "flag": "rcsQuadB",
+            "resource": "propellant.csm_rcs_kg"
+          }
+        },
+        {
+          "id": "RCS_HELIUM_ISOL",
+          "type": "toggle",
+          "label": "HELIUM ISOL",
+          "states": [
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            },
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_RCS_HEATERS"
+            }
+          ],
+          "telemetry": {
+            "flag": "rcsHeliumOpen"
+          },
+          "effects": [
+            {
+              "type": "autopilot",
+              "id": "ullageReady"
+            }
+          ]
+        },
+        {
+          "id": "RCS_HEATER_A",
+          "type": "toggle",
+          "label": "HEATER A",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO",
+              "drawKw": 0.04
+            }
+          ],
+          "defaultState": "AUTO",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_RCS_HEATERS"
+            }
+          ],
+          "telemetry": {
+            "flag": "rcsHeaterA"
+          }
+        },
+        {
+          "id": "RCS_DIRECT_ULLAGE",
+          "type": "enum",
+          "label": "ULLAGE COMMAND",
+          "states": [
+            {
+              "id": "AUTO",
+              "label": "AUTO"
+            },
+            {
+              "id": "MANUAL",
+              "label": "MANUAL"
+            }
+          ],
+          "defaultState": "AUTO",
+          "dependencies": [
+            {
+              "type": "control",
+              "panel": "CSM_SPS_PROPULSION",
+              "id": "SPS_HEL_PRESS",
+              "states": [
+                "OPEN"
+              ]
+            }
+          ],
+          "telemetry": {
+            "flag": "ullageMode"
+          }
+        },
+        {
+          "id": "PTC_TRIM_RATE",
+          "type": "enum",
+          "label": "PTC RATE",
+          "states": [
+            {
+              "id": "RATE_0_3",
+              "label": "0.3\u00b0/s"
+            },
+            {
+              "id": "OFF",
+              "label": "OFF"
+            }
+          ],
+          "defaultState": "RATE_0_3",
+          "telemetry": {
+            "flag": "ptcRate"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "RCS_QUAD_LOSS",
+          "severity": "caution",
+          "trigger": {
+            "all": [
+              {
+                "flag": "burnArmed"
+              },
+              {
+                "any": [
+                  {
+                    "control": "RCS_QUAD_ENABLE_A",
+                    "state": "OFF"
+                  },
+                  {
+                    "control": "RCS_QUAD_ENABLE_B",
+                    "state": "OFF"
+                  }
+                ]
+              }
+            ]
+          },
+          "message": "RCS quad disabled while burn is armed"
+        }
+      ]
+    },
+    {
+      "id": "CSM_ELECTRICAL_POWER",
+      "name": "Electrical Power",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_power_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "FUEL_CELL_REACTANT_A",
+            "x": 60,
+            "y": 68,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "MAIN_BUS_TIE",
+            "x": 164,
+            "y": 68,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "INV_1_SELECT",
+            "x": 268,
+            "y": 68,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "BATTERY_CHARGE",
+            "x": 372,
+            "y": 68,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "FUEL_CELL_HEATER",
+            "x": 476,
+            "y": 68,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "EPS_LOAD_SHED",
+            "x": 580,
+            "y": 68,
+            "width": 92,
+            "height": 68
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "FUEL_CELL_REACTANT_A",
+          "type": "toggle",
+          "label": "FUEL CELL A",
+          "states": [
+            {
+              "id": "CLOSE",
+              "label": "CLOSE"
+            },
+            {
+              "id": "OPEN",
+              "label": "OPEN",
+              "drawKw": -1.2
+            }
+          ],
+          "defaultState": "OPEN",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_FUEL_CELL"
+            }
+          ],
+          "telemetry": {
+            "flag": "fuelCellAOnline",
+            "resource": "power.fuel_cell_output_kw"
+          }
+        },
+        {
+          "id": "MAIN_BUS_TIE",
+          "type": "toggle",
+          "label": "BUS TIE",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "TIE",
+              "label": "TIE"
+            }
+          ],
+          "defaultState": "OPEN",
+          "telemetry": {
+            "flag": "mainBusTie"
+          }
+        },
+        {
+          "id": "INV_1_SELECT",
+          "type": "enum",
+          "label": "INVERTER 1",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "MAIN_A",
+              "label": "MAIN A"
+            },
+            {
+              "id": "MAIN_B",
+              "label": "MAIN B"
+            }
+          ],
+          "defaultState": "MAIN_A",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_FUEL_CELL"
+            }
+          ],
+          "telemetry": {
+            "flag": "inverter1"
+          }
+        },
+        {
+          "id": "BATTERY_CHARGE",
+          "type": "enum",
+          "label": "BAT CHARGE",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "MAIN_A",
+              "label": "MAIN A",
+              "drawKw": 0.12
+            },
+            {
+              "id": "MAIN_B",
+              "label": "MAIN B",
+              "drawKw": 0.12
+            }
+          ],
+          "defaultState": "OFF",
+          "telemetry": {
+            "resource": "power.battery_charge_pct"
+          }
+        },
+        {
+          "id": "FUEL_CELL_HEATER",
+          "type": "toggle",
+          "label": "FUEL CELL TEMP",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO",
+              "drawKw": 0.05
+            }
+          ],
+          "defaultState": "AUTO",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_FUEL_CELL"
+            }
+          ],
+          "telemetry": {
+            "flag": "fuelCellHeater"
+          }
+        },
+        {
+          "id": "EPS_LOAD_SHED",
+          "type": "enum",
+          "label": "LOAD SHED",
+          "states": [
+            {
+              "id": "NOMINAL",
+              "label": "NOMINAL"
+            },
+            {
+              "id": "ESSENTIAL",
+              "label": "ESSENTIAL"
+            }
+          ],
+          "defaultState": "NOMINAL",
+          "telemetry": {
+            "flag": "loadShedMode"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "LOW_MARGIN_BUS_SPLIT",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "resource": "power.power_margin_pct",
+                "operator": "<",
+                "value": 25
+              },
+              {
+                "control": "MAIN_BUS_TIE",
+                "state": "OPEN"
+              }
+            ]
+          },
+          "message": "Low power margin while main buses remain untied"
+        }
+      ]
+    },
+    {
+      "id": "CSM_CRYO_ECS",
+      "name": "Cryogenics & ECS",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_cryo_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "O2_FAN_A",
+            "x": 72,
+            "y": 70,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "H2_FAN_A",
+            "x": 164,
+            "y": 70,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CRYO_STIR",
+            "x": 256,
+            "y": 70,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CABIN_FAN",
+            "x": 348,
+            "y": 70,
+            "width": 96,
+            "height": 68
+          },
+          {
+            "controlId": "SUIT_FAN_SELECT",
+            "x": 460,
+            "y": 70,
+            "width": 96,
+            "height": 68
+          },
+          {
+            "controlId": "GLYCOL_PUMP",
+            "x": 572,
+            "y": 70,
+            "width": 96,
+            "height": 68
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "O2_FAN_A",
+          "type": "toggle",
+          "label": "O2 FAN A",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO",
+              "drawKw": 0.02
+            }
+          ],
+          "defaultState": "AUTO",
+          "telemetry": {
+            "flag": "o2FanA"
+          }
+        },
+        {
+          "id": "H2_FAN_A",
+          "type": "toggle",
+          "label": "H2 FAN A",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO",
+              "drawKw": 0.02
+            }
+          ],
+          "defaultState": "AUTO",
+          "telemetry": {
+            "flag": "h2FanA"
+          }
+        },
+        {
+          "id": "CRYO_STIR",
+          "type": "enum",
+          "label": "CRYO STIR",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "STIR",
+              "label": "STIR",
+              "drawKw": 0.05
+            }
+          ],
+          "defaultState": "OFF",
+          "telemetry": {
+            "flag": "cryoStir"
+          }
+        },
+        {
+          "id": "CABIN_FAN",
+          "type": "enum",
+          "label": "CABIN FAN",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "FAN_1",
+              "label": "FAN 1",
+              "drawKw": 0.04
+            },
+            {
+              "id": "FAN_2",
+              "label": "FAN 2",
+              "drawKw": 0.05
+            }
+          ],
+          "defaultState": "FAN_1",
+          "telemetry": {
+            "flag": "cabinFan"
+          }
+        },
+        {
+          "id": "SUIT_FAN_SELECT",
+          "type": "enum",
+          "label": "SUIT FAN",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "A",
+              "label": "A",
+              "drawKw": 0.03
+            },
+            {
+              "id": "B",
+              "label": "B",
+              "drawKw": 0.03
+            }
+          ],
+          "defaultState": "A",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_SUITS_FANS"
+            }
+          ],
+          "telemetry": {
+            "flag": "suitFan"
+          }
+        },
+        {
+          "id": "GLYCOL_PUMP",
+          "type": "enum",
+          "label": "GLYCOL PUMP",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "PRIMARY",
+              "label": "PRIMARY",
+              "drawKw": 0.08
+            },
+            {
+              "id": "SECONDARY",
+              "label": "SECONDARY",
+              "drawKw": 0.08
+            }
+          ],
+          "defaultState": "PRIMARY",
+          "telemetry": {
+            "flag": "glycolPump"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "CO2_RISING",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "resource": "lifeSupport.co2_mmHg",
+                "operator": ">",
+                "value": 7.5
+              },
+              {
+                "control": "CABIN_FAN",
+                "state": "OFF"
+              }
+            ]
+          },
+          "message": "Cabin CO\u2082 rising with circulation fans offline"
+        }
+      ]
+    },
+    {
+      "id": "CSM_SPS_PROPULSION",
+      "name": "SPS Propellant Management",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_sps_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "SPS_BANK_A_ARM",
+            "x": 68,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "SPS_BANK_B_ARM",
+            "x": 156,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "SPS_HEL_PRESS",
+            "x": 244,
+            "y": 72,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "SPS_VALVE_ARM",
+            "x": 352,
+            "y": 72,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "SPS_GIMBAL_A",
+            "x": 460,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "SPS_GIMBAL_B",
+            "x": 548,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "ULLAGE_TIMER",
+            "x": 636,
+            "y": 72,
+            "width": 96,
+            "height": 68
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "SPS_BANK_A_ARM",
+          "type": "toggle",
+          "label": "BANK A ARM",
+          "states": [
+            {
+              "id": "SAFE",
+              "label": "SAFE"
+            },
+            {
+              "id": "ARM",
+              "label": "ARM"
+            }
+          ],
+          "defaultState": "SAFE",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_SPS_GIMBAL"
+            }
+          ],
+          "telemetry": {
+            "flag": "spsBankAArmed",
+            "resource": "propellant.csm_sps_kg"
+          }
+        },
+        {
+          "id": "SPS_BANK_B_ARM",
+          "type": "toggle",
+          "label": "BANK B ARM",
+          "states": [
+            {
+              "id": "SAFE",
+              "label": "SAFE"
+            },
+            {
+              "id": "ARM",
+              "label": "ARM"
+            }
+          ],
+          "defaultState": "SAFE",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_SPS_GIMBAL"
+            }
+          ],
+          "telemetry": {
+            "flag": "spsBankBArmed",
+            "resource": "propellant.csm_sps_kg"
+          }
+        },
+        {
+          "id": "SPS_HEL_PRESS",
+          "type": "toggle",
+          "label": "HELIUM PRESS",
+          "states": [
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            },
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "spsHeliumOpen"
+          }
+        },
+        {
+          "id": "SPS_VALVE_ARM",
+          "type": "toggle",
+          "label": "MAIN VALVE",
+          "states": [
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            },
+            {
+              "id": "ARM",
+              "label": "ARM"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "spsValvesArmed"
+          }
+        },
+        {
+          "id": "SPS_GIMBAL_A",
+          "type": "toggle",
+          "label": "GIMBAL A",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO",
+              "drawKw": 0.06
+            }
+          ],
+          "defaultState": "OFF",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_SPS_GIMBAL"
+            }
+          ],
+          "telemetry": {
+            "flag": "spsGimbalA"
+          }
+        },
+        {
+          "id": "SPS_GIMBAL_B",
+          "type": "toggle",
+          "label": "GIMBAL B",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO",
+              "drawKw": 0.06
+            }
+          ],
+          "defaultState": "OFF",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_SPS_GIMBAL"
+            }
+          ],
+          "telemetry": {
+            "flag": "spsGimbalB"
+          }
+        },
+        {
+          "id": "ULLAGE_TIMER",
+          "type": "enum",
+          "label": "ULLAGE TIMER",
+          "states": [
+            {
+              "id": "AUTO",
+              "label": "AUTO"
+            },
+            {
+              "id": "MANUAL",
+              "label": "MANUAL"
+            }
+          ],
+          "defaultState": "AUTO",
+          "telemetry": {
+            "flag": "ullageTimer"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "SPS_BANKS_NOT_ARMED",
+          "severity": "caution",
+          "trigger": {
+            "all": [
+              {
+                "flag": "burnArmed"
+              },
+              {
+                "control": "SPS_BANK_A_ARM",
+                "state": "SAFE"
+              },
+              {
+                "control": "SPS_BANK_B_ARM",
+                "state": "SAFE"
+              }
+            ]
+          },
+          "message": "SPS banks not armed for scheduled burn"
+        },
+        {
+          "id": "SPS_VALVE_SAFE",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "flag": "burnArmed"
+              },
+              {
+                "control": "SPS_VALVE_ARM",
+                "state": "CLOSED"
+              }
+            ]
+          },
+          "message": "SPS main valves safe during burn countdown"
+        }
+      ]
+    },
+    {
+      "id": "CSM_COMMUNICATIONS",
+      "name": "Communications & Tracking",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_comms_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "S_BAND_POWER",
+            "x": 68,
+            "y": 72,
+            "width": 84,
+            "height": 68
+          },
+          {
+            "controlId": "OMNI_ANT_SELECT",
+            "x": 160,
+            "y": 72,
+            "width": 96,
+            "height": 68
+          },
+          {
+            "controlId": "HIGH_GAIN_TRACK",
+            "x": 268,
+            "y": 72,
+            "width": 112,
+            "height": 68
+          },
+          {
+            "controlId": "VHF_XMTR",
+            "x": 396,
+            "y": 72,
+            "width": 96,
+            "height": 68
+          },
+          {
+            "controlId": "UPLINK_VOICE",
+            "x": 504,
+            "y": 72,
+            "width": 96,
+            "height": 68
+          },
+          {
+            "controlId": "DATA_RECORDER",
+            "x": 612,
+            "y": 72,
+            "width": 96,
+            "height": 68
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "S_BAND_POWER",
+          "type": "enum",
+          "label": "S-BAND POWER",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "LOW",
+              "label": "LOW",
+              "drawKw": 0.18
+            },
+            {
+              "id": "HIGH",
+              "label": "HIGH",
+              "drawKw": 0.24
+            }
+          ],
+          "defaultState": "LOW",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_S_BAND"
+            }
+          ],
+          "telemetry": {
+            "flag": "sBandPower",
+            "resource": "communications.active"
+          }
+        },
+        {
+          "id": "OMNI_ANT_SELECT",
+          "type": "enum",
+          "label": "OMNI ANT",
+          "states": [
+            {
+              "id": "ANT_A",
+              "label": "A"
+            },
+            {
+              "id": "ANT_B",
+              "label": "B"
+            },
+            {
+              "id": "ANT_C",
+              "label": "C"
+            },
+            {
+              "id": "ANT_D",
+              "label": "D"
+            }
+          ],
+          "defaultState": "ANT_A",
+          "telemetry": {
+            "flag": "omniAntenna"
+          }
+        },
+        {
+          "id": "HIGH_GAIN_TRACK",
+          "type": "enum",
+          "label": "HIGH GAIN",
+          "states": [
+            {
+              "id": "AUTO",
+              "label": "AUTO"
+            },
+            {
+              "id": "MANUAL",
+              "label": "MANUAL"
+            },
+            {
+              "id": "SCAN",
+              "label": "SCAN"
+            }
+          ],
+          "defaultState": "AUTO",
+          "telemetry": {
+            "flag": "highGainMode"
+          }
+        },
+        {
+          "id": "VHF_XMTR",
+          "type": "enum",
+          "label": "VHF XMTR",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "A",
+              "label": "A"
+            },
+            {
+              "id": "B",
+              "label": "B"
+            }
+          ],
+          "defaultState": "A",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_VHF"
+            }
+          ],
+          "telemetry": {
+            "flag": "vhfXmit"
+          }
+        },
+        {
+          "id": "UPLINK_VOICE",
+          "type": "enum",
+          "label": "UPLINK VOICE",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "UPLINK",
+              "label": "UPLINK"
+            },
+            {
+              "id": "INTERCOM",
+              "label": "INTERCOM"
+            }
+          ],
+          "defaultState": "UPLINK",
+          "telemetry": {
+            "flag": "uplinkMode"
+          }
+        },
+        {
+          "id": "DATA_RECORDER",
+          "type": "enum",
+          "label": "DSE STATUS",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "ON",
+              "label": "ON"
+            },
+            {
+              "id": "PLAYBACK",
+              "label": "PLAYBACK"
+            }
+          ],
+          "defaultState": "ON",
+          "dependencies": [
+            {
+              "type": "circuitBreaker",
+              "id": "CB_DSE"
+            }
+          ],
+          "telemetry": {
+            "flag": "dseState"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "DSN_LINK_DOWN",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "flag": "dsnPassActive"
+              },
+              {
+                "control": "S_BAND_POWER",
+                "state": "OFF"
+              }
+            ]
+          },
+          "message": "S-band power off during scheduled DSN pass"
+        }
+      ]
+    },
+    {
+      "id": "CSM_SCS_DAP",
+      "name": "SCS & DAP Authority",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_scs_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "SCS_MODE",
+            "x": 72,
+            "y": 72,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "SCS_ENG_ARM",
+            "x": 184,
+            "y": 72,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "DAP_CONFIG",
+            "x": 296,
+            "y": 72,
+            "width": 104,
+            "height": 68
+          },
+          {
+            "controlId": "SCS_GIMBAL_SEL",
+            "x": 420,
+            "y": 72,
+            "width": 92,
+            "height": 68
+          },
+          {
+            "controlId": "AUTO_MANUAL_TRIM",
+            "x": 532,
+            "y": 72,
+            "width": 108,
+            "height": 68
+          },
+          {
+            "controlId": "ABORT_STAGE_SELECT",
+            "x": 656,
+            "y": 72,
+            "width": 108,
+            "height": 68
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "SCS_MODE",
+          "type": "enum",
+          "label": "SCS MODE",
+          "states": [
+            {
+              "id": "STBY",
+              "label": "STBY"
+            },
+            {
+              "id": "ATT_HOLD",
+              "label": "ATT HOLD"
+            },
+            {
+              "id": "RATE_CMD",
+              "label": "RATE CMD"
+            }
+          ],
+          "defaultState": "STBY",
+          "telemetry": {
+            "flag": "scsMode"
+          }
+        },
+        {
+          "id": "SCS_ENG_ARM",
+          "type": "toggle",
+          "label": "SCS ENG ARM",
+          "states": [
+            {
+              "id": "SAFE",
+              "label": "SAFE"
+            },
+            {
+              "id": "ARM",
+              "label": "ARM"
+            }
+          ],
+          "defaultState": "SAFE",
+          "telemetry": {
+            "flag": "scsEngineArm"
+          }
+        },
+        {
+          "id": "DAP_CONFIG",
+          "type": "enum",
+          "label": "DAP CONFIG",
+          "states": [
+            {
+              "id": "CSM_1",
+              "label": "CSM 1"
+            },
+            {
+              "id": "CSM_2",
+              "label": "CSM 2"
+            },
+            {
+              "id": "DOCKED",
+              "label": "DOCKED"
+            }
+          ],
+          "defaultState": "CSM_1",
+          "telemetry": {
+            "flag": "dapConfig"
+          }
+        },
+        {
+          "id": "SCS_GIMBAL_SEL",
+          "type": "enum",
+          "label": "SCS GIMBAL",
+          "states": [
+            {
+              "id": "CMC",
+              "label": "CMC"
+            },
+            {
+              "id": "SCS",
+              "label": "SCS"
+            }
+          ],
+          "defaultState": "CMC",
+          "telemetry": {
+            "flag": "gimbalAuthority"
+          }
+        },
+        {
+          "id": "AUTO_MANUAL_TRIM",
+          "type": "enum",
+          "label": "TRIM CMD",
+          "states": [
+            {
+              "id": "AUTO",
+              "label": "AUTO"
+            },
+            {
+              "id": "MANUAL",
+              "label": "MANUAL"
+            }
+          ],
+          "defaultState": "AUTO",
+          "telemetry": {
+            "flag": "trimCommand"
+          }
+        },
+        {
+          "id": "ABORT_STAGE_SELECT",
+          "type": "enum",
+          "label": "ABORT MODE",
+          "states": [
+            {
+              "id": "CMC",
+              "label": "CMC"
+            },
+            {
+              "id": "SCS",
+              "label": "SCS"
+            },
+            {
+              "id": "MAN",
+              "label": "MAN"
+            }
+          ],
+          "defaultState": "CMC",
+          "telemetry": {
+            "flag": "abortMode"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "SCS_ENGINE_SAFE",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "flag": "burnArmed"
+              },
+              {
+                "control": "SCS_ENG_ARM",
+                "state": "SAFE"
+              }
+            ]
+          },
+          "message": "SCS engine arm is SAFE while burn is armed"
+        }
+      ]
+    },
+    {
+      "id": "CSM_CB_LEFT",
+      "name": "Circuit Breakers (Left)",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_cb_left.svg",
+        "hotspots": [
+          {
+            "controlId": "CB_FDAI",
+            "x": 68,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_CMC",
+            "x": 156,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_SPS_GIMBAL",
+            "x": 244,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_S_BAND",
+            "x": 332,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_DSE",
+            "x": 420,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_FUEL_CELL",
+            "x": 508,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "CB_FDAI",
+          "type": "toggle",
+          "label": "FDAI & IMU",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbFdai"
+          }
+        },
+        {
+          "id": "CB_CMC",
+          "type": "toggle",
+          "label": "CMC COMPUTER",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbCmc"
+          }
+        },
+        {
+          "id": "CB_SPS_GIMBAL",
+          "type": "toggle",
+          "label": "SPS GIMBAL",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbSpsGimbal"
+          }
+        },
+        {
+          "id": "CB_S_BAND",
+          "type": "toggle",
+          "label": "S-BAND POWER",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbSBand"
+          }
+        },
+        {
+          "id": "CB_DSE",
+          "type": "toggle",
+          "label": "DATA STORAGE",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbDse"
+          }
+        },
+        {
+          "id": "CB_FUEL_CELL",
+          "type": "toggle",
+          "label": "FUEL CELL CTRL",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbFuelCell"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "CB_CMC_OPEN",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "flag": "autopilotPending"
+              },
+              {
+                "control": "CB_CMC",
+                "state": "OPEN"
+              }
+            ]
+          },
+          "message": "CMC breaker open while autopilot sequence pending"
+        }
+      ]
+    },
+    {
+      "id": "CSM_CB_RIGHT",
+      "name": "Circuit Breakers (Right)",
+      "craft": "CSM",
+      "layout": {
+        "schematic": "csm_cb_right.svg",
+        "hotspots": [
+          {
+            "controlId": "CB_RCS_HEATERS",
+            "x": 68,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_SUITS_FANS",
+            "x": 156,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_DOCKING_LIGHTS",
+            "x": 244,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_VHF",
+            "x": 332,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_ENTRY_MON",
+            "x": 420,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          },
+          {
+            "controlId": "CB_LM_TUNNEL",
+            "x": 508,
+            "y": 72,
+            "width": 80,
+            "height": 68
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "CB_RCS_HEATERS",
+          "type": "toggle",
+          "label": "RCS HTRS",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbRcsHeaters"
+          }
+        },
+        {
+          "id": "CB_SUITS_FANS",
+          "type": "toggle",
+          "label": "SUIT FAN",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbSuitFan"
+          }
+        },
+        {
+          "id": "CB_DOCKING_LIGHTS",
+          "type": "toggle",
+          "label": "DOCK LIGHTS",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbDockLights"
+          }
+        },
+        {
+          "id": "CB_VHF",
+          "type": "toggle",
+          "label": "VHF COMMS",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbVhf"
+          }
+        },
+        {
+          "id": "CB_ENTRY_MON",
+          "type": "toggle",
+          "label": "ENTRY MON",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbEntryMon"
+          }
+        },
+        {
+          "id": "CB_LM_TUNNEL",
+          "type": "toggle",
+          "label": "LM TUNNEL",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "CLOSED",
+              "label": "CLOSED"
+            }
+          ],
+          "defaultState": "CLOSED",
+          "telemetry": {
+            "flag": "cbLmTunnel"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "VHF_BREAKER_OPEN",
+          "severity": "caution",
+          "trigger": {
+            "all": [
+              {
+                "flag": "dockingOps"
+              },
+              {
+                "control": "CB_VHF",
+                "state": "OPEN"
+              }
+            ]
+          },
+          "message": "VHF breaker open during docking operations"
+        }
+      ]
+    },
+    {
+      "id": "LM_DESCENT_PANELS",
+      "name": "LM Descent Activation",
+      "craft": "LM",
+      "layout": {
+        "schematic": "lm_descent_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "DPS_ENGINE_ARM",
+            "x": 72,
+            "y": 70,
+            "width": 90,
+            "height": 72
+          },
+          {
+            "controlId": "LANDING_RADAR",
+            "x": 172,
+            "y": 70,
+            "width": 100,
+            "height": 72
+          },
+          {
+            "controlId": "MODE_CONTROL",
+            "x": 284,
+            "y": 70,
+            "width": 100,
+            "height": 72
+          },
+          {
+            "controlId": "ABORT_STAGE",
+            "x": 396,
+            "y": 70,
+            "width": 96,
+            "height": 72
+          },
+          {
+            "controlId": "DPS_HEATERS",
+            "x": 508,
+            "y": 70,
+            "width": 96,
+            "height": 72
+          },
+          {
+            "controlId": "RCS_QUAD_ENABLE_FWD",
+            "x": 620,
+            "y": 70,
+            "width": 108,
+            "height": 72
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "DPS_ENGINE_ARM",
+          "type": "toggle",
+          "label": "DESCENT ENGINE ARM",
+          "states": [
+            {
+              "id": "SAFE",
+              "label": "SAFE"
+            },
+            {
+              "id": "ARM",
+              "label": "ARM"
+            }
+          ],
+          "defaultState": "SAFE",
+          "telemetry": {
+            "flag": "dpsEngineArmed"
+          }
+        },
+        {
+          "id": "LANDING_RADAR",
+          "type": "enum",
+          "label": "LNDG RADAR",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "STBY",
+              "label": "STBY"
+            },
+            {
+              "id": "AUTO",
+              "label": "AUTO"
+            }
+          ],
+          "defaultState": "STBY",
+          "telemetry": {
+            "flag": "landingRadarMode"
+          }
+        },
+        {
+          "id": "MODE_CONTROL",
+          "type": "enum",
+          "label": "MODE CONTROL",
+          "states": [
+            {
+              "id": "AUTO",
+              "label": "AUTO"
+            },
+            {
+              "id": "ATT_HOLD",
+              "label": "ATT HOLD"
+            },
+            {
+              "id": "RATE_CMD",
+              "label": "RATE CMD"
+            }
+          ],
+          "defaultState": "AUTO",
+          "telemetry": {
+            "flag": "lmModeControl"
+          }
+        },
+        {
+          "id": "ABORT_STAGE",
+          "type": "enum",
+          "label": "ABORT STAGE",
+          "states": [
+            {
+              "id": "ASCENT",
+              "label": "ASCENT"
+            },
+            {
+              "id": "DESCENT",
+              "label": "DESCENT"
+            }
+          ],
+          "defaultState": "DESCENT",
+          "telemetry": {
+            "flag": "abortStage"
+          }
+        },
+        {
+          "id": "DPS_HEATERS",
+          "type": "toggle",
+          "label": "DPS HTRS",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "ON",
+              "label": "ON",
+              "drawKw": 0.08
+            }
+          ],
+          "defaultState": "OFF",
+          "telemetry": {
+            "flag": "dpsHeaters"
+          }
+        },
+        {
+          "id": "RCS_QUAD_ENABLE_FWD",
+          "type": "toggle",
+          "label": "RCS QUADS",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "ON",
+              "label": "ON"
+            }
+          ],
+          "defaultState": "OFF",
+          "telemetry": {
+            "flag": "lmRcsQuads"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "DPS_ARM_SAFE",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "flag": "lmPoweredDescent"
+              },
+              {
+                "control": "DPS_ENGINE_ARM",
+                "state": "SAFE"
+              }
+            ]
+          },
+          "message": "LM descent engine safe during powered descent"
+        }
+      ]
+    },
+    {
+      "id": "LM_SYSTEMS_MONITOR",
+      "name": "LM Systems & ECS",
+      "craft": "LM",
+      "layout": {
+        "schematic": "lm_systems_panel.svg",
+        "hotspots": [
+          {
+            "controlId": "SUIT_FLOW",
+            "x": 72,
+            "y": 68,
+            "width": 96,
+            "height": 72
+          },
+          {
+            "controlId": "GLYCOL_PUMP_SELECT",
+            "x": 184,
+            "y": 68,
+            "width": 96,
+            "height": 72
+          },
+          {
+            "controlId": "CABIN_REPRESS",
+            "x": 296,
+            "y": 68,
+            "width": 96,
+            "height": 72
+          },
+          {
+            "controlId": "ECS_WATER_SEP",
+            "x": 408,
+            "y": 68,
+            "width": 96,
+            "height": 72
+          },
+          {
+            "controlId": "LM_BAT_TIE",
+            "x": 520,
+            "y": 68,
+            "width": 96,
+            "height": 72
+          },
+          {
+            "controlId": "LM_COMM_XLINK",
+            "x": 632,
+            "y": 68,
+            "width": 96,
+            "height": 72
+          }
+        ]
+      },
+      "controls": [
+        {
+          "id": "SUIT_FLOW",
+          "type": "enum",
+          "label": "SUIT FLOW",
+          "states": [
+            {
+              "id": "CABIN",
+              "label": "CABIN"
+            },
+            {
+              "id": "SUIT",
+              "label": "SUIT"
+            },
+            {
+              "id": "EVA",
+              "label": "EVA"
+            }
+          ],
+          "defaultState": "SUIT",
+          "telemetry": {
+            "flag": "lmSuitFlow"
+          }
+        },
+        {
+          "id": "GLYCOL_PUMP_SELECT",
+          "type": "enum",
+          "label": "GLYCOL PUMP",
+          "states": [
+            {
+              "id": "PRIMARY",
+              "label": "PRIMARY"
+            },
+            {
+              "id": "SECONDARY",
+              "label": "SECONDARY"
+            }
+          ],
+          "defaultState": "PRIMARY",
+          "telemetry": {
+            "flag": "lmGlycolPump"
+          }
+        },
+        {
+          "id": "CABIN_REPRESS",
+          "type": "toggle",
+          "label": "CABIN REPRESS",
+          "states": [
+            {
+              "id": "CLOSE",
+              "label": "CLOSE"
+            },
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            }
+          ],
+          "defaultState": "CLOSE",
+          "telemetry": {
+            "flag": "lmCabinRepress"
+          }
+        },
+        {
+          "id": "ECS_WATER_SEP",
+          "type": "toggle",
+          "label": "WATER SEP",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "ON",
+              "label": "ON"
+            }
+          ],
+          "defaultState": "OFF",
+          "telemetry": {
+            "flag": "lmWaterSep"
+          }
+        },
+        {
+          "id": "LM_BAT_TIE",
+          "type": "toggle",
+          "label": "BATTERY TIE",
+          "states": [
+            {
+              "id": "OPEN",
+              "label": "OPEN"
+            },
+            {
+              "id": "TIE",
+              "label": "TIE"
+            }
+          ],
+          "defaultState": "OPEN",
+          "telemetry": {
+            "flag": "lmBatTie"
+          }
+        },
+        {
+          "id": "LM_COMM_XLINK",
+          "type": "toggle",
+          "label": "COMM CROSSLINK",
+          "states": [
+            {
+              "id": "OFF",
+              "label": "OFF"
+            },
+            {
+              "id": "ON",
+              "label": "ON"
+            }
+          ],
+          "defaultState": "OFF",
+          "telemetry": {
+            "flag": "lmCommXlink"
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "id": "SUIT_FLOW_WARNING",
+          "severity": "warning",
+          "trigger": {
+            "all": [
+              {
+                "flag": "evaConfigured"
+              },
+              {
+                "control": "SUIT_FLOW",
+                "state": "CABIN"
+              }
+            ]
+          },
+          "message": "EVA configured while suit flow not set to EVA"
+        }
+      ]
+    }
+  ]
+}

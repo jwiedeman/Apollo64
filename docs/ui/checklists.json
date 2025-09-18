@@ -1,0 +1,722 @@
+{
+  "version": 1,
+  "checklists": [
+    {
+      "id": "FP_3-10_TLI_PREP",
+      "title": "Pre-TLI Housekeeping",
+      "phase": "Translunar",
+      "role": "Joint",
+      "nominalGet": "002:35:00",
+      "source": {
+        "document": "Flight Plan",
+        "page": "3-10"
+      },
+      "steps": [
+        {
+          "id": "FP_3-10_TLI_PREP_S01",
+          "order": 1,
+          "callout": "Align IMU per P52",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "controls": [
+            {
+              "controlId": "IMU_FINE_ALIGN",
+              "targetState": "ALIGN",
+              "verification": "gimbalAnglesNulled"
+            }
+          ],
+          "dskyMacro": "V49N20_STAR_CHECK",
+          "prerequisites": [
+            "event:TLI_001"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "imuAligned",
+              "value": true
+            }
+          ],
+          "notes": "Verify optics cover open before launching coarse align macro."
+        },
+        {
+          "id": "FP_3-10_TLI_PREP_S02",
+          "order": 2,
+          "callout": "Place CMC in AUTO for burn automation",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "controls": [
+            {
+              "controlId": "CMC_MODE",
+              "targetState": "AUTO"
+            }
+          ],
+          "prerequisites": [
+            "flag:imuAligned"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "cmcReady",
+              "value": true
+            }
+          ],
+          "notes": "Confirm master caution clear before arming computer authority."
+        },
+        {
+          "id": "FP_3-10_TLI_PREP_S03",
+          "order": 3,
+          "callout": "Arm SPS banks for translunar injection",
+          "panel": "CSM_SPS_PROPULSION",
+          "controls": [
+            {
+              "controlId": "SPS_BANK_A_ARM",
+              "targetState": "ARM"
+            },
+            {
+              "controlId": "SPS_BANK_B_ARM",
+              "targetState": "ARM"
+            }
+          ],
+          "prerequisites": [
+            "flag:cmcReady"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "spsBanksArmed",
+              "value": true
+            }
+          ],
+          "notes": "Both bank arm lights must illuminate before leaving the step."
+        },
+        {
+          "id": "FP_3-10_TLI_PREP_S04",
+          "order": 4,
+          "callout": "Open helium pressurization",
+          "panel": "CSM_SPS_PROPULSION",
+          "controls": [
+            {
+              "controlId": "SPS_HEL_PRESS",
+              "targetState": "OPEN"
+            }
+          ],
+          "prerequisites": [
+            "flag:spsBanksArmed"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "heliumPressurized",
+              "value": true
+            }
+          ],
+          "notes": "Verify tank pressure rise and RCS ullage path available."
+        },
+        {
+          "id": "FP_3-10_TLI_PREP_S05",
+          "order": 5,
+          "callout": "Load TLI PAD (\u0394V, TIG)",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "controls": [
+            {
+              "controlId": "FDAI_SOURCE",
+              "targetState": "CMC"
+            }
+          ],
+          "dskyMacro": "V21N33_LOAD_DV",
+          "prerequisites": [
+            "flag:cmcReady",
+            "flag:heliumPressurized"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "tliPadLoaded",
+              "value": true
+            }
+          ],
+          "notes": "Follow with V21N38 to confirm TIG and burn duration match PAD."
+        }
+      ]
+    },
+    {
+      "id": "FP_4-04_PTC",
+      "title": "Passive Thermal Control Establishment",
+      "phase": "Translunar",
+      "role": "Joint",
+      "nominalGet": "004:40:00",
+      "source": {
+        "document": "Flight Plan",
+        "page": "4-04"
+      },
+      "steps": [
+        {
+          "id": "FP_4-04_PTC_S01",
+          "order": 1,
+          "callout": "Set ullage command AUTO and open helium isolation",
+          "panel": "CSM_RCS_MANAGEMENT",
+          "controls": [
+            {
+              "controlId": "RCS_DIRECT_ULLAGE",
+              "targetState": "AUTO"
+            },
+            {
+              "controlId": "RCS_HELIUM_ISOL",
+              "targetState": "OPEN"
+            }
+          ],
+          "prerequisites": [
+            "event:TLI_002"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "ullageReady",
+              "value": true
+            }
+          ],
+          "notes": "Confirms SPS ullage path before entering PTC drift."
+        },
+        {
+          "id": "FP_4-04_PTC_S02",
+          "order": 2,
+          "callout": "Select PTC rate 0.3\u00b0/s",
+          "panel": "CSM_RCS_MANAGEMENT",
+          "controls": [
+            {
+              "controlId": "PTC_TRIM_RATE",
+              "targetState": "RATE_0_3"
+            }
+          ],
+          "dskyMacro": "V06N37_ATT_RATE",
+          "prerequisites": [
+            "flag:ullageReady"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "ptcRolling",
+              "value": true
+            }
+          ],
+          "notes": "Monitor rates on DSKY and FDAI until roll matches target."
+        },
+        {
+          "id": "FP_4-04_PTC_S03",
+          "order": 3,
+          "callout": "Balance cabin circulation for barbecue roll",
+          "panel": "CSM_CRYO_ECS",
+          "controls": [
+            {
+              "controlId": "CABIN_FAN",
+              "targetState": "FAN_1"
+            },
+            {
+              "controlId": "GLYCOL_PUMP",
+              "targetState": "PRIMARY"
+            }
+          ],
+          "prerequisites": [
+            "flag:ptcRolling"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "ptcThermalStable",
+              "value": true
+            }
+          ],
+          "notes": "Verify CO\u2082 readings trend down after fan adjustments."
+        },
+        {
+          "id": "FP_4-04_PTC_S04",
+          "order": 4,
+          "callout": "Set S-band power to low-rate cruise",
+          "panel": "CSM_COMMUNICATIONS",
+          "controls": [
+            {
+              "controlId": "S_BAND_POWER",
+              "targetState": "LOW"
+            }
+          ],
+          "prerequisites": [
+            "flag:ptcRolling"
+          ],
+          "notes": "Reduces power draw while maintaining DSN downlink margins."
+        }
+      ]
+    },
+    {
+      "id": "FP_6-16_LOI_CONFIG",
+      "title": "LOI Configuration",
+      "phase": "LunarOrbit",
+      "role": "Joint",
+      "nominalGet": "073:45:00",
+      "source": {
+        "document": "Flight Plan",
+        "page": "6-16"
+      },
+      "steps": [
+        {
+          "id": "FP_6-16_LOI_CONFIG_S01",
+          "order": 1,
+          "callout": "Arm SPS banks for lunar orbit insertion",
+          "panel": "CSM_SPS_PROPULSION",
+          "controls": [
+            {
+              "controlId": "SPS_BANK_A_ARM",
+              "targetState": "ARM"
+            },
+            {
+              "controlId": "SPS_BANK_B_ARM",
+              "targetState": "ARM"
+            }
+          ],
+          "prerequisites": [
+            "event:COAST_070"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "spsBanksArmed",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_6-16_LOI_CONFIG_S02",
+          "order": 2,
+          "callout": "Open helium pressurization",
+          "panel": "CSM_SPS_PROPULSION",
+          "controls": [
+            {
+              "controlId": "SPS_HEL_PRESS",
+              "targetState": "OPEN"
+            }
+          ],
+          "prerequisites": [
+            "flag:spsBanksArmed"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "heliumPressurized",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_6-16_LOI_CONFIG_S03",
+          "order": 3,
+          "callout": "Arm SCS engine and set DAP for LOI mass properties",
+          "panel": "CSM_SCS_DAP",
+          "controls": [
+            {
+              "controlId": "SCS_ENG_ARM",
+              "targetState": "ARM"
+            },
+            {
+              "controlId": "DAP_CONFIG",
+              "targetState": "CSM_2"
+            }
+          ],
+          "prerequisites": [
+            "flag:spsBanksArmed"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "loiConfigArmed",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_6-16_LOI_CONFIG_S04",
+          "order": 4,
+          "callout": "Enable RCS quads and heaters for ullage trim",
+          "panel": "CSM_RCS_MANAGEMENT",
+          "controls": [
+            {
+              "controlId": "RCS_QUAD_ENABLE_A",
+              "targetState": "ON"
+            },
+            {
+              "controlId": "RCS_QUAD_ENABLE_B",
+              "targetState": "ON"
+            },
+            {
+              "controlId": "RCS_HEATER_A",
+              "targetState": "AUTO"
+            }
+          ],
+          "prerequisites": [
+            "flag:loiConfigArmed"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "loiTrimReady",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_6-16_LOI_CONFIG_S05",
+          "order": 5,
+          "callout": "Load LOI PAD vector",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "controls": [
+            {
+              "controlId": "FDAI_SOURCE",
+              "targetState": "CMC"
+            }
+          ],
+          "dskyMacro": "V21N33_LOAD_DV",
+          "prerequisites": [
+            "flag:cmcReady",
+            "flag:loiTrimReady"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "loiPadLoaded",
+              "value": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FP_7-16_LM_SEP",
+      "title": "LM Separation & Station-Keeping",
+      "phase": "LunarOrbit",
+      "role": "Joint",
+      "nominalGet": "100:40:00",
+      "source": {
+        "document": "Flight Plan",
+        "page": "7-16"
+      },
+      "steps": [
+        {
+          "id": "FP_7-16_LM_SEP_S01",
+          "order": 1,
+          "callout": "Tie LM batteries and enable comm crosslink",
+          "panel": "LM_SYSTEMS_MONITOR",
+          "controls": [
+            {
+              "controlId": "LM_BAT_TIE",
+              "targetState": "TIE"
+            },
+            {
+              "controlId": "LM_COMM_XLINK",
+              "targetState": "ON"
+            }
+          ],
+          "prerequisites": [
+            "event:LM_PREP_001"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "lmSystemsReady",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_7-16_LM_SEP_S02",
+          "order": 2,
+          "callout": "Open tunnel repress for crew transfer",
+          "panel": "LM_SYSTEMS_MONITOR",
+          "controls": [
+            {
+              "controlId": "CABIN_REPRESS",
+              "targetState": "OPEN"
+            }
+          ],
+          "prerequisites": [
+            "flag:lmSystemsReady"
+          ],
+          "notes": "Monitor cabin delta-P and confirm hatch seals clear."
+        },
+        {
+          "id": "FP_7-16_LM_SEP_S03",
+          "order": 3,
+          "callout": "Arm descent engine and LM RCS quads",
+          "panel": "LM_DESCENT_PANELS",
+          "controls": [
+            {
+              "controlId": "DPS_ENGINE_ARM",
+              "targetState": "ARM"
+            },
+            {
+              "controlId": "RCS_QUAD_ENABLE_FWD",
+              "targetState": "ON"
+            }
+          ],
+          "prerequisites": [
+            "flag:lmSystemsReady"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "lmSepArmed",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_7-16_LM_SEP_S04",
+          "order": 4,
+          "callout": "Arm SCS for separation contingency burn",
+          "panel": "CSM_SCS_DAP",
+          "controls": [
+            {
+              "controlId": "SCS_ENG_ARM",
+              "targetState": "ARM"
+            }
+          ],
+          "prerequisites": [
+            "flag:lmSepArmed"
+          ]
+        },
+        {
+          "id": "FP_7-16_LM_SEP_S05",
+          "order": 5,
+          "callout": "Record rendezvous radar inputs",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "dskyMacro": "V50N18_RNDZ_RANGE",
+          "prerequisites": [
+            "flag:lmSepArmed"
+          ],
+          "notes": "Verify LM comm crosslink active before capturing range data."
+        }
+      ]
+    },
+    {
+      "id": "FP_7-22_FINAL_APPROACH",
+      "title": "Final Approach & Touchdown",
+      "phase": "Surface",
+      "role": "LMP",
+      "nominalGet": "102:40:00",
+      "source": {
+        "document": "Flight Plan",
+        "page": "7-22"
+      },
+      "steps": [
+        {
+          "id": "FP_7-22_FINAL_APPROACH_S01",
+          "order": 1,
+          "callout": "Place landing radar in AUTO",
+          "panel": "LM_DESCENT_PANELS",
+          "controls": [
+            {
+              "controlId": "LANDING_RADAR",
+              "targetState": "AUTO"
+            }
+          ],
+          "prerequisites": [
+            "event:LM_DESCENT_011"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "landingRadarArmed",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_7-22_FINAL_APPROACH_S02",
+          "order": 2,
+          "callout": "Confirm LM mode control AUTO",
+          "panel": "LM_DESCENT_PANELS",
+          "controls": [
+            {
+              "controlId": "MODE_CONTROL",
+              "targetState": "AUTO"
+            }
+          ],
+          "prerequisites": [
+            "flag:landingRadarArmed"
+          ]
+        },
+        {
+          "id": "FP_7-22_FINAL_APPROACH_S03",
+          "order": 3,
+          "callout": "Set suit flow to EVA configuration",
+          "panel": "LM_SYSTEMS_MONITOR",
+          "controls": [
+            {
+              "controlId": "SUIT_FLOW",
+              "targetState": "EVA"
+            }
+          ],
+          "prerequisites": [
+            "flag:landingRadarArmed"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "evaConfigured",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_7-22_FINAL_APPROACH_S04",
+          "order": 4,
+          "callout": "Monitor landing radar rate readouts",
+          "panel": "LM_DESCENT_PANELS",
+          "dskyMacro": "V63N63_LANDING_RADAR",
+          "prerequisites": [
+            "flag:landingRadarArmed"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "landingRateMonitored",
+              "value": true
+            }
+          ],
+          "notes": "Call out delta-H and velocity residuals every 10 seconds."
+        },
+        {
+          "id": "FP_7-22_FINAL_APPROACH_S05",
+          "order": 5,
+          "callout": "Confirm LM comm crosslink maintained",
+          "panel": "LM_SYSTEMS_MONITOR",
+          "controls": [
+            {
+              "controlId": "LM_COMM_XLINK",
+              "targetState": "ON"
+            }
+          ],
+          "prerequisites": [
+            "flag:landingRateMonitored"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FP_8-06_TEI_CONFIG",
+      "title": "TEI Burn Configuration",
+      "phase": "Transearth",
+      "role": "Joint",
+      "nominalGet": "133:30:00",
+      "source": {
+        "document": "Flight Plan",
+        "page": "8-06"
+      },
+      "steps": [
+        {
+          "id": "FP_8-06_TEI_CONFIG_S01",
+          "order": 1,
+          "callout": "Set S-band power high for TEI coverage",
+          "panel": "CSM_COMMUNICATIONS",
+          "controls": [
+            {
+              "controlId": "S_BAND_POWER",
+              "targetState": "HIGH"
+            }
+          ],
+          "prerequisites": [
+            "event:RETURN_010"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "teiCommsReady",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_8-06_TEI_CONFIG_S02",
+          "order": 2,
+          "callout": "Arm SPS valves and confirm ullage AUTO",
+          "panel": "CSM_SPS_PROPULSION",
+          "controls": [
+            {
+              "controlId": "SPS_VALVE_ARM",
+              "targetState": "ARM"
+            },
+            {
+              "controlId": "ULLAGE_TIMER",
+              "targetState": "AUTO"
+            }
+          ],
+          "prerequisites": [
+            "flag:teiCommsReady"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "teiPropReady",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_8-06_TEI_CONFIG_S03",
+          "order": 3,
+          "callout": "Set DAP configuration and arm SCS backup",
+          "panel": "CSM_SCS_DAP",
+          "controls": [
+            {
+              "controlId": "DAP_CONFIG",
+              "targetState": "CSM_1"
+            },
+            {
+              "controlId": "SCS_ENG_ARM",
+              "targetState": "ARM"
+            }
+          ],
+          "prerequisites": [
+            "flag:teiPropReady"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "teiAttitudeReady",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_8-06_TEI_CONFIG_S04",
+          "order": 4,
+          "callout": "Load TEI PAD vector",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "controls": [
+            {
+              "controlId": "FDAI_SOURCE",
+              "targetState": "CMC"
+            }
+          ],
+          "dskyMacro": "V21N33_LOAD_DV",
+          "prerequisites": [
+            "flag:teiPropReady"
+          ],
+          "effects": [
+            {
+              "type": "flag",
+              "id": "teiPadLoaded",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "FP_8-06_TEI_CONFIG_S05",
+          "order": 5,
+          "callout": "Update entry corridor parameters",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "dskyMacro": "V25N07_ENTRY_UPDATE",
+          "prerequisites": [
+            "flag:teiPadLoaded"
+          ],
+          "notes": "Confirm MCC entry corridor angles remain within \u00b10.3\u00b0."
+        }
+      ]
+    }
+  ]
+}
