@@ -30,6 +30,7 @@ async function main() {
   await validateConsumables(context);
   await validateCommunicationsTrends(context);
   await validateThrusters(context);
+  await validateAudioCues(context);
 
   printSummary(context);
 
@@ -524,6 +525,213 @@ async function validateConsumables(context) {
   } catch (error) {
     addError(context, `Failed to read consumables.json: ${error.message}`);
   }
+}
+
+async function validateAudioCues(context) {
+  const filePath = path.resolve(DATA_DIR, 'audio_cues.json');
+  let data;
+  try {
+    const content = await fs.readFile(filePath, 'utf8');
+    data = JSON.parse(content);
+  } catch (error) {
+    addError(context, `Failed to read audio_cues.json: ${error.message}`);
+    return;
+  }
+
+  if (!data || typeof data !== 'object') {
+    addError(context, 'audio_cues.json is not a valid JSON object');
+    return;
+  }
+
+  const buses = Array.isArray(data.buses) ? data.buses : [];
+  const categories = Array.isArray(data.categories) ? data.categories : [];
+  const cues = Array.isArray(data.cues) ? data.cues : [];
+
+  if (typeof data.version !== 'number' || !Number.isFinite(data.version)) {
+    addWarning(context, 'audio_cues.json version should be a finite number');
+  }
+  if (data.description != null && typeof data.description !== 'string') {
+    addWarning(context, 'audio_cues.json description should be a string when present');
+  }
+
+  const busIds = new Map();
+  const duckingTargets = [];
+  for (const [index, bus] of buses.entries()) {
+    if (!bus || typeof bus !== 'object') {
+      addError(context, `Audio bus entry ${index} is not an object`);
+      continue;
+    }
+
+    const id = typeof bus.id === 'string' ? bus.id.trim() : '';
+    if (!id) {
+      addError(context, `Audio bus entry ${index} is missing an id`);
+    } else if (busIds.has(id)) {
+      addError(context, `Duplicate audio bus id detected: ${id}`);
+    } else {
+      busIds.set(id, bus);
+    }
+
+    if (!bus.name || typeof bus.name !== 'string') {
+      addWarning(context, `Audio bus ${id || index} is missing a name`);
+    }
+
+    if (bus.maxConcurrent != null) {
+      const value = Number(bus.maxConcurrent);
+      if (!Number.isFinite(value) || value <= 0) {
+        addWarning(context, `Audio bus ${id || index} maxConcurrent should be > 0`);
+      }
+    }
+
+    if (bus.ducking != null && !Array.isArray(bus.ducking)) {
+      addWarning(context, `Audio bus ${id || index} ducking should be an array when present`);
+    } else if (Array.isArray(bus.ducking)) {
+      for (const [duckIndex, rule] of bus.ducking.entries()) {
+        if (!rule || typeof rule !== 'object') {
+          addWarning(context, `Audio bus ${id || index} ducking[${duckIndex}] is not an object`);
+          continue;
+        }
+        const target = typeof rule.target === 'string' ? rule.target.trim() : '';
+        if (!target) {
+          addWarning(context, `Audio bus ${id || index} ducking[${duckIndex}] target should be a string`);
+        } else {
+          duckingTargets.push({ source: id || `index_${index}`, target });
+        }
+        const gainDb = rule.gainDb;
+        if (gainDb == null || !Number.isFinite(Number(gainDb))) {
+          addWarning(context, `Audio bus ${id || index} ducking[${duckIndex}] gainDb should be numeric`);
+        }
+      }
+    }
+  }
+
+  for (const { source, target } of duckingTargets) {
+    if (target && !busIds.has(target)) {
+      addWarning(context, `Audio bus ${source} ducking references unknown target bus ${target}`);
+    }
+  }
+
+  const categoryIds = new Map();
+  for (const [index, category] of categories.entries()) {
+    if (!category || typeof category !== 'object') {
+      addError(context, `Audio category entry ${index} is not an object`);
+      continue;
+    }
+
+    const id = typeof category.id === 'string' ? category.id.trim() : '';
+    if (!id) {
+      addError(context, `Audio category entry ${index} is missing an id`);
+    } else if (categoryIds.has(id)) {
+      addError(context, `Duplicate audio category id detected: ${id}`);
+    } else {
+      categoryIds.set(id, category);
+    }
+
+    const busId = typeof category.bus === 'string' ? category.bus.trim() : '';
+    if (!busId) {
+      addError(context, `Audio category ${id || index} is missing a bus reference`);
+    } else if (!busIds.has(busId)) {
+      addError(context, `Audio category ${id || index} references unknown bus ${busId}`);
+    }
+
+    if (category.defaultPriority != null && !isFiniteNumber(category.defaultPriority)) {
+      addWarning(context, `Audio category ${id || index} defaultPriority should be numeric`);
+    }
+    if (category.cooldownSeconds != null && !isFiniteNumber(category.cooldownSeconds)) {
+      addWarning(context, `Audio category ${id || index} cooldownSeconds should be numeric`);
+    }
+    if (!category.description || typeof category.description !== 'string') {
+      addWarning(context, `Audio category ${id || index} is missing a description`);
+    }
+  }
+
+  const cueIds = new Map();
+  for (const [index, cue] of cues.entries()) {
+    if (!cue || typeof cue !== 'object') {
+      addError(context, `Audio cue entry ${index} is not an object`);
+      continue;
+    }
+
+    const id = typeof cue.id === 'string' ? cue.id.trim() : '';
+    if (!id) {
+      addError(context, `Audio cue entry ${index} is missing an id`);
+    } else if (cueIds.has(id)) {
+      addError(context, `Duplicate audio cue id detected: ${id}`);
+    } else {
+      cueIds.set(id, cue);
+    }
+
+    const categoryId = typeof cue.category === 'string' ? cue.category.trim() : '';
+    if (!categoryId) {
+      addError(context, `Audio cue ${id || index} is missing a category`);
+    } else if (!categoryIds.has(categoryId)) {
+      addError(context, `Audio cue ${id || index} references unknown category ${categoryId}`);
+    }
+
+    if (cue.priority != null && !isFiniteNumber(cue.priority)) {
+      addWarning(context, `Audio cue ${id || index} priority should be numeric`);
+    }
+    if (cue.lengthSeconds != null) {
+      const value = Number(cue.lengthSeconds);
+      if (!Number.isFinite(value) || value < 0) {
+        addWarning(context, `Audio cue ${id || index} lengthSeconds should be ≥ 0`);
+      }
+    } else {
+      addWarning(context, `Audio cue ${id || index} is missing lengthSeconds`);
+    }
+    if (cue.cooldownSeconds != null && !isFiniteNumber(cue.cooldownSeconds)) {
+      addWarning(context, `Audio cue ${id || index} cooldownSeconds should be numeric`);
+    }
+    if (cue.loop != null && typeof cue.loop !== 'boolean') {
+      addWarning(context, `Audio cue ${id || index} loop should be a boolean when present`);
+    }
+    if (cue.loudnessLufs != null && !isFiniteNumber(cue.loudnessLufs)) {
+      addWarning(context, `Audio cue ${id || index} loudnessLufs should be numeric`);
+    }
+
+    if (!cue.assets || typeof cue.assets !== 'object') {
+      addWarning(context, `Audio cue ${id || index} assets should be an object`);
+    } else {
+      const webAsset = cue.assets.web;
+      const n64Asset = cue.assets.n64;
+      if (webAsset == null && n64Asset == null) {
+        addWarning(context, `Audio cue ${id || index} assets should include at least one platform path`);
+      }
+      if (webAsset != null && typeof webAsset !== 'string') {
+        addWarning(context, `Audio cue ${id || index} web asset should be a string`);
+      }
+      if (n64Asset != null && typeof n64Asset !== 'string') {
+        addWarning(context, `Audio cue ${id || index} n64 asset should be a string`);
+      }
+    }
+
+    if (cue.subtitle != null && typeof cue.subtitle !== 'string') {
+      addWarning(context, `Audio cue ${id || index} subtitle should be a string or null`);
+    }
+    if (cue.notes != null && typeof cue.notes !== 'string') {
+      addWarning(context, `Audio cue ${id || index} notes should be a string when present`);
+    }
+    if (!cue.source || typeof cue.source !== 'string') {
+      addWarning(context, `Audio cue ${id || index} is missing a source citation`);
+    }
+
+    if (cue.tags != null && !Array.isArray(cue.tags)) {
+      addWarning(context, `Audio cue ${id || index} tags should be an array when present`);
+    } else if (Array.isArray(cue.tags)) {
+      for (const [tagIndex, tag] of cue.tags.entries()) {
+        if (typeof tag !== 'string' || tag.trim().length === 0) {
+          addWarning(context, `Audio cue ${id || index} tags[${tagIndex}] should be a non-empty string`);
+        }
+      }
+    }
+  }
+
+  context.stats.audioBuses = busIds.size;
+  context.stats.audioCategories = categoryIds.size;
+  context.stats.audioCues = cueIds.size;
+  context.refs.audioBuses = new Set(busIds.keys());
+  context.refs.audioCategories = new Set(categoryIds.keys());
+  context.refs.audioCueIds = new Set(cueIds.keys());
+  context.refs.audioCueMap = cueIds;
 }
 
 async function validateCommunicationsTrends(context) {

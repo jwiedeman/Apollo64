@@ -57,6 +57,17 @@ This log links each dataset to the Apollo 11 primary sources used during ingesti
 ## `communications_trends.json`
 - DSN pass signal-strength trends reference Apollo 11 Mission Operations Report Section 3.8 downlink analyses and the Apollo 11 Flight Plan Section 8 DSN schedule tables outlining handover geometry and support durations.
 
+## `audio_cues.json`
+- Bus routing, ducking hierarchy, and category priorities follow the taxonomy established for Milestone M3 UI/audio work while grounding alert precedence in the Apollo 11 Caution and Warning System procedures and Mission Operations Report Section 3.8 audio environment notes.
+- `alerts.master_alarm`, `alerts.master_caution`: Apollo 11 Caution and Warning System checklists and Mission Operations Report Section 3.8 discussions of warning tone behavior.
+- `callouts.go_for_tli`, `callouts.transposition`: Apollo 11 Flight Journal Day 1 (002:41:00–003:16:20 GET) transcripts for the go/no-go poll and transposition/docking exchange.
+- `callouts.contact_light`, `callouts.tranquility_base`, `callouts.one_small_step`: Apollo 11 Flight Journal Day 5 timeline entries at 102:45:36, 102:45:40, and 109:24:15 GET documenting the landing and first step dialogue.
+- `telemetry.dsn_acquire`, `telemetry.dsn_loss`: Apollo 11 Flight Plan Section 8 DSN schedule notes describing acquisition/loss-of-signal cues during station handovers.
+- `telemetry.burn_start`, `telemetry.burn_complete`: Apollo 11 Mission Operations Report Section 3.3 guidance monitoring cues outlining burn start/stop tone usage.
+- `telemetry.ptc_entry`: Apollo 11 Flight Journal Day 2 Passive Thermal Control commentary noting tone cues for entering/exiting the roll.
+- `ui.checklist_step_complete`, `ui.invalid_toggle`, `ui.panel_focus`: Apollo 11 Flight Plan procedural cadence notes and Mission Operations Report Section 3.10 console workflow guidance for checklist acknowledgements, dependency violations, and station focus changes.
+- `ambient.csm_cabin_hum`, `ambient.lm_cabin_idle`, `ambient.surface_tranquility`: Apollo 11 Mission Operations Report Section 3.8 environmental audio characterizations and Flight Journal Day 5 EVA transcript ambience descriptions.
+
 ## `failures.csv`
 - Failure triggers and effects reference the Apollo 11 Mission Operations Report Section 3 (trajectory dispersions) and Flight Journal Day 1 commentary on docking retries and PTC thermal management.
 - Additional failure hooks for MCC-1 prep/execution, PTC drift, and consumables logging cite Apollo 11 Flight Plan Sections 4–5, Mission Operations Report Section 3.3, and Flight Journal Day 2 timeline callouts.

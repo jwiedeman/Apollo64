@@ -15,6 +15,7 @@ port.
 - UI state aggregator and presentation layer design notes for the JS prototype (component tree, update cadence, data bindings) documented in [`docs/ui/component_architecture.md`](../ui/component_architecture.md).
 - HUD layout specifications including timing blocks, event stack, resource gauges, and maneuver widgets.
 - Audio cue taxonomy mapped to mission events and failure classes with playback priority rules and asset references, captured in [`docs/ui/audio_cue_taxonomy.md`](../ui/audio_cue_taxonomy.md).
+- Committed Apollo 11 cue catalog at [`docs/data/audio_cues.json`](../data/audio_cues.json) with buses, categories, metadata, and sources wired into the loader/validator so UI and dispatcher work can reference a single dataset.
 - Logging, replay, and accessibility guidelines covering color use, captioning, and control remapping hooks.
 - Panel hierarchy, DSKY macro catalog, and JSON data schema references in [`docs/ui/`](../ui) to guide panel highlighting, DSKY macros, and tile-mode presets.
 
@@ -56,6 +57,7 @@ port.
    - **Mission callouts:** Historical CapCom dialogue for major events (e.g., "Go for TLI") with timing offsets from the dataset.
    - **Alerts:** Caution/warning tones, master alarm, guidance program change beeps.
    - **UI feedback:** Button/select sounds, checklist acknowledgement ticks.
+   - The committed `audio_cues.json` pack enumerates these categories with routing, ducking, and cue metadata that the dispatcher will consume directly.
 2. **Event wiring:**
    - Extend the mission data packs with cue IDs (`audio_cue` fields in events/failures) without altering schema yet; document the
      proposed columns and JSON bindings for later ingestion scripts.

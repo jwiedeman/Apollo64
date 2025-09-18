@@ -7,6 +7,7 @@ This directory contains the structured mission datasets produced during Mileston
 - Passive Thermal Control monitoring, MCC-1/2/3/4 PAD flows and execution logic, LOI-focused P52 realignment, DOI planning, LM separation and powered descent, landing/post-landing safing, surface EVA-1 prep/egress/traverse/closeout **plus the contingency EVA-2 extension**, ascent rendezvous guidance, TEI preparation and burn execution, MCC-5 return correction, transearth DSN communications passes with signal-strength trend analytics, entry PAD alignment, service module jettison, and recovery procedures captured in the events, checklists, PADs, and autopilot packs defined by [`../milestones/M0_DATA_INGESTION.md`](../milestones/M0_DATA_INGESTION.md).
 - Provenance log linking each record to the primary reference used.
 - Reaction-control system cluster geometry for both vehicles captured in `thrusters.json`, providing Milestone M2 with baseline lever-arm and control-axis metadata before guidance tuning begins.
+- Apollo 11 audio cue catalog in `audio_cues.json`, defining buses, categories, and mission callouts for the HUD/audio pipeline described in Milestone M3.
 
 Future updates will publish the ingestion notebooks under `scripts/ingest/`, expand contingency branches, and wire the new analytics into regression notebooks as described in the milestone plan.
 
@@ -15,7 +16,7 @@ The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/inge
 ## Validation Harness
 
 - Run `cd js && npm run validate:data` to execute the mission dataset sweep implemented in [`../../js/src/tools/validateMissionData.js`](../../js/src/tools/validateMissionData.js).
-- The validator checks GET formatting for events, PADs, and mission effects; verifies that prerequisite, checklist, autopilot, and failure references resolve; confirms autopilot JSON assets load with monotonic sequencing; ensures checklists are sequentially numbered; and surfaces missing numeric baselines in `consumables.json`.
+- The validator checks GET formatting for events, PADs, and mission effects; verifies that prerequisite, checklist, autopilot, and failure references resolve; confirms autopilot JSON assets load with monotonic sequencing; ensures checklists are sequentially numbered; surfaces missing numeric baselines in `consumables.json`; parses the communications and thruster packs; and now validates the audio cue catalog for ID collisions, ducking references, cue metadata, and asset paths.
 - Extend the harness alongside new ingest work—surface EVA and transearth communication records should introduce companion checks so regression runs highlight schema drift early.
 
 ## File Inventory
@@ -31,6 +32,7 @@ The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/inge
 - `provenance.md` – Source citations for every record range.
 - `consumables.json` – Baseline power, propellant, and life-support budgets with notes and references to the Mission Operations Report and Flight Plan.
 - `communications_trends.json` – DSN pass analytics (signal strength, handover duration, power deltas) for transearth coast support.
+- `audio_cues.json` – Bus/category definitions and cue metadata for alerts, mission callouts, telemetry hints, UI feedback, and ambience routing across web/N64 builds.
 - `thrusters.json` – Reaction-control system geometry for the CSM and LM, including cluster placement, control axes, and baseline thrust/impulse metadata for Milestone M2 tuning.
 
 These files use UTF-8 encoding with Unix line endings and can be imported into spreadsheets or parsed directly by ingestion tooling.

@@ -39,12 +39,15 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
   - Parse `communications_trends.json`, verify GET windows, ensure signal-strength and handover metrics are numeric, and confirm station handovers reference expected identifiers.
 - **Thrusters:**
   - Parse `thrusters.json`, ensure each craft and RCS cluster defines unique IDs, verify translation/torque axis enums, confirm thrust/Isp/min impulse values resolve (using defaults when needed), and cross-check that referenced propellant tanks exist in `consumables.json`.
+- **Audio cues:**
+  - Parse `audio_cues.json`, ensuring buses and categories expose unique IDs, ducking rules reference known targets, and cooldown/priority fields stay numeric.
+  - Validate that each cue references a known category, defines playback duration/loop metadata, includes at least one platform asset path, and carries mission-source citations for provenance tracking.
 
 ## Extending the Sweep
 
 - Future EVA extensions or DSN updates should extend these checks so nested effect payloads (e.g., `communications.next_window_open_get`, `surface_ops.eva2_complete`) stay validated as new fields appear.
 - Planned notebooks under `scripts/ingest/` can re-use the validator’s helper functions for GET parsing and reference verification so manual analyses stay aligned with the automated sweep.
 - When mission scoring hooks mature, incorporate regression checks that assert metric ranges (Δv margins, propellant draw) remain within expected tolerances.
-- Upcoming audio cue fields (`audio_cue`, `audio_channel`, DSN handover cues) should be wired into the validator once the datasets land so cue IDs resolve to the shared `audio_cues.json` pack and bus names stay canonical.
+- Upcoming scheduler hooks (`audio_cue`, `audio_channel`, DSN handover triggers) should reuse these helpers so event/failure records resolve cue IDs against `audio_cues.json` and bus routing stays canonical as playback wiring proceeds.
 
 Maintaining these checks keeps the mission data trustworthy for both the JS prototype and the eventual Nintendo 64 build while reducing manual verification overhead as Milestone M0 evolves.
