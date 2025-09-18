@@ -19,6 +19,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - `ResourceSystem` maintains minute-resolution history buffers for power, thermal, propellant, and communications metrics, exposing `historySnapshot()` for UI trend widgets and optionally attaching the data to HUD frames when `includeResourceHistory` is enabled.
 - Failure manager inside [`ResourceSystem`](js/src/sim/resourceSystem.js) now records the full taxonomy metadata from `docs/data/failures.csv`, latching classification, trigger, penalty, and recovery guidance with first/last-occurrence GET stamps so the HUD, score system, and upcoming UI fault timeline can surface actionable remediation steps instead of bare failure IDs.
 - Autopilot runner in [`js/src/sim/autopilotRunner.js`](js/src/sim/autopilotRunner.js) replays mission automation sequences, logs attitude/ullage/throttle commands (now including linear `throttle_ramp` profiles for maneuvers such as LM powered descent), and applies SPS/LM/RCS propellant usage into the shared `ResourceSystem` using propulsion metadata from `docs/data/autopilots.csv` while exposing burn metrics for HUD and scoring hooks.
+- Node-based regression tests under [`js/test/`](js/test) now exercise the autopilot throttle integration, manual action queue execution paths, and UI frame summarization so each pass can run `npm test` to verify core mission automation and HUD summaries.
 - `EventScheduler` now consumes the detailed burn summaries emitted by the autopilot runner, compares burn time/propellant/Δv against per-script tolerances, and applies mission failure effects when automation drifts out of limits.
 - `RcsController` in [`js/src/sim/rcsController.js`](js/src/sim/rcsController.js) ingests the thruster geometry dataset, resolves translation/torque axis pulses, computes propellant mass and impulse totals for new `rcs_pulse` autopilot commands, and feeds usage metrics into the resource system and HUD summaries.
 - Commander rating aggregator in [`js/src/sim/scoreSystem.js`](js/src/sim/scoreSystem.js) tracks event completions, resource minima, comms reliability, thermal violations, and manual contributions, producing weighted base scores plus manual bonuses that surface in the CLI summary and parity harness reports.
@@ -76,4 +77,5 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 
 ## Contribution Notes
 - Follow the guidelines in [`AGENTS.md`](AGENTS.md) for documentation structure and future implementation phases.
+- Run `npm test` inside `js/` to execute the automated regression suite before submitting changes.
 - Document any manual verification performed until automated tests are introduced.
