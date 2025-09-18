@@ -64,6 +64,11 @@ export class UiFrameBuilder {
 
     const manualStats = context.manualQueue?.stats?.() ?? null;
 
+    const scoreSummary =
+      context.scoreSummary
+      ?? (context.scoreSystem?.summary ? context.scoreSystem.summary() : null);
+    const score = this.#summarizeScore(scoreSummary);
+
     const frame = {
       generatedAtSeconds: currentGetSeconds,
       time,
@@ -77,6 +82,7 @@ export class UiFrameBuilder {
       checklists,
       manualQueue: manualStats,
       alerts,
+      score,
     };
 
     if (includeHistory && resourceHistory) {
@@ -299,6 +305,78 @@ export class UiFrameBuilder {
     };
   }
 
+  #summarizeScore(summary) {
+    if (!summary || typeof summary !== 'object') {
+      return null;
+    }
+
+    const events = summary.events ?? {};
+    const resources = summary.resources ?? {};
+    const faults = summary.faults ?? {};
+    const manual = summary.manual ?? {};
+    const comms = summary.comms ?? {};
+    const rating = summary.rating ?? {};
+    const breakdown = rating.breakdown ?? {};
+
+    const resourceFailureIds = Array.isArray(faults.resourceFailureIds)
+      ? faults.resourceFailureIds.filter((id) => typeof id === 'string' && id.length > 0)
+      : [];
+
+    const manualFraction = this.#coerceNumber(manual.manualFraction);
+    const manualFractionRounded = manualFraction != null ? this.#roundNumber(manualFraction, 3) : null;
+
+    return {
+      missionDurationSeconds: this.#coerceNumber(summary.missionDurationSeconds),
+      events: {
+        total: this.#coerceNumber(events.total),
+        completed: this.#coerceNumber(events.completed),
+        failed: this.#coerceNumber(events.failed),
+        pending: this.#coerceNumber(events.pending),
+        completionRatePct: this.#coerceNumber(events.completionRatePct),
+      },
+      comms: {
+        total: this.#coerceNumber(comms.total),
+        completed: this.#coerceNumber(comms.completed),
+        failed: this.#coerceNumber(comms.failed),
+        hitRatePct: this.#coerceNumber(comms.hitRatePct),
+      },
+      resources: {
+        minPowerMarginPct: this.#coerceNumber(resources.minPowerMarginPct),
+        maxPowerMarginPct: this.#coerceNumber(resources.maxPowerMarginPct),
+        minDeltaVMarginMps: this.#coerceNumber(resources.minDeltaVMarginMps),
+        maxDeltaVMarginMps: this.#coerceNumber(resources.maxDeltaVMarginMps),
+        thermalViolationSeconds: this.#coerceNumber(resources.thermalViolationSeconds),
+        thermalViolationEvents: this.#coerceNumber(resources.thermalViolationEvents),
+        propellantUsedKg: this.#cloneNumberMap(resources.propellantUsedKg),
+        powerDeltaKw: this.#cloneNumberMap(resources.powerDeltaKw),
+      },
+      faults: {
+        eventFailures: this.#coerceNumber(faults.eventFailures),
+        resourceFailures: this.#coerceNumber(faults.resourceFailures),
+        totalFaults: this.#coerceNumber(faults.totalFaults),
+        resourceFailureIds,
+      },
+      manual: {
+        manualSteps: this.#coerceNumber(manual.manualSteps),
+        autoSteps: this.#coerceNumber(manual.autoSteps),
+        totalSteps: this.#coerceNumber(manual.totalSteps),
+        manualFraction: manualFractionRounded,
+      },
+      rating: {
+        commanderScore: this.#coerceNumber(rating.commanderScore),
+        grade: typeof rating.grade === 'string' ? rating.grade : null,
+        baseScore: this.#coerceNumber(rating.baseScore),
+        manualBonus: this.#coerceNumber(rating.manualBonus),
+        breakdown: {
+          events: this.#summarizeScoreBreakdown(breakdown.events),
+          resources: this.#summarizeScoreBreakdown(breakdown.resources),
+          faults: this.#summarizeScoreBreakdown(breakdown.faults),
+          manual: this.#summarizeScoreBreakdown(breakdown.manual),
+        },
+      },
+    };
+  }
+
   #summarizeAutopilot(stats) {
     if (!stats) {
       return null;
@@ -444,6 +522,39 @@ export class UiFrameBuilder {
     }
 
     return status;
+  }
+
+  #summarizeScoreBreakdown(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+
+    const score = this.#coerceNumber(entry.score);
+    const weight = this.#coerceNumber(entry.weight);
+    if (score === null && weight === null) {
+      return null;
+    }
+
+    return {
+      score,
+      weight,
+    };
+  }
+
+  #cloneNumberMap(map) {
+    if (!map || typeof map !== 'object') {
+      return {};
+    }
+
+    const result = {};
+    for (const [key, value] of Object.entries(map)) {
+      const numeric = this.#coerceNumber(value);
+      if (numeric === null) {
+        continue;
+      }
+      result[key] = numeric;
+    }
+    return result;
   }
 
   #coerceNumber(value) {

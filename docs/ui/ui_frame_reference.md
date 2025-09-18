@@ -20,7 +20,8 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
 - **Exporter:** The CLI at [`js/src/tools/exportUiFrames.js`](../../js/src/tools/exportUiFrames.js)
   records mission runs into ordered frame sequences (with metadata + summary) so UI
   prototyping, accessibility audits, and regression fixtures rely on the same
-  `ui_frame` schema as the live HUD.
+  `ui_frame` schema as the live HUD, now including the commander rating `score`
+  block emitted during the run.
 
 ## Top-Level Shape
 
@@ -34,6 +35,7 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "checklists": { ... },
   "manualQueue": { ... },
   "alerts": { "warnings": [], "cautions": [], "failures": [] },
+  "score": { ... },
   "resourceHistory": { ... }
 }
 ```
@@ -178,6 +180,39 @@ Mirrors `ManualActionQueue.stats()` with counts for scheduled, pending, executed
 | `sources[]` | array | Event IDs or subsystems that produced the failure. |
 | `notes[]` | array | Additional notes captured by the resource system when the failure latched. |
 | `metadata` | object&#124;null | Raw metadata object recorded with the failure (e.g., manual override details). |
+
+### `score`
+
+Summarizes the commander rating aggregates maintained by the simulation
+score system so UI components can display mission performance without
+recomputing from raw telemetry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `missionDurationSeconds` | number&#124;null | Mission duration evaluated by the score system. |
+| `events.*` | number&#124;null | Totals for scheduled, completed, failed, and pending events plus completion rate (`completionRatePct`). |
+| `comms.*` | number&#124;null | DSN pass totals, completions, failures, and hit rate. |
+| `resources.minPowerMarginPct` | number&#124;null | Minimum power margin observed. |
+| `resources.maxPowerMarginPct` | number&#124;null | Maximum power margin observed. |
+| `resources.minDeltaVMarginMps` | number&#124;null | Minimum Δv margin recorded. |
+| `resources.maxDeltaVMarginMps` | number&#124;null | Maximum Δv margin recorded. |
+| `resources.thermalViolationSeconds` | number&#124;null | Total seconds above thermal violation thresholds. |
+| `resources.thermalViolationEvents` | number&#124;null | Number of distinct thermal violation events. |
+| `resources.propellantUsedKg` | object | Aggregated propellant usage keyed by tank (kg). |
+| `resources.powerDeltaKw` | object | Power deltas keyed by subsystem (kW). |
+| `faults.eventFailures` | number&#124;null | Event failures counted by the score system. |
+| `faults.resourceFailures` | number&#124;null | Resource failures counted by the score system. |
+| `faults.totalFaults` | number&#124;null | Combined failure count. |
+| `faults.resourceFailureIds[]` | array | Distinct failure IDs contributing to the totals. |
+| `manual.manualSteps` | number&#124;null | Checklist steps acknowledged manually. |
+| `manual.autoSteps` | number&#124;null | Checklist steps advanced automatically. |
+| `manual.totalSteps` | number&#124;null | Total checklist steps assessed by the score system. |
+| `manual.manualFraction` | number&#124;null | Fraction of manual checklist participation (0–1). |
+| `rating.commanderScore` | number&#124;null | Commander score (0–100). |
+| `rating.grade` | string&#124;null | Letter grade derived from the commander score. |
+| `rating.baseScore` | number&#124;null | Base score before manual bonus. |
+| `rating.manualBonus` | number&#124;null | Bonus applied for manual participation. |
+| `rating.breakdown.*` | object&#124;null | Weight/score pairs for events, resources, faults, and manual contribution. |
 
 ### `resourceHistory`
 

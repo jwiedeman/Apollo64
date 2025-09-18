@@ -47,7 +47,7 @@ async function main() {
   });
 
   const frames = [];
-  const { uiFrameBuilder, simulation } = context;
+  const { uiFrameBuilder, simulation, scoreSystem: contextScoreSystem } = context;
   const startSeconds = Math.max(0, args.startSeconds);
   const intervalSeconds = args.intervalSeconds;
   let nextSampleSeconds = startSeconds;
@@ -62,6 +62,7 @@ async function main() {
     checklistManager,
     manualQueue,
     rcsController,
+    scoreSystem: tickScoreSystem,
   }) => {
     if (getSeconds + eps < startSeconds) {
       return true;
@@ -76,6 +77,7 @@ async function main() {
         checklistManager,
         manualQueue,
         rcsController,
+        scoreSystem: tickScoreSystem,
       });
       frames.push(frame);
       captured = true;
@@ -97,6 +99,7 @@ async function main() {
         checklistManager,
         manualQueue,
         rcsController,
+        scoreSystem: tickScoreSystem,
       });
       frames.push(frame);
       if (frames.length >= args.maxFrames) {
@@ -120,6 +123,8 @@ async function main() {
       checklistManager: context.checklistManager,
       manualQueue: context.manualActionQueue,
       rcsController: context.rcsController,
+      scoreSystem: contextScoreSystem,
+      scoreSummary: summary.score ?? null,
     });
     frames.push(finalFrame);
   }
