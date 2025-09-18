@@ -1,0 +1,189 @@
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { UiFrameBuilder } from '../src/hud/uiFrameBuilder.js';
+
+describe('UiFrameBuilder', () => {
+  test('summarizes scheduler, resources, autopilot, and checklist state', () => {
+    const builder = new UiFrameBuilder({
+      includeResourceHistory: true,
+      upcomingLimit: 1,
+      activeChecklistLimit: 1,
+    });
+
+    const resourceSnapshot = {
+      propellant: {
+        csm_sps_kg: 90,
+        csm_rcs_kg: 35,
+        lm_descent_kg: 12,
+        lm_ascent_kg: 4,
+      },
+      budgets: {
+        propellant: {
+          csm_sps: { initial_kg: 120, reserve_kg: 18 },
+          csm_rcs: { initial_kg: 45, reserve_kg: 8 },
+          lm_descent: { initial_kg: 50, reserve_kg: 10 },
+          lm_ascent: { initial_kg: 40, reserve_kg: 5 },
+        },
+      },
+      power_margin_pct: 18,
+      cryo_boiloff_rate_pct_per_hr: 3.1,
+      power: {
+        fuel_cell_load_kw: 3.2,
+        fuel_cell_output_kw: 3.6,
+      },
+      thermal_balance_state: 'PTC_STABLE',
+      failures: [
+        {
+          id: 'FAIL_COMM_PASS_MISSED',
+          classification: 'Recoverable',
+          trigger: 'DSN window skipped',
+        },
+      ],
+    };
+
+    const resourceHistory = {
+      meta: {
+        enabled: true,
+        sampleIntervalSeconds: 60,
+        durationSeconds: 3600,
+        maxSamples: 4,
+        lastSampleSeconds: 90,
+      },
+      power: [{ seconds: 90, margin_pct: 18 }],
+      thermal: [],
+      communications: [],
+      propellant: {
+        csm_sps: [{ seconds: 90, remainingKg: 90 }],
+      },
+    };
+
+    const frame = builder.build(90, {
+      scheduler: {
+        stats: () => ({
+          counts: { active: 2 },
+          upcoming: [
+            { id: 'EVT1', phase: 'TLI', status: 'scheduled', opensAtSeconds: 120 },
+            { id: 'EVT2', phase: 'PTC', status: 'queued', opensAtSeconds: 180 },
+          ],
+        }),
+      },
+      resourceSystem: {
+        snapshot: () => resourceSnapshot,
+        historySnapshot: () => resourceHistory,
+      },
+      autopilotRunner: {
+        stats: () => ({
+          active: 1,
+          started: 2,
+          completed: 1,
+          aborted: 0,
+          totalBurnSeconds: 15,
+          totalUllageSeconds: 4,
+          totalRcsImpulseNs: 120,
+          totalRcsPulses: 6,
+          totalDskyEntries: 2,
+          propellantKgByTank: { csm_sps_kg: 42 },
+          activeAutopilots: [
+            {
+              eventId: 'EVT1',
+              autopilotId: 'PGM_TLI',
+              propulsion: 'csm_sps',
+              elapsedSeconds: 10,
+              remainingSeconds: 20,
+              currentThrottle: 0.75,
+              nextCommandInSeconds: 5,
+              throttleTarget: 1,
+              throttleRamp: null,
+              rcsPulses: 2,
+              rcsImpulseNs: 50,
+              rcsKg: 1.2,
+              dskyEntries: 1,
+            },
+          ],
+          primary: {
+            eventId: 'EVT1',
+            autopilotId: 'PGM_TLI',
+            remainingSeconds: 20,
+            currentThrottle: 0.75,
+          },
+        }),
+      },
+      checklistManager: {
+        stats: () => ({
+          totals: {
+            active: 2,
+            completed: 1,
+            aborted: 0,
+            acknowledgedSteps: 6,
+            autoSteps: 3,
+            manualSteps: 3,
+          },
+          active: [
+            {
+              eventId: 'EVT1',
+              checklistId: 'CHK1',
+              title: 'TLI Prep',
+              crewRole: 'CDR',
+              completedSteps: 3,
+              totalSteps: 5,
+              nextStepNumber: 4,
+              nextStepAction: 'SCS to AUTO',
+              autoAdvancePending: false,
+            },
+            {
+              eventId: 'EVT2',
+              checklistId: 'CHK2',
+              title: 'PTC Entry',
+              crewRole: 'CMP',
+              completedSteps: 1,
+              totalSteps: 4,
+              nextStepNumber: 2,
+              nextStepAction: 'Enable PTC',
+              autoAdvancePending: true,
+            },
+          ],
+        }),
+      },
+      manualQueue: {
+        stats: () => ({
+          scheduled: 3,
+          pending: 1,
+          executed: 5,
+          failed: 0,
+          retried: 1,
+          acknowledgedSteps: 4,
+          resourceDeltas: 2,
+          propellantBurns: 1,
+          dskyEntries: 0,
+        }),
+      },
+    });
+
+    assert.equal(frame.time.getSeconds, 90);
+    assert.equal(frame.events.upcoming.length, 1);
+    assert.equal(frame.events.next.id, 'EVT1');
+    assert.equal(frame.events.next.tMinusLabel, 'T-000:00:30');
+
+    const propellant = frame.resources.propellant.tanks;
+    assert.equal(propellant.csm_sps.percentRemaining, 75);
+    assert.equal(propellant.lm_descent.status, 'caution');
+    assert.equal(propellant.lm_ascent.status, 'warning');
+
+    const warningIds = frame.alerts.warnings.map((alert) => alert.id).sort();
+    assert.deepEqual(warningIds, ['cryo_boiloff_high', 'power_margin_low', 'propellant_lm_ascent']);
+
+    const cautionIds = frame.alerts.cautions.map((alert) => alert.id);
+    assert.deepEqual(cautionIds, ['propellant_lm_descent']);
+
+    assert.equal(frame.autopilot.primary.autopilotId, 'PGM_TLI');
+    assert.equal(frame.autopilot.activeAutopilots.length, 1);
+
+    assert.equal(frame.checklists.active.length, 1);
+    assert.equal(frame.checklists.chip.eventId, 'EVT1');
+
+    assert.ok(frame.resourceHistory);
+    assert.equal(frame.resourceHistory.meta.enabled, true);
+    assert.equal(frame.resourceHistory.power.length, 1);
+  });
+});
