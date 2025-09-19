@@ -168,6 +168,23 @@ export class TextHud {
       }
     }
 
+    const trajectory = snapshot.trajectory;
+    if (trajectory) {
+      const altLabel = this.#formatNumber(trajectory.altitude?.kilometers, 0);
+      if (altLabel !== 'n/a') {
+        parts.push(`Alt ${altLabel} km`);
+      }
+      const peri = this.#formatNumber(trajectory.elements?.periapsisKm, 0);
+      const apo = this.#formatNumber(trajectory.elements?.apoapsisKm, 0);
+      if (peri !== 'n/a' && apo !== 'n/a') {
+        parts.push(`Pe/Apo ${peri}/${apo} km`);
+      }
+      const period = this.#formatNumber(trajectory.elements?.periodMinutes, 1);
+      if (period !== 'n/a') {
+        parts.push(`Period ${period} min`);
+      }
+    }
+
     const rating = snapshot.score?.rating;
     if (rating) {
       const commanderScoreLabel = this.#formatNumber(rating.commanderScore, 1);

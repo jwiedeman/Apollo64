@@ -13,6 +13,7 @@ export class Simulation {
     scoreSystem = null,
     logger,
     tickRate = 20,
+    orbitPropagator = null,
   }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
@@ -23,6 +24,7 @@ export class Simulation {
     this.hud = hud;
     this.scoreSystem = scoreSystem;
     this.logger = logger;
+    this.orbitPropagator = orbitPropagator;
     this.clock = new SimulationClock({ tickRate });
     this.tickRate = tickRate;
   }
@@ -37,6 +39,9 @@ export class Simulation {
         this.manualActions.update(currentGet, dtSeconds);
       }
       this.scheduler.update(currentGet, dtSeconds);
+      if (this.orbitPropagator) {
+        this.orbitPropagator.update(dtSeconds, { getSeconds: currentGet + dtSeconds });
+      }
       this.resourceSystem.update(dtSeconds, currentGet);
       if (this.scoreSystem) {
         this.scoreSystem.update(currentGet, dtSeconds, {
@@ -56,6 +61,7 @@ export class Simulation {
           manualQueue: this.manualActions,
           rcsController: this.rcsController,
           scoreSystem: this.scoreSystem,
+          orbit: this.orbitPropagator,
         });
       }
       if (typeof onTick === 'function') {
@@ -70,6 +76,7 @@ export class Simulation {
           rcsController: this.rcsController,
           hud: this.hud,
           scoreSystem: this.scoreSystem,
+          orbit: this.orbitPropagator,
         });
         if (shouldContinue === false) {
           break;
@@ -87,6 +94,7 @@ export class Simulation {
     const rcsStats = this.rcsController ? this.rcsController.stats() : null;
     const hudStats = this.hud ? this.hud.stats() : null;
     const scoreSummary = this.scoreSystem ? this.scoreSystem.summary() : null;
+    const orbitSummary = this.orbitPropagator ? this.orbitPropagator.summary() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       ticks,
@@ -99,6 +107,7 @@ export class Simulation {
       rcs: rcsStats,
       hud: hudStats,
       score: scoreSummary,
+      orbit: orbitSummary,
     });
 
     return {
@@ -112,6 +121,7 @@ export class Simulation {
       rcs: rcsStats,
       hud: hudStats,
       score: scoreSummary,
+      orbit: orbitSummary,
     };
   }
 }

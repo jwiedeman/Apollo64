@@ -1157,6 +1157,12 @@ export class AutopilotRunner {
       deviations: {},
     };
 
+    const deltaVPerKg = this.#deltaVPerKg(state.propulsion.tankKey);
+
+    if (Number.isFinite(metrics.propellantKg) && Number.isFinite(deltaVPerKg)) {
+      summary.metrics.deltaVMps = metrics.propellantKg * deltaVPerKg;
+    }
+
     if (expected) {
       if (Number.isFinite(metrics.burnSeconds) && Number.isFinite(expected.burnSeconds)) {
         summary.deviations.burnSeconds = metrics.burnSeconds - expected.burnSeconds;
@@ -1168,10 +1174,14 @@ export class AutopilotRunner {
       if (Number.isFinite(metrics.propellantKg) && Number.isFinite(expected.propellantKg)) {
         const deltaKg = metrics.propellantKg - expected.propellantKg;
         summary.deviations.propellantKg = deltaKg;
-        const deltaVPerKg = this.#deltaVPerKg(state.propulsion.tankKey);
-        if (Number.isFinite(deltaVPerKg)) {
-          summary.deviations.deltaVMps = deltaKg * deltaVPerKg;
-        }
+      }
+      if (Number.isFinite(expected.propellantKg) && Number.isFinite(deltaVPerKg)) {
+        summary.expected.deltaVMps = expected.propellantKg * deltaVPerKg;
+      }
+      if (Number.isFinite(metrics.propellantKg) && Number.isFinite(expected.propellantKg) && Number.isFinite(deltaVPerKg)) {
+        const actualDeltaV = metrics.propellantKg * deltaVPerKg;
+        const expectedDeltaV = expected.propellantKg * deltaVPerKg;
+        summary.deviations.deltaVMps = actualDeltaV - expectedDeltaV;
       }
       if (Number.isFinite(metrics.ullageSeconds) && Number.isFinite(expected.ullageSeconds)) {
         summary.deviations.ullageSeconds = metrics.ullageSeconds - expected.ullageSeconds;
@@ -1189,11 +1199,13 @@ export class AutopilotRunner {
     if (!tankKey || !this.resourceSystem?.propellantConfig) {
       return null;
     }
-    const normalized = this.#normalizeTankKey(tankKey);
-    if (normalized !== 'csm_sps') {
+    const normalizedTank = this.#normalizeTankKey(tankKey);
+    const stageId = this.resourceSystem.deltaVStageByTank?.[normalizedTank]
+      ?? normalizedTank.replace(/_kg$/u, '');
+    if (!stageId) {
       return null;
     }
-    const config = this.resourceSystem.propellantConfig.csm_sps;
+    const config = this.resourceSystem.propellantConfig[stageId];
     if (!config) {
       return null;
     }

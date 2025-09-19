@@ -15,8 +15,23 @@ export class EventScheduler {
     this.options = options;
     this.checklistManager = options.checklistManager ?? null;
     this.autopilotRunner = options.autopilotRunner ?? null;
+    this.autopilotSummaryHandlers = [];
+    if (Array.isArray(options.autopilotSummaryHandlers)) {
+      for (const handler of options.autopilotSummaryHandlers) {
+        this.registerAutopilotSummaryHandler(handler);
+      }
+    }
+    if (typeof options.onAutopilotSummary === 'function') {
+      this.registerAutopilotSummaryHandler(options.onAutopilotSummary);
+    }
     this.events = events.map((event) => this.prepareEvent(event, autopilotMap));
     this.eventMap = new Map(this.events.map((event) => [event.id, event]));
+  }
+
+  registerAutopilotSummaryHandler(handler) {
+    if (typeof handler === 'function') {
+      this.autopilotSummaryHandlers.push(handler);
+    }
   }
 
   prepareEvent(event, autopilotMap) {
@@ -186,6 +201,9 @@ export class EventScheduler {
       event.lastAutopilotSummary =
         this.autopilotRunner.consumeEventSummary(event.id) ?? null;
     }
+    if (event.lastAutopilotSummary) {
+      this.#emitAutopilotSummary(event, event.lastAutopilotSummary);
+    }
   }
 
   maybeFail(event, currentGetSeconds, reason) {
@@ -292,6 +310,29 @@ export class EventScheduler {
     }
     if (autopilotSummary) {
       event.lastAutopilotSummary = autopilotSummary;
+    }
+    if (event.lastAutopilotSummary) {
+      this.#emitAutopilotSummary(event, event.lastAutopilotSummary);
+    }
+  }
+
+  #emitAutopilotSummary(event, summary) {
+    if (!summary || this.autopilotSummaryHandlers.length === 0) {
+      return;
+    }
+    for (const handler of this.autopilotSummaryHandlers) {
+      if (typeof handler !== 'function') {
+        continue;
+      }
+      try {
+        handler(event, summary);
+      } catch (error) {
+        this.logger?.log(summary.completedAtSeconds ?? event.completionTimeSeconds ?? 0, 'Autopilot summary handler error', {
+          eventId: event?.id ?? null,
+          autopilotId: summary?.autopilotId ?? null,
+          error: error?.message ?? String(error),
+        });
+      }
     }
   }
 

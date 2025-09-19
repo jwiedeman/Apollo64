@@ -1,5 +1,6 @@
 import path from 'path';
 import { DATA_DIR } from '../config/paths.js';
+import { DEFAULT_ORBIT_OPTIONS } from '../config/orbit.js';
 import { loadMissionData } from '../data/missionDataLoader.js';
 import { ManualActionQueue } from './manualActionQueue.js';
 import { EventScheduler } from './eventScheduler.js';
@@ -11,6 +12,7 @@ import { TextHud } from '../hud/textHud.js';
 import { UiFrameBuilder } from '../hud/uiFrameBuilder.js';
 import { ScoreSystem } from './scoreSystem.js';
 import { RcsController } from './rcsController.js';
+import { OrbitPropagator } from './orbitPropagator.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -34,6 +36,7 @@ export async function createSimulationContext({
   manualActionRecorder = null,
   manualQueueOptions = DEFAULT_OPTIONS.manualQueueOptions,
   hudOptions = null,
+  orbitOptions = null,
 } = {}) {
   const resolvedDataDir = path.resolve(dataDir);
   const missionData = await loadMissionData(resolvedDataDir, { logger });
@@ -57,6 +60,9 @@ export async function createSimulationContext({
     rcsController,
     manualActionRecorder,
   });
+
+  const orbitConfig = { ...DEFAULT_ORBIT_OPTIONS, ...(orbitOptions ?? {}) };
+  const orbitPropagator = new OrbitPropagator({ ...orbitConfig, logger });
 
   const hudConfig = { audioCues: missionData.audioCues, ...(hudOptions ?? {}) };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);
@@ -83,6 +89,28 @@ export async function createSimulationContext({
     });
   }
 
+  const autopilotSummaryHandlers = [];
+  if (orbitPropagator) {
+    autopilotSummaryHandlers.push((event, summary) => {
+      if (!summary || (summary.status && summary.status !== 'complete')) {
+        return;
+      }
+      const deltaVMps = summary.metrics?.deltaVMps ?? summary.expected?.deltaVMps ?? null;
+      if (!Number.isFinite(deltaVMps) || Math.abs(deltaVMps) <= 1e-3) {
+        return;
+      }
+      orbitPropagator.applyDeltaV(deltaVMps, {
+        frame: 'prograde',
+        getSeconds: summary.completedAtSeconds ?? event?.completionTimeSeconds ?? null,
+        metadata: {
+          eventId: summary.eventId ?? event?.id ?? null,
+          autopilotId: summary.autopilotId ?? event?.autopilotId ?? null,
+          status: summary.status ?? 'complete',
+        },
+      });
+    });
+  }
+
   const scheduler = new EventScheduler(
     missionData.events,
     missionData.autopilots,
@@ -92,6 +120,7 @@ export async function createSimulationContext({
       checklistManager,
       failures: missionData.failures,
       autopilotRunner,
+      autopilotSummaryHandlers,
     },
   );
 
@@ -114,6 +143,7 @@ export async function createSimulationContext({
     scoreSystem,
     logger,
     tickRate,
+    orbitPropagator,
   });
 
   return {
@@ -125,6 +155,7 @@ export async function createSimulationContext({
     manualActionQueue,
     autopilotRunner,
     rcsController,
+    orbitPropagator,
     hud,
     uiFrameBuilder,
     scoreSystem,

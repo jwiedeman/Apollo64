@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { UiFrameBuilder } from '../src/hud/uiFrameBuilder.js';
+import { EARTH_BODY } from '../src/config/orbit.js';
 
 describe('UiFrameBuilder', () => {
   test('summarizes scheduler, resources, autopilot, and checklist state', () => {
@@ -93,6 +94,37 @@ describe('UiFrameBuilder', () => {
       propellant: {
         csm_sps: [{ seconds: 90, remainingKg: 90 }],
       },
+    };
+
+    const orbitSummary = {
+      body: { id: 'earth', name: 'Earth' },
+      position: { radius: 6_778_000, altitude: 400_000 },
+      velocity: { speed: 7_670 },
+      elements: {
+        eccentricity: 0.0012,
+        inclinationDeg: 31.5,
+        raanDeg: 45.1,
+        argumentOfPeriapsisDeg: 12.3,
+        trueAnomalyDeg: 90.4,
+        periapsisAltitude: 200_000,
+        apoapsisAltitude: 210_000,
+        semiMajorAxis: 6_978_000,
+        periodSeconds: 5_500,
+      },
+      metrics: {
+        totalDeltaVMps: 10.5,
+        lastImpulse: { magnitude: 5.2, frame: 'prograde', appliedAtSeconds: 600 },
+      },
+      timeSeconds: 600,
+      epochSeconds: 600,
+    };
+
+    const orbitHistory = {
+      meta: { enabled: true, sampleIntervalSeconds: 60, maxSamples: 4, lastSampleSeconds: 120 },
+      samples: [
+        { seconds: 0, altitude: 400_000, altitudeKm: 400, radius: 6_778_000, speed: 7_670, speedKmPerSec: 7.67 },
+        { seconds: 120, altitude: 400_500, altitudeKm: 400.5, radius: 6_778_500, speed: 7_660, speedKmPerSec: 7.66 },
+      ],
     };
 
     const scoreSummary = {
@@ -246,6 +278,10 @@ describe('UiFrameBuilder', () => {
           dskyEntries: 0,
         }),
       },
+      orbit: {
+        summary: () => orbitSummary,
+        historySnapshot: () => orbitHistory,
+      },
       scoreSystem: {
         summary: () => scoreSummary,
       },
@@ -287,6 +323,14 @@ describe('UiFrameBuilder', () => {
     assert.ok(frame.resourceHistory);
     assert.equal(frame.resourceHistory.meta.enabled, true);
     assert.equal(frame.resourceHistory.power.length, 1);
+    assert.ok(frame.trajectory);
+    assert.equal(frame.trajectory.body.id, 'earth');
+    assert.equal(frame.trajectory.altitude.kilometers, 400);
+    assert.equal(frame.trajectory.elements.periapsisKm, 200);
+    assert.equal(frame.trajectory.elements.periodMinutes, 91.67);
+    assert.equal(frame.trajectory.metrics.totalDeltaVMps, 10.5);
+    assert.equal(frame.trajectory.metrics.lastImpulse.magnitude, 5.2);
+    assert.strictEqual(frame.trajectory.history, orbitHistory);
 
     assert.ok(frame.score);
     assert.equal(frame.score.rating.commanderScore, 76.5);
@@ -297,5 +341,55 @@ describe('UiFrameBuilder', () => {
       'FAIL_COMM_PASS_MISSED',
       'FAIL_POWER_LOW',
     ]);
+  });
+
+  test('flags low periapsis without duplicating alerts', () => {
+    function buildFrame(periapsisAltitudeMeters) {
+      const builder = new UiFrameBuilder();
+      const orbitSummary = {
+        body: { id: 'earth', name: 'Earth' },
+        position: {
+          radius: EARTH_BODY.radius + periapsisAltitudeMeters,
+          altitude: periapsisAltitudeMeters,
+        },
+        velocity: { speed: 7_670 },
+        elements: {
+          eccentricity: 0.001,
+          inclinationDeg: 30,
+          raanDeg: 45,
+          argumentOfPeriapsisDeg: 12,
+          trueAnomalyDeg: 90,
+          periapsisAltitude: periapsisAltitudeMeters,
+          apoapsisAltitude: periapsisAltitudeMeters + 50_000,
+          semiMajorAxis: EARTH_BODY.radius + periapsisAltitudeMeters + 25_000,
+          periodSeconds: 5_400,
+        },
+        metrics: {},
+      };
+
+      return builder.build(0, {
+        scheduler: { stats: () => ({ counts: {}, upcoming: [] }) },
+        resourceSystem: { snapshot: () => ({ propellant: {}, budgets: {} }) },
+        orbitSummary,
+      });
+    }
+
+    const warningFrame = buildFrame(40_000);
+    assert.equal(warningFrame.alerts.failures.length, 0);
+    assert.equal(warningFrame.alerts.cautions.length, 0);
+    assert.equal(warningFrame.alerts.warnings.length, 1);
+    assert.equal(warningFrame.alerts.warnings[0].id, 'orbit_periapsis_low');
+
+    const cautionFrame = buildFrame(100_000);
+    assert.equal(cautionFrame.alerts.failures.length, 0);
+    assert.equal(cautionFrame.alerts.warnings.length, 0);
+    assert.equal(cautionFrame.alerts.cautions.length, 1);
+    assert.equal(cautionFrame.alerts.cautions[0].id, 'orbit_periapsis_low');
+
+    const failureFrame = buildFrame(-1_000);
+    assert.equal(failureFrame.alerts.warnings.length, 0);
+    assert.equal(failureFrame.alerts.cautions.length, 0);
+    assert.equal(failureFrame.alerts.failures.length, 1);
+    assert.equal(failureFrame.alerts.failures[0].id, 'orbit_periapsis_below_surface');
   });
 });

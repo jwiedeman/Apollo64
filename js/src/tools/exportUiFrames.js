@@ -47,7 +47,7 @@ async function main() {
   });
 
   const frames = [];
-  const { uiFrameBuilder, simulation, scoreSystem: contextScoreSystem } = context;
+  const { uiFrameBuilder, simulation, scoreSystem: contextScoreSystem, orbitPropagator } = context;
   const startSeconds = Math.max(0, args.startSeconds);
   const intervalSeconds = args.intervalSeconds;
   let nextSampleSeconds = startSeconds;
@@ -78,6 +78,7 @@ async function main() {
         manualQueue,
         rcsController,
         scoreSystem: tickScoreSystem,
+        orbit: orbitPropagator,
       });
       frames.push(frame);
       captured = true;
@@ -100,6 +101,7 @@ async function main() {
         manualQueue,
         rcsController,
         scoreSystem: tickScoreSystem,
+        orbit: orbitPropagator,
       });
       frames.push(frame);
       if (frames.length >= args.maxFrames) {
@@ -125,6 +127,7 @@ async function main() {
       rcsController: context.rcsController,
       scoreSystem: contextScoreSystem,
       scoreSummary: summary.score ?? null,
+      orbit: orbitPropagator,
     });
     frames.push(finalFrame);
   }

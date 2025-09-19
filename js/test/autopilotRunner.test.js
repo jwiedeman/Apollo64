@@ -12,7 +12,15 @@ describe('AutopilotRunner', () => {
         propellantCalls.push({ tankKey, amountKg, metadata });
         return true;
       },
-      propellantConfig: {},
+      propellantConfig: {
+        csm_sps: {
+          initialKg: 950,
+          reserveKg: 50,
+          usableDeltaVMps: 1900,
+          tankKey: 'csm_sps_kg',
+        },
+      },
+      deltaVStageByTank: { csm_sps_kg: 'csm_sps' },
     };
 
     const logger = createTestLogger();
@@ -55,6 +63,9 @@ describe('AutopilotRunner', () => {
     assert.ok(Math.abs(summary.metrics.throttleIntegralSeconds - 5) < 1e-3);
     assert.ok(Math.abs(summary.deviations.burnSeconds) < 1e-3);
     assert.ok(Math.abs(summary.deviations.propellantKg) < 1e-3);
+    assert.ok(Math.abs(summary.metrics.deltaVMps - (1900 / 900) * 50) < 1e-3);
+    assert.ok(Math.abs(summary.expected.deltaVMps - summary.metrics.deltaVMps) < 1e-3);
+    assert.ok(Math.abs(summary.deviations.deltaVMps) < 1e-3);
 
     assert.ok(Math.abs(runner.metrics.totalBurnSeconds - 5) < 1e-3);
     assert.ok(Math.abs(runner.metrics.totalThrottleIntegralSeconds - 5) < 1e-3);

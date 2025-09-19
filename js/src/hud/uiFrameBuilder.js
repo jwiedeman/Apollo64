@@ -18,6 +18,8 @@ const DEFAULT_OPTIONS = {
   warningPropellantPct: 15,
   cautionCryoRatePctPerHr: 1.5,
   warningCryoRatePctPerHr: 2.5,
+  cautionPeriapsisKm: 120,
+  warningPeriapsisKm: 85,
   includeResourceHistory: false,
 };
 
@@ -54,7 +56,12 @@ export class UiFrameBuilder {
       }
     }
     const resources = this.#summarizeResources(resourceSnapshot);
-    const alerts = resources?.alerts ?? { warnings: [], cautions: [], failures: [] };
+    const baseAlerts = resources?.alerts ?? { warnings: [], cautions: [], failures: [] };
+    const alerts = {
+      warnings: [...(baseAlerts.warnings ?? [])],
+      cautions: [...(baseAlerts.cautions ?? [])],
+      failures: [...(baseAlerts.failures ?? [])],
+    };
 
     const autopilotStats = context.autopilotRunner?.stats?.() ?? null;
     const autopilot = this.#summarizeAutopilot(autopilotStats);
@@ -68,6 +75,28 @@ export class UiFrameBuilder {
       context.scoreSummary
       ?? (context.scoreSystem?.summary ? context.scoreSystem.summary() : null);
     const score = this.#summarizeScore(scoreSummary);
+
+    const orbitSummary = context.orbitSummary
+      ?? (context.orbit?.summary ? context.orbit.summary() : null);
+    const trajectory = this.#summarizeTrajectory(orbitSummary);
+    let trajectoryHistory = null;
+    if (context.orbitHistory) {
+      trajectoryHistory = context.orbitHistory;
+    } else if (context.orbit?.historySnapshot) {
+      trajectoryHistory = context.orbit.historySnapshot();
+    }
+
+    if (trajectory?.alerts) {
+      if (Array.isArray(trajectory.alerts.warnings)) {
+        alerts.warnings.push(...trajectory.alerts.warnings.map((entry) => ({ ...entry })));
+      }
+      if (Array.isArray(trajectory.alerts.cautions)) {
+        alerts.cautions.push(...trajectory.alerts.cautions.map((entry) => ({ ...entry })));
+      }
+      if (Array.isArray(trajectory.alerts.failures)) {
+        alerts.failures.push(...trajectory.alerts.failures.map((entry) => ({ ...entry })));
+      }
+    }
 
     const frame = {
       generatedAtSeconds: currentGetSeconds,
@@ -87,6 +116,15 @@ export class UiFrameBuilder {
 
     if (includeHistory && resourceHistory) {
       frame.resourceHistory = resourceHistory;
+    }
+
+    if (trajectory) {
+      if (trajectoryHistory) {
+        trajectory.history = trajectoryHistory;
+      }
+      frame.trajectory = trajectory;
+    } else if (trajectoryHistory) {
+      frame.trajectoryHistory = trajectoryHistory;
     }
 
     this.lastFrame = frame;
@@ -427,6 +465,92 @@ export class UiFrameBuilder {
           manual: this.#summarizeScoreBreakdown(breakdown.manual),
         },
       },
+    };
+  }
+
+  #summarizeTrajectory(summary) {
+    if (!summary || typeof summary !== 'object') {
+      return null;
+    }
+
+    const body = summary.body ?? {};
+    const altitudeMeters = this.#coerceNumber(summary.position?.altitude);
+    const altitudeKm = Number.isFinite(altitudeMeters) ? this.#roundNumber(altitudeMeters / 1000, 1) : null;
+    const radiusMeters = this.#coerceNumber(summary.position?.radius);
+    const radiusKm = Number.isFinite(radiusMeters) ? this.#roundNumber(radiusMeters / 1000, 1) : null;
+    const speed = this.#coerceNumber(summary.velocity?.speed);
+    const speedKmPerSec = Number.isFinite(speed) ? this.#roundNumber(speed / 1000, 3) : null;
+
+    const elements = summary.elements ?? {};
+    const eccentricity = this.#coerceNumber(elements.eccentricity);
+    const inclinationDeg = this.#coerceNumber(elements.inclinationDeg ?? elements.inclination_rad_deg);
+    const raanDeg = this.#coerceNumber(elements.raanDeg ?? elements.raan_rad_deg);
+    const argPeriapsisDeg = this.#coerceNumber(
+      elements.argumentOfPeriapsisDeg ?? elements.argument_of_periapsis_deg,
+    );
+    const trueAnomalyDeg = this.#coerceNumber(elements.trueAnomalyDeg ?? elements.true_anomaly_deg);
+    const periapsisAltitude = this.#coerceNumber(elements.periapsisAltitude);
+    const apoapsisAltitude = this.#coerceNumber(elements.apoapsisAltitude);
+    const semiMajorAxis = this.#coerceNumber(elements.semiMajorAxis);
+    const periodSeconds = this.#coerceNumber(elements.periodSeconds);
+
+    const alerts = { warnings: [], cautions: [], failures: [] };
+    if (Number.isFinite(periapsisAltitude)) {
+      const periapsisKm = periapsisAltitude / 1000;
+      if (periapsisKm < 0) {
+        alerts.failures.push({ id: 'orbit_periapsis_below_surface', value: this.#roundNumber(periapsisKm, 1) });
+      } else if (periapsisKm <= this.options.warningPeriapsisKm) {
+        alerts.warnings.push({ id: 'orbit_periapsis_low', value: this.#roundNumber(periapsisKm, 1) });
+      } else if (periapsisKm <= this.options.cautionPeriapsisKm) {
+        alerts.cautions.push({ id: 'orbit_periapsis_low', value: this.#roundNumber(periapsisKm, 1) });
+      }
+    }
+
+    const metrics = summary.metrics ?? {};
+    const lastImpulse = metrics.lastImpulse ?? null;
+
+    return {
+      body: {
+        id: typeof body.id === 'string' ? body.id : null,
+        name: typeof body.name === 'string' ? body.name : null,
+      },
+      altitude: {
+        meters: altitudeMeters,
+        kilometers: altitudeKm,
+      },
+      radiusKm,
+      speed: {
+        metersPerSecond: Number.isFinite(speed) ? this.#roundNumber(speed, 1) : null,
+        kilometersPerSecond: speedKmPerSec,
+      },
+      elements: {
+        eccentricity: Number.isFinite(eccentricity) ? this.#roundNumber(eccentricity, 4) : null,
+        inclinationDeg: Number.isFinite(inclinationDeg) ? this.#roundNumber(inclinationDeg, 2) : null,
+        raanDeg: Number.isFinite(raanDeg) ? this.#roundNumber(raanDeg, 2) : null,
+        argumentOfPeriapsisDeg: Number.isFinite(argPeriapsisDeg)
+          ? this.#roundNumber(argPeriapsisDeg, 2)
+          : null,
+        trueAnomalyDeg: Number.isFinite(trueAnomalyDeg) ? this.#roundNumber(trueAnomalyDeg, 2) : null,
+        periapsisKm: Number.isFinite(periapsisAltitude) ? this.#roundNumber(periapsisAltitude / 1000, 1) : null,
+        apoapsisKm: Number.isFinite(apoapsisAltitude) ? this.#roundNumber(apoapsisAltitude / 1000, 1) : null,
+        semiMajorAxisKm: Number.isFinite(semiMajorAxis) ? this.#roundNumber(semiMajorAxis / 1000, 1) : null,
+        periodMinutes: Number.isFinite(periodSeconds) ? this.#roundNumber(periodSeconds / 60, 2) : null,
+      },
+      metrics: {
+        totalDeltaVMps: Number.isFinite(metrics.totalDeltaVMps)
+          ? this.#roundNumber(metrics.totalDeltaVMps, 1)
+          : null,
+        lastImpulse: lastImpulse
+          ? {
+              magnitude: Number.isFinite(lastImpulse.magnitude)
+                ? this.#roundNumber(lastImpulse.magnitude, 1)
+                : null,
+              frame: lastImpulse.frame ?? null,
+              appliedAtSeconds: this.#coerceNumber(lastImpulse.appliedAtSeconds),
+            }
+          : null,
+      },
+      alerts,
     };
   }
 
