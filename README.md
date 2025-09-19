@@ -93,6 +93,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/ui/logging_accessibility_guidelines.md`](docs/ui/logging_accessibility_guidelines.md) – Deterministic logging contract, replay export pipeline, and accessibility baselines (color, captioning, input remapping) for the presentation layer.
 - [`docs/ui/manual_actions_reference.md`](docs/ui/manual_actions_reference.md) – Runtime contract for enqueuing manual checklist acknowledgements, resource deltas, propellant burns, and DSKY macros from the UI or parity tooling.
 - [`docs/scoring/commander_rating.md`](docs/scoring/commander_rating.md) – Commander rating model, telemetry inputs, and weighting used by the simulation score system.
+- [`docs/testing/REGRESSION_PLAN.md`](docs/testing/REGRESSION_PLAN.md) – Regression workflow covering dataset validation, parity harness runs, autopilot analysis, and HUD frame exports.
 
 ## Contribution Notes
 - Follow the guidelines in [`AGENTS.md`](AGENTS.md) for documentation structure and future implementation phases.
