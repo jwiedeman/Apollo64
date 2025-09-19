@@ -329,6 +329,401 @@ class AudioCuePack:
         )
 
 
+def _normalize_string_list(values: Optional[List[Any]]) -> List[str]:
+    """Return ``values`` as a list of stripped strings."""
+
+    if not values:
+        return []
+    normalized: List[str] = []
+    for value in values:
+        text = clean_string(value)
+        if text:
+            normalized.append(text)
+    return normalized
+
+
+@dataclass
+class UiChecklistControlRequirement:
+    """Control prerequisite referenced by a UI checklist step."""
+
+    control_id: str
+    target_state: Optional[str]
+    verification: Optional[str]
+    tolerance: Optional[float]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiChecklistControlRequirement":
+        return cls(
+            control_id=clean_string(payload.get("controlId")) or "",
+            target_state=clean_string(payload.get("targetState")),
+            verification=clean_string(payload.get("verification")),
+            tolerance=safe_float(payload.get("tolerance")) if payload.get("tolerance") is not None else None,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiChecklistStep:
+    """Single interactive step from ``docs/ui/checklists.json``."""
+
+    id: str
+    order: int
+    callout: str
+    panel_id: Optional[str]
+    controls: List[UiChecklistControlRequirement]
+    dsky_macro: Optional[str]
+    manual_only: Optional[bool]
+    prerequisites: List[str]
+    effects: List[Dict[str, Any]]
+    notes: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiChecklistStep":
+        controls_payload = payload.get("controls")
+        controls: List[UiChecklistControlRequirement] = []
+        if isinstance(controls_payload, list):
+            for entry in controls_payload:
+                if isinstance(entry, dict):
+                    controls.append(UiChecklistControlRequirement.from_dict(entry))
+
+        effects_payload = payload.get("effects")
+        effects: List[Dict[str, Any]] = []
+        if isinstance(effects_payload, list):
+            effects = [dict(effect) for effect in effects_payload if isinstance(effect, dict)]
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            order=safe_int(payload.get("order")) or 0,
+            callout=clean_string(payload.get("callout")) or "",
+            panel_id=clean_string(payload.get("panel")),
+            controls=controls,
+            dsky_macro=clean_string(payload.get("dskyMacro")),
+            manual_only=safe_bool(payload.get("manualOnly")),
+            prerequisites=_normalize_string_list(payload.get("prerequisites")),
+            effects=effects,
+            notes=clean_string(payload.get("notes")),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiChecklist:
+    """Checklist definition consumed by the UI layer."""
+
+    id: str
+    title: str
+    phase: Optional[str]
+    role: Optional[str]
+    nominal_get: Optional[str]
+    source: Dict[str, Any]
+    steps: List[UiChecklistStep]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiChecklist":
+        steps_payload = payload.get("steps")
+        steps: List[UiChecklistStep] = []
+        if isinstance(steps_payload, list):
+            for entry in steps_payload:
+                if isinstance(entry, dict):
+                    steps.append(UiChecklistStep.from_dict(entry))
+
+        source = payload.get("source")
+        source_payload = dict(source) if isinstance(source, dict) else {}
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            title=clean_string(payload.get("title")) or "",
+            phase=clean_string(payload.get("phase")),
+            role=clean_string(payload.get("role")),
+            nominal_get=clean_string(payload.get("nominalGet")),
+            source=source_payload,
+            steps=steps,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiChecklistPack:
+    """Top-level container for UI checklist definitions."""
+
+    version: Optional[int]
+    checklists: List[UiChecklist]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiChecklistPack":
+        checklists_payload = payload.get("checklists")
+        checklists: List[UiChecklist] = []
+        if isinstance(checklists_payload, list):
+            for entry in checklists_payload:
+                if isinstance(entry, dict):
+                    checklists.append(UiChecklist.from_dict(entry))
+
+        return cls(
+            version=safe_int(payload.get("version")),
+            checklists=checklists,
+            raw=dict(payload),
+        )
+
+    def checklist_map(self) -> Dict[str, UiChecklist]:
+        return {checklist.id: checklist for checklist in self.checklists}
+
+
+@dataclass
+class UiPanelControlState:
+    """Enumerated state for a UI panel control."""
+
+    id: str
+    label: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiPanelControlState":
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            label=clean_string(payload.get("label")),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiPanelControl:
+    """Interactive control on a panel schematic."""
+
+    id: str
+    type: Optional[str]
+    label: Optional[str]
+    default_state: Optional[str]
+    states: List[UiPanelControlState]
+    dependencies: List[Dict[str, Any]]
+    telemetry: Dict[str, Any]
+    effects: List[Dict[str, Any]]
+    notes: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiPanelControl":
+        states_payload = payload.get("states")
+        states: List[UiPanelControlState] = []
+        if isinstance(states_payload, list):
+            for entry in states_payload:
+                if isinstance(entry, dict):
+                    states.append(UiPanelControlState.from_dict(entry))
+
+        dependencies_payload = payload.get("dependencies")
+        dependencies: List[Dict[str, Any]] = []
+        if isinstance(dependencies_payload, list):
+            dependencies = [dict(entry) for entry in dependencies_payload if isinstance(entry, dict)]
+
+        effects_payload = payload.get("effects")
+        effects: List[Dict[str, Any]] = []
+        if isinstance(effects_payload, list):
+            effects = [dict(entry) for entry in effects_payload if isinstance(entry, dict)]
+
+        telemetry_payload = payload.get("telemetry")
+        telemetry = dict(telemetry_payload) if isinstance(telemetry_payload, dict) else {}
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            type=clean_string(payload.get("type")),
+            label=clean_string(payload.get("label")),
+            default_state=clean_string(payload.get("defaultState")),
+            states=states,
+            dependencies=dependencies,
+            telemetry=telemetry,
+            effects=effects,
+            notes=clean_string(payload.get("notes")),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiPanelAlert:
+    """Alert definition attached to a panel."""
+
+    id: str
+    severity: Optional[str]
+    trigger: Dict[str, Any]
+    message: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiPanelAlert":
+        trigger_payload = payload.get("trigger")
+        trigger = dict(trigger_payload) if isinstance(trigger_payload, dict) else {}
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            severity=clean_string(payload.get("severity")),
+            trigger=trigger,
+            message=clean_string(payload.get("message")),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiPanel:
+    """Panel schematic definition consumed by the UI layer."""
+
+    id: str
+    name: Optional[str]
+    craft: Optional[str]
+    layout: Dict[str, Any]
+    controls: List[UiPanelControl]
+    alerts: List[UiPanelAlert]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiPanel":
+        layout_payload = payload.get("layout")
+        layout = dict(layout_payload) if isinstance(layout_payload, dict) else {}
+
+        controls_payload = payload.get("controls")
+        controls: List[UiPanelControl] = []
+        if isinstance(controls_payload, list):
+            for entry in controls_payload:
+                if isinstance(entry, dict):
+                    controls.append(UiPanelControl.from_dict(entry))
+
+        alerts_payload = payload.get("alerts")
+        alerts: List[UiPanelAlert] = []
+        if isinstance(alerts_payload, list):
+            for entry in alerts_payload:
+                if isinstance(entry, dict):
+                    alerts.append(UiPanelAlert.from_dict(entry))
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            name=clean_string(payload.get("name")),
+            craft=clean_string(payload.get("craft")),
+            layout=layout,
+            controls=controls,
+            alerts=alerts,
+            raw=dict(payload),
+        )
+
+    def control_map(self) -> Dict[str, UiPanelControl]:
+        return {control.id: control for control in self.controls}
+
+
+@dataclass
+class UiPanelPack:
+    """Top-level container for panel schematics."""
+
+    version: Optional[int]
+    panels: List[UiPanel]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiPanelPack":
+        panels_payload = payload.get("panels")
+        panels: List[UiPanel] = []
+        if isinstance(panels_payload, list):
+            for entry in panels_payload:
+                if isinstance(entry, dict):
+                    panels.append(UiPanel.from_dict(entry))
+
+        return cls(
+            version=safe_int(payload.get("version")),
+            panels=panels,
+            raw=dict(payload),
+        )
+
+    def panel_map(self) -> Dict[str, UiPanel]:
+        return {panel.id: panel for panel in self.panels}
+
+
+@dataclass
+class UiWorkspaceTile:
+    """Tile definition within a workspace preset."""
+
+    id: str
+    window: Optional[str]
+    x: Optional[float]
+    y: Optional[float]
+    width: Optional[float]
+    height: Optional[float]
+    constraints: Dict[str, Any]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiWorkspaceTile":
+        constraints_payload = payload.get("constraints")
+        constraints = dict(constraints_payload) if isinstance(constraints_payload, dict) else {}
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            window=clean_string(payload.get("window")),
+            x=safe_float(payload.get("x")) if payload.get("x") is not None else None,
+            y=safe_float(payload.get("y")) if payload.get("y") is not None else None,
+            width=safe_float(payload.get("width")) if payload.get("width") is not None else None,
+            height=safe_float(payload.get("height")) if payload.get("height") is not None else None,
+            constraints=constraints,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiWorkspace:
+    """Workspace layout preset for tile mode."""
+
+    id: str
+    name: Optional[str]
+    description: Optional[str]
+    viewport: Dict[str, Any]
+    tiles: List[UiWorkspaceTile]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiWorkspace":
+        viewport_payload = payload.get("viewport")
+        viewport = dict(viewport_payload) if isinstance(viewport_payload, dict) else {}
+
+        tiles_payload = payload.get("tiles")
+        tiles: List[UiWorkspaceTile] = []
+        if isinstance(tiles_payload, list):
+            for entry in tiles_payload:
+                if isinstance(entry, dict):
+                    tiles.append(UiWorkspaceTile.from_dict(entry))
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            name=clean_string(payload.get("name")),
+            description=clean_string(payload.get("description")),
+            viewport=viewport,
+            tiles=tiles,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiWorkspacePack:
+    """Collection of workspace presets."""
+
+    version: Optional[int]
+    presets: List[UiWorkspace]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiWorkspacePack":
+        presets_payload = payload.get("presets")
+        presets: List[UiWorkspace] = []
+        if isinstance(presets_payload, list):
+            for entry in presets_payload:
+                if isinstance(entry, dict):
+                    presets.append(UiWorkspace.from_dict(entry))
+
+        return cls(
+            version=safe_int(payload.get("version")),
+            presets=presets,
+            raw=dict(payload),
+        )
+
+    def preset_map(self) -> Dict[str, UiWorkspace]:
+        return {workspace.id: workspace for workspace in self.presets}
+
+
 @dataclass
 class MissionData:
     """Container aggregating the parsed mission datasets."""
@@ -342,6 +737,9 @@ class MissionData:
     communications: Dict[str, Any]
     thrusters: Dict[str, Any]
     audio_cues: AudioCuePack
+    ui_checklists: Optional[UiChecklistPack] = None
+    ui_panels: Optional[UiPanelPack] = None
+    ui_workspaces: Optional[UiWorkspacePack] = None
 
     def event_map(self) -> Dict[str, EventRecord]:
         return {event.id: event for event in self.events}
@@ -354,3 +752,13 @@ class MissionData:
 
     def autopilot_map(self) -> Dict[str, AutopilotRecord]:
         return {auto.id: auto for auto in self.autopilots}
+
+    def ui_panel_map(self) -> Dict[str, UiPanel]:
+        if not self.ui_panels:
+            return {}
+        return self.ui_panels.panel_map()
+
+    def ui_checklist_map(self) -> Dict[str, UiChecklist]:
+        if not self.ui_checklists:
+            return {}
+        return self.ui_checklists.checklist_map()

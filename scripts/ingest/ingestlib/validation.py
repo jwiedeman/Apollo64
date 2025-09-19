@@ -6,11 +6,22 @@ import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
-from .records import MissionData
+from .records import (
+    MissionData,
+    UiChecklist,
+    UiChecklistPack,
+    UiPanel,
+    UiPanelControl,
+    UiPanelPack,
+    UiWorkspacePack,
+)
 from .time import parse_get
 from .utils import clean_string
 
 _ALLOWED_FAILURE_CLASSES = {"Recoverable", "Hard", "Technical"}
+_UI_PHASES = {"Launch", "Translunar", "LunarOrbit", "Surface", "Transearth", "Entry"}
+_UI_ROLES = {"CDR", "CMP", "LMP", "Joint"}
+_UI_CONTROL_TYPES = {"toggle", "enum", "rotary", "momentary", "analog"}
 
 
 @dataclass
@@ -197,6 +208,7 @@ def validate_mission_data(mission_data: MissionData) -> List[ValidationIssue]:
 
     issues.extend(_validate_communications_schedule(mission_data.communications))
     issues.extend(_validate_consumables_pack(mission_data.consumables))
+    issues.extend(_validate_ui_packs(mission_data))
 
     audio_pack = mission_data.audio_cues
     if audio_pack:
@@ -632,6 +644,206 @@ def _parse_get_field(
         return None
     return seconds
 
+
+
+
+def _validate_ui_packs(mission_data: MissionData) -> List[ValidationIssue]:
+    issues: List[ValidationIssue] = []
+
+    panel_pack: Optional[UiPanelPack] = mission_data.ui_panels
+    panel_map: Dict[str, UiPanel] = {}
+    control_maps: Dict[str, Dict[str, UiPanelControl]] = {}
+    if panel_pack:
+        for panel in panel_pack.panels:
+            if not panel.id:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_panels",
+                        message="Panel entry is missing an id",
+                        context={"panel": panel.raw},
+                    )
+                )
+                continue
+            if panel.id in panel_map:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_panels",
+                        message="Duplicate panel id",
+                        context={"panel_id": panel.id},
+                    )
+                )
+                continue
+            panel_map[panel.id] = panel
+
+            seen_controls: Set[str] = set()
+            for control in panel.controls:
+                if not control.id:
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            category="ui_panels",
+                            message="Panel control missing id",
+                            context={"panel_id": panel.id, "control": control.raw},
+                        )
+                    )
+                    continue
+                if control.id in seen_controls:
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            category="ui_panels",
+                            message="Duplicate control id within panel",
+                            context={"panel_id": panel.id, "control_id": control.id},
+                        )
+                    )
+                seen_controls.add(control.id)
+                if control.type and control.type not in _UI_CONTROL_TYPES:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_panels",
+                            message="Unknown panel control type",
+                            context={"panel_id": panel.id, "control_id": control.id, "type": control.type},
+                        )
+                    )
+
+            control_maps[panel.id] = panel.control_map()
+
+    checklist_pack: Optional[UiChecklistPack] = mission_data.ui_checklists
+    if checklist_pack:
+        seen_checklists: Set[str] = set()
+        for checklist in checklist_pack.checklists:
+            if not checklist.id:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_checklists",
+                        message="Checklist entry missing id",
+                        context={"checklist": checklist.raw},
+                    )
+                )
+                continue
+            if checklist.id in seen_checklists:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_checklists",
+                        message="Duplicate checklist id",
+                        context={"checklist_id": checklist.id},
+                    )
+                )
+            seen_checklists.add(checklist.id)
+
+            if checklist.phase and checklist.phase not in _UI_PHASES:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="ui_checklists",
+                        message="Checklist references unknown phase",
+                        context={"checklist_id": checklist.id, "phase": checklist.phase},
+                    )
+                )
+            if checklist.role and checklist.role not in _UI_ROLES:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="ui_checklists",
+                        message="Checklist references unknown crew role",
+                        context={"checklist_id": checklist.id, "role": checklist.role},
+                    )
+                )
+
+            for step in checklist.steps:
+                panel_id = step.panel_id
+                control_map = control_maps.get(panel_id) if panel_id else {}
+                if panel_id and panel_id not in panel_map:
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            category="ui_checklists",
+                            message="Checklist step references unknown panel",
+                            context={"checklist_id": checklist.id, "step_id": step.id, "panel_id": panel_id},
+                        )
+                    )
+
+                for requirement in step.controls:
+                    if not requirement.control_id:
+                        issues.append(
+                            ValidationIssue(
+                                level="warning",
+                                category="ui_checklists",
+                                message="Checklist control requirement missing controlId",
+                                context={"checklist_id": checklist.id, "step_id": step.id},
+                            )
+                        )
+                        continue
+                    if control_map and requirement.control_id not in control_map:
+                        issues.append(
+                            ValidationIssue(
+                                level="error",
+                                category="ui_checklists",
+                                message="Checklist references unknown panel control",
+                                context={
+                                    "checklist_id": checklist.id,
+                                    "step_id": step.id,
+                                    "panel_id": panel_id,
+                                    "control_id": requirement.control_id,
+                                },
+                            )
+                        )
+
+    workspace_pack: Optional[UiWorkspacePack] = mission_data.ui_workspaces
+    if workspace_pack:
+        seen_workspaces: Set[str] = set()
+        for workspace in workspace_pack.presets:
+            if not workspace.id:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_workspaces",
+                        message="Workspace preset missing id",
+                        context={"workspace": workspace.raw},
+                    )
+                )
+                continue
+            if workspace.id in seen_workspaces:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_workspaces",
+                        message="Duplicate workspace id",
+                        context={"workspace_id": workspace.id},
+                    )
+                )
+                continue
+            seen_workspaces.add(workspace.id)
+
+            seen_tiles: Set[str] = set()
+            for tile in workspace.tiles:
+                if not tile.id:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_workspaces",
+                            message="Workspace tile missing id",
+                            context={"workspace_id": workspace.id, "tile": tile.raw},
+                        )
+                    )
+                    continue
+                if tile.id in seen_tiles:
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            category="ui_workspaces",
+                            message="Duplicate tile id within workspace",
+                            context={"workspace_id": workspace.id, "tile_id": tile.id},
+                        )
+                    )
+                seen_tiles.add(tile.id)
+
+    return issues
 
 def _looks_numeric_field(name: str) -> bool:
     numeric_suffixes = (

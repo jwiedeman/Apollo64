@@ -26,17 +26,21 @@ Running notebooks in this sequence ensures that event windows, checklists, PADs,
 
 ## Shared Notebook Helpers
 
-The helper package under [`scripts/ingest/ingestlib/`](../../scripts/ingest/ingestlib) centralizes GET conversions, typed record objects, dataset loaders, validation routines, and provenance table builders. Import these modules directly from notebooks so the ingestion flow stays aligned with the JS validator and future automation.
+The helper package under [`scripts/ingest/ingestlib/`](../../scripts/ingest/ingestlib) centralizes GET conversions, typed record objects, dataset loaders (including the UI definition bundles under `docs/ui/`), validation routines, and provenance table builders. Import these modules directly from notebooks so the ingestion flow stays aligned with the JS validator and future automation.
 
 ```python
 # Ensure PYTHONPATH includes scripts/ingest when running this snippet outside the notebook environment.
 from pathlib import Path
 from ingestlib import load_mission_data, validate_mission_data
 
-mission = load_mission_data(Path('..') / '..' / 'docs' / 'data')
+data_dir = Path('..') / '..' / 'docs' / 'data'
+ui_dir = Path('..') / '..' / 'docs' / 'ui'
+mission = load_mission_data(data_dir, ui_dir=ui_dir)
 issues = validate_mission_data(mission)
 print(f"Validation issues: {len(issues)}")
 ```
+
+`MissionData` now exposes `ui_checklists`, `ui_panels`, and `ui_workspaces` alongside the historical datasets so notebooks can trace panel/control references or generate UI fixtures without reparsing the JSON packs.
 
 Use `ProvenanceBuilder` from the same package to append table rows to `docs/data/provenance.md` when exporting refreshed CSVs.
 
