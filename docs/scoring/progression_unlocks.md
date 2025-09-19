@@ -37,6 +37,8 @@ Progression consumes the same summary payload emitted by
 The parity harness (`npm run parity`) already records the summary block, making
 it straightforward to diff unlock state across auto/manual regression runs.
 
+`ProgressionService` in [`js/src/sim/progressionService.js`](../../js/src/sim/progressionService.js) implements these evaluation rules today, normalising mission summaries, tracking completions, persisting unlock metadata, and emitting achievement entries that match the tables below.
+
 ## Unlock Tracks
 Progression is divided into three complementary tracks so players always have a
 clear goal, whether chasing higher commander ratings or exploring alternate
