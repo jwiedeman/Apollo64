@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from .records import MissionData
 from .time import parse_get
@@ -197,6 +197,153 @@ def validate_mission_data(mission_data: MissionData) -> List[ValidationIssue]:
 
     issues.extend(_validate_communications_schedule(mission_data.communications))
     issues.extend(_validate_consumables_pack(mission_data.consumables))
+
+    audio_pack = mission_data.audio_cues
+    if audio_pack:
+        bus_ids: Set[str] = set()
+        for bus in audio_pack.buses:
+            if not bus.id:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Audio bus is missing an id",
+                        context={"bus": bus.raw},
+                    )
+                )
+                continue
+            if bus.id in bus_ids:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Duplicate audio bus id",
+                        context={"bus_id": bus.id},
+                    )
+                )
+            bus_ids.add(bus.id)
+            if bus.max_concurrent is not None and bus.max_concurrent <= 0:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="audio",
+                        message="Audio bus maxConcurrent should be positive",
+                        context={"bus_id": bus.id, "value": bus.max_concurrent},
+                    )
+                )
+
+        known_bus_ids = set(bus_ids)
+        for bus in audio_pack.buses:
+            for rule in bus.ducking:
+                if rule.target and rule.target not in known_bus_ids:
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            category="audio",
+                            message="Audio bus ducking references unknown target",
+                            context={"bus_id": bus.id, "target": rule.target},
+                        )
+                    )
+
+        category_ids: Set[str] = set()
+        for category in audio_pack.categories:
+            if not category.id:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Audio category is missing an id",
+                        context={"category": category.raw},
+                    )
+                )
+                continue
+            if category.id in category_ids:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Duplicate audio category id",
+                        context={"category_id": category.id},
+                    )
+                )
+            category_ids.add(category.id)
+            if category.bus and category.bus not in known_bus_ids:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Audio category references unknown bus",
+                        context={"category_id": category.id, "bus": category.bus},
+                    )
+                )
+
+        cue_ids: Set[str] = set()
+        for cue in audio_pack.cues:
+            if not cue.id:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Audio cue is missing an id",
+                        context={"cue": cue.raw},
+                    )
+                )
+                continue
+            if cue.id in cue_ids:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Duplicate audio cue id",
+                        context={"cue_id": cue.id},
+                    )
+                )
+            cue_ids.add(cue.id)
+            if cue.category and cue.category not in category_ids:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Audio cue references unknown category",
+                        context={"cue_id": cue.id, "category": cue.category},
+                    )
+                )
+            if cue.length_seconds is not None and cue.length_seconds <= 0:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="audio",
+                        message="Audio cue lengthSeconds should be positive",
+                        context={"cue_id": cue.id, "lengthSeconds": cue.length_seconds},
+                    )
+                )
+            if cue.cooldown_seconds is not None and cue.cooldown_seconds < 0:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="audio",
+                        message="Audio cue cooldownSeconds should not be negative",
+                        context={"cue_id": cue.id, "cooldownSeconds": cue.cooldown_seconds},
+                    )
+                )
+            if not cue.assets:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="audio",
+                        message="Audio cue must define at least one asset path",
+                        context={"cue_id": cue.id},
+                    )
+                )
+            if not cue.source:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="audio",
+                        message="Audio cue is missing a source citation",
+                        context={"cue_id": cue.id},
+                    )
+                )
 
     issues.sort()
     return issues

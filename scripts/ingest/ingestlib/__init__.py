@@ -11,6 +11,10 @@ from .loader import load_mission_data
 from .provenance import ProvenanceBuilder
 from .records import (
     AutopilotRecord,
+    AudioBus,
+    AudioCategory,
+    AudioCue,
+    AudioCuePack,
     ChecklistEntry,
     EventRecord,
     FailureRecord,
@@ -24,6 +28,10 @@ __all__ = [
     "load_mission_data",
     "ProvenanceBuilder",
     "AutopilotRecord",
+    "AudioBus",
+    "AudioCategory",
+    "AudioCue",
+    "AudioCuePack",
     "ChecklistEntry",
     "EventRecord",
     "FailureRecord",

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .time import parse_get
-from .utils import clean_string, parse_json_field, split_multi_value
+from .utils import clean_string, parse_json_field, safe_bool, safe_float, safe_int, split_multi_value
 
 
 @dataclass
@@ -171,6 +171,165 @@ class FailureRecord:
 
 
 @dataclass
+class AudioDuckingRule:
+    """Cross-bus ducking instruction for an audio bus."""
+
+    target: str
+    gain_db: float
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "AudioDuckingRule":
+        target = clean_string(payload.get("target")) or ""
+        gain = safe_float(payload.get("gainDb"))
+        return cls(target=target, gain_db=gain if gain is not None else 0.0, raw=dict(payload))
+
+
+@dataclass
+class AudioBus:
+    """Logical routing bus used by the audio dispatcher."""
+
+    id: str
+    name: Optional[str]
+    description: Optional[str]
+    max_concurrent: Optional[int]
+    ducking: List[AudioDuckingRule]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "AudioBus":
+        ducking_rules = []
+        for rule in payload.get("ducking", []) or []:
+            try:
+                ducking_rules.append(AudioDuckingRule.from_dict(rule))
+            except ValueError:
+                continue
+        max_concurrent = None
+        if payload.get("maxConcurrent") is not None:
+            max_concurrent = safe_int(payload.get("maxConcurrent"))
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            name=clean_string(payload.get("name")),
+            description=clean_string(payload.get("description")),
+            max_concurrent=max_concurrent,
+            ducking=ducking_rules,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class AudioCategory:
+    """Category metadata that maps cues to buses and priorities."""
+
+    id: str
+    name: Optional[str]
+    bus: Optional[str]
+    default_priority: Optional[int]
+    cooldown_seconds: Optional[float]
+    description: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "AudioCategory":
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            name=clean_string(payload.get("name")),
+            bus=clean_string(payload.get("bus")),
+            default_priority=safe_int(payload.get("defaultPriority")),
+            cooldown_seconds=safe_float(payload.get("cooldownSeconds")),
+            description=clean_string(payload.get("description")),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class AudioCue:
+    """Individual cue definition with routing and asset metadata."""
+
+    id: str
+    name: Optional[str]
+    category: Optional[str]
+    priority: Optional[int]
+    length_seconds: Optional[float]
+    loop: Optional[bool]
+    cooldown_seconds: Optional[float]
+    loudness_lufs: Optional[float]
+    assets: Dict[str, str]
+    subtitle: Optional[str]
+    tags: List[str]
+    source: Optional[str]
+    notes: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "AudioCue":
+        loop_value = payload.get("loop")
+        loop = None
+        if isinstance(loop_value, bool):
+            loop = loop_value
+        elif loop_value is not None:
+            loop = safe_bool(loop_value)
+
+        assets_raw = payload.get("assets") or {}
+        assets: Dict[str, str] = {}
+        if isinstance(assets_raw, dict):
+            for key, value in assets_raw.items():
+                text = clean_string(value)
+                if text:
+                    assets[str(key)] = text
+
+        tags = []
+        if isinstance(payload.get("tags"), (list, tuple, set)):
+            tags = [clean_string(tag) or "" for tag in payload.get("tags") if clean_string(tag)]
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            name=clean_string(payload.get("name")),
+            category=clean_string(payload.get("category")),
+            priority=safe_int(payload.get("priority")),
+            length_seconds=safe_float(payload.get("lengthSeconds")),
+            loop=loop,
+            cooldown_seconds=safe_float(payload.get("cooldownSeconds")),
+            loudness_lufs=safe_float(payload.get("loudnessLufs")),
+            assets=assets,
+            subtitle=clean_string(payload.get("subtitle")),
+            tags=tags,
+            source=clean_string(payload.get("source")),
+            notes=clean_string(payload.get("notes")),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class AudioCuePack:
+    """Container for the audio cue catalog JSON."""
+
+    version: Optional[int]
+    description: Optional[str]
+    buses: List[AudioBus]
+    categories: List[AudioCategory]
+    cues: List[AudioCue]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "AudioCuePack":
+        buses = [AudioBus.from_dict(entry) for entry in payload.get("buses", []) or []]
+        categories = [
+            AudioCategory.from_dict(entry) for entry in payload.get("categories", []) or []
+        ]
+        cues = [AudioCue.from_dict(entry) for entry in payload.get("cues", []) or []]
+        version = safe_int(payload.get("version"))
+        return cls(
+            version=version,
+            description=clean_string(payload.get("description")),
+            buses=buses,
+            categories=categories,
+            cues=cues,
+            raw=dict(payload),
+        )
+
+
+@dataclass
 class MissionData:
     """Container aggregating the parsed mission datasets."""
 
@@ -182,6 +341,7 @@ class MissionData:
     consumables: Dict[str, Any]
     communications: Dict[str, Any]
     thrusters: Dict[str, Any]
+    audio_cues: AudioCuePack
 
     def event_map(self) -> Dict[str, EventRecord]:
         return {event.id: event for event in self.events}
