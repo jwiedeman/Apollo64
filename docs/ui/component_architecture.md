@@ -50,6 +50,7 @@ parity stays intact.
     <ResourceBands />
     <ManeuverWidget />
     <ChecklistChip />
+    <CommanderScoreChip />
     <CommsLamp />
     <AlarmCluster />
   </AlwaysOnHud>
@@ -65,9 +66,11 @@ parity stays intact.
 - **App:** Bootstraps frame subscription, keyboard/controller bindings,
   and persistence (workspace JSON, checklist completion).
 - **AlwaysOnHud:** Anchored band that never unmounts. Consumes the time,
-  events, resources, communications, and alerts slices of the frame. Lamp
-  states (caution/warning/failure) inherit resource thresholds from the
-  `ResourceSystem`.
+  events, resources, commander score, communications, and alerts slices of
+  the frame. Lamp states (caution/warning/failure) inherit resource
+  thresholds from the `ResourceSystem`, while the score chip derives its
+  grade and manual bonus from `frame.score` and exposes an acknowledgement
+  affordance tied to the mission log.
 - **ViewRouter:** Switches between Navigation/Controls/Systems panes.
   `Tab`/`Shift+Tab` (or controller shoulder buttons) advance views; `1/2/3`
   jump directly.
@@ -113,6 +116,7 @@ controls and surface recovery hints.
 | Propellant Overview | `<PropellantDeck />` | Tank metrics (`frame.resources.propellant.tanks`), burn totals |
 | Thermal / Cryo | `<ThermalPanel />` | Cryo boiloff, tank temperatures, PTC status |
 | Comms Windows | `<CommsSchedule />` | `frame.resources.communications.current/next`, DSN availability |
+| Commander Scorecard | `<CommanderScorecard />` | `frame.score` summary, manual/manual history, optional resource minima |
 | Trends & Fault Log | `<TrendGraphs />`, `<FaultTimeline />` | Resource history buffers, mission failures |
 
 ## Tile Mode Windows

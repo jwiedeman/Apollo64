@@ -13,6 +13,7 @@ The always-on band reserves 64 px at the top of a 1280×720 baseline frame (scal
 | Resource Strip | Horizontal gauges for power margin %, thermal drift, SPS propellant %, RCS propellant %, communications window timer. | Resource system snapshot (`power_margin_pct`, `cryo_boiloff_rate_pct_per_hr`, propellant `percentRemaining`, communications `next_window_open_get`). | Gauges pulse yellow/red when crossing caution/warning thresholds defined in `TextHud`. Hover reveals precise values and links to Systems view panels. |
 | Checklist Chip | Active checklist id/title, completed steps / total, checklist owner (CDR/CMP/LMP). | Checklist manager stats. | Clicking chips toggles the checklist lane in Controls view or, in tile mode, opens a floating checklist tile. |
 | Alert Tray | Caution/warning icons with counts, master alarm indicator, current failure breadcrumb (e.g., “PTC drift → cryo ↑”). | Resource alerts, failure taxonomy feed. | Clicking icon opens the fault log overlay in Systems view; master alarm button silences audio but leaves alert highlighted until resolved. |
+| Commander Rating Capsule | Commander score, grade, and manual bonus bar condensed into a chip with tooltip showing completion stats. | `frame.score.rating` and `frame.score.manual`/`frame.score.events` for tooltip copy. | Clicking opens the Systems view scorecard tile; controller long-press pins the scorecard in tile mode. |
 | PTC / Attitude Indicator | Miniature navball slice showing roll relative to 0.3°/s target, comm link strength icon. | Autopilot runner state, communications trends dataset. | Clicking navball opens Navigation view with navball tile focused. |
 
 ### Layout & Scaling Rules
@@ -64,12 +65,15 @@ Systems view surfaces health, resource margins, failures, and telemetry trends.
 | Propellant Overview | Upper right | Tanks for SPS, CSM RCS quads, LM descent/ascent, LM RCS. Bars show % remaining and reserve thresholds. | Resource propellant metrics. | Toggle between percentage and kg; clicking toggles history sparkline overlay for the selected tank. |
 | Thermal & Cryo Panel | Mid left | Line chart of cryo boiloff %, suit loop temperatures, glycol pump states, PTC status. | Resource thermal metrics, manual action effects. | Range slider selects time window (last 30 min / 2 hr / mission). |
 | Communications Window Tracker | Mid right | Timeline of DSN passes, current station highlight, signal strength gauge. | `communications_trends.json`, event statuses. | Clicking pass adds reminder chip to Always-On HUD; warns if autopilot maneuvers conflict with comm windows. |
+| Commander Scorecard | Mid right stack or expandable drawer under comms module | Breakdown of commander score (events/resources/faults/manual), grade badge, trend sparklines for power/Δv minima, manual fraction meter. | `frame.score` summary plus resource history buffers when enabled. | Buttons log “grade reviewed” acknowledgement to mission log and deep-link to checklist/events contributing to penalties. |
 | Trends & Fault Log | Bottom | Scrollable list of resource/failure breadcrumbs with timestamp, severity, recommended recovery action. | Failure taxonomy, resource alerts. | Filtering by subsystem (Power/Thermal/Comms/Prop); entries link to relevant checklist or panel. |
 
 ### Systems View Behavior
 - When a failure is logged, highlight the associated subsystem module with pulsing border and auto-scroll the fault log to the entry.
 - Provide export button to dump last 30 minutes of resource data to JSON for debugging.
 - Support comparison mode: side-by-side trending for two metrics (e.g., fuel cell load vs. boiloff) triggered from the trend chart legend.
+
+The scorecard expands the Always-On capsule into a full mission health dashboard: stacked bars highlight event completion, resource margins, and fault counts; sparklines track minimum power and Δv margins vs. thresholds; and manual contribution badges show how much of the checklist cadence remains in crew hands. Acknowledge buttons log reviews to the console for parity with the score system’s deterministic history while keeping operators aware of degrading grades during extended runs.
 
 ## Tile Mode — Workspace Presets
 
@@ -79,8 +83,8 @@ Tile mode allows power users to reconfigure panes while the Always-On HUD stays 
 | --- | --- | --- |
 | `NAV_DEFAULT` | Focus on trajectory planning. | Trajectory canvas (large), navball, timeline ribbon, state vector. |
 | `DOCKING` | LM rendezvous operations. | Docking overlay, manual action monitor, propellant overview, comm tracker. |
-| `SYSTEMS_NIGHT` | Overnight monitoring of consumables. | Power matrix, thermal trends, fault log, checklist lane (read-only). |
-| `ENTRY` | Reentry corridor checks. | Entry overlay, PTC indicator, communications timeline, resource gauges expanded. |
+| `SYSTEMS_NIGHT` | Overnight monitoring of consumables. | Power matrix, thermal trends, commander scorecard, fault log, checklist lane (read-only). |
+| `ENTRY` | Reentry corridor checks. | Entry overlay, commander scorecard, communications timeline, resource gauges expanded. |
 
 The preset layouts above are serialized for tooling and runtime loaders in [`workspaces.json`](workspaces.json).
 

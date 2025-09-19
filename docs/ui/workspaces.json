@@ -193,14 +193,25 @@
           }
         },
         {
+          "id": "scorecard",
+          "window": "commanderScorecard",
+          "x": 0.6,
+          "y": 0.35,
+          "width": 0.4,
+          "height": 0.2,
+          "constraints": {
+            "minHeight": 0.16
+          }
+        },
+        {
           "id": "checklists",
           "window": "checklistLane",
           "x": 0.6,
-          "y": 0.45,
+          "y": 0.55,
           "width": 0.4,
-          "height": 0.3,
+          "height": 0.2,
           "constraints": {
-            "minHeight": 0.24
+            "minHeight": 0.18
           }
         },
         {
@@ -264,38 +275,49 @@
           "x": 0.6,
           "y": 0,
           "width": 0.4,
-          "height": 0.35,
+          "height": 0.32,
           "constraints": {
-            "minHeight": 0.28
+            "minHeight": 0.26
+          }
+        },
+        {
+          "id": "scorecard",
+          "window": "commanderScorecard",
+          "x": 0.6,
+          "y": 0.32,
+          "width": 0.4,
+          "height": 0.18,
+          "constraints": {
+            "minHeight": 0.16
           }
         },
         {
           "id": "comms",
           "window": "commsTracker",
           "x": 0.6,
-          "y": 0.35,
+          "y": 0.5,
           "width": 0.4,
-          "height": 0.2,
+          "height": 0.18,
           "constraints": {
-            "minHeight": 0.18
+            "minHeight": 0.16
           }
         },
         {
           "id": "faults",
           "window": "faultLog",
           "x": 0.6,
-          "y": 0.55,
+          "y": 0.68,
           "width": 0.4,
-          "height": 0.2,
+          "height": 0.18,
           "constraints": {
-            "minHeight": 0.18
+            "minHeight": 0.16
           }
         },
         {
           "id": "checklist",
           "window": "checklistLane",
           "x": 0,
-          "y": 0.75,
+          "y": 0.8,
           "width": 1,
           "height": 0.2,
           "constraints": {
