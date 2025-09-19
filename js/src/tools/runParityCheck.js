@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'fs/promises';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import { DATA_DIR } from '../config/paths.js';
 import { MissionLogger } from '../logging/missionLogger.js';
 import { ManualActionRecorder } from '../logging/manualActionRecorder.js';
@@ -42,25 +43,33 @@ const DEFAULT_OPTIONS = {
   quiet: true,
 };
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const untilSeconds = args.untilSeconds ?? parseGET('015:00:00');
+export async function runParityCheck({
+  untilSeconds,
+  dataDir = DATA_DIR,
+  tickRate = DEFAULT_OPTIONS.tickRate,
+  logIntervalSeconds = DEFAULT_OPTIONS.logIntervalSeconds,
+  checklistStepSeconds = DEFAULT_OPTIONS.checklistStepSeconds,
+  tolerance = DEFAULT_OPTIONS.tolerance,
+  quiet = DEFAULT_OPTIONS.quiet,
+  manualQueueOptions = null,
+} = {}) {
   if (!Number.isFinite(untilSeconds)) {
-    throw new Error('Parity harness requires a valid --until GET (e.g., 015:00:00)');
+    throw new Error('Parity harness requires a valid untilSeconds value');
   }
 
-  const autoLogger = new MissionLogger({ silent: args.quiet });
-  const manualLogger = new MissionLogger({ silent: args.quiet });
+  const autoLogger = new MissionLogger({ silent: quiet });
+  const manualLogger = new MissionLogger({ silent: quiet });
   const recorder = new ManualActionRecorder();
 
   const autoContext = await createSimulationContext({
-    dataDir: args.dataDir,
+    dataDir,
     logger: autoLogger,
-    tickRate: args.tickRate,
-    logIntervalSeconds: args.logIntervalSeconds,
+    tickRate,
+    logIntervalSeconds,
     autoAdvanceChecklists: true,
-    checklistStepSeconds: args.checklistStepSeconds,
+    checklistStepSeconds,
     manualActionRecorder: recorder,
+    manualQueueOptions,
     hudOptions: { enabled: false },
   });
 
@@ -68,13 +77,14 @@ async function main() {
   const recordedActions = recorder.buildScriptActions();
 
   const manualContext = await createSimulationContext({
-    dataDir: args.dataDir,
+    dataDir,
     logger: manualLogger,
-    tickRate: args.tickRate,
-    logIntervalSeconds: args.logIntervalSeconds,
+    tickRate,
+    logIntervalSeconds,
     autoAdvanceChecklists: false,
-    checklistStepSeconds: args.checklistStepSeconds,
+    checklistStepSeconds,
     manualActions: recordedActions,
+    manualQueueOptions,
     hudOptions: { enabled: false },
   });
 
@@ -87,12 +97,18 @@ async function main() {
     manualSummary,
     autoLogs,
     manualLogs,
-    tolerance: args.tolerance,
+    tolerance,
   });
 
   const report = buildReport({
     untilSeconds,
-    options: args,
+    options: {
+      dataDir,
+      tickRate,
+      logIntervalSeconds,
+      checklistStepSeconds,
+      tolerance,
+    },
     recorder,
     recordedActionsCount: recordedActions.length,
     autoSummary,
@@ -101,6 +117,22 @@ async function main() {
     autoLogs,
     manualLogs,
     parity,
+  });
+
+  return { report, parity, recordedActions };
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const untilSeconds = args.untilSeconds ?? parseGET('015:00:00');
+  const { report, parity } = await runParityCheck({
+    untilSeconds,
+    dataDir: args.dataDir,
+    tickRate: args.tickRate,
+    logIntervalSeconds: args.logIntervalSeconds,
+    checklistStepSeconds: args.checklistStepSeconds,
+    tolerance: args.tolerance,
+    quiet: args.quiet,
   });
 
   if (args.outputPath) {
@@ -573,7 +605,9 @@ function formatValue(value) {
   return value;
 }
 
-main().catch((error) => {
-  console.error('Parity harness failed:', error);
-  process.exitCode = 1;
-});
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '')) {
+  main().catch((error) => {
+    console.error('Parity harness failed:', error);
+    process.exitCode = 1;
+  });
+}
