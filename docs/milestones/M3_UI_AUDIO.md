@@ -14,7 +14,7 @@ port.
 ## Deliverables
 - UI state aggregator and presentation layer design notes for the JS prototype (component tree, update cadence, data bindings) documented in [`docs/ui/component_architecture.md`](../ui/component_architecture.md).
 - HUD layout specifications including timing blocks, event stack, resource gauges, and maneuver widgets.
-- Audio cue taxonomy mapped to mission events and failure classes with playback priority rules and asset references, captured in [`docs/ui/audio_cue_taxonomy.md`](../ui/audio_cue_taxonomy.md).
+- Audio cue taxonomy mapped to mission events and failure classes with playback priority rules and asset references, captured in [`docs/ui/audio_cue_taxonomy.md`](../ui/audio_cue_taxonomy.md), and the dispatcher/mixer implementation roadmap detailed in [`docs/ui/audio_dispatcher_architecture.md`](../ui/audio_dispatcher_architecture.md).
 - Committed Apollo 11 cue catalog at [`docs/data/audio_cues.json`](../data/audio_cues.json) with buses, categories, metadata, and sources wired into the loader/validator so UI and dispatcher work can reference a single dataset.
 - Logging, replay, and accessibility guidelines covering color use, captioning, and control remapping hooks documented in [`docs/ui/logging_accessibility_guidelines.md`](../ui/logging_accessibility_guidelines.md).
 - Panel hierarchy, DSKY macro catalog, and JSON data schema references in [`docs/ui/`](../ui) to guide panel highlighting, DSKY macros, and tile-mode presets.

@@ -120,6 +120,10 @@ back to this pack and enforcing allowable channel names.
 - Prototype the dispatcher in the JS build, initially logging cue order
   and ducking operations to validate timing before integrating actual audio
   playback.
+- Align dispatcher implementation with the workflow captured in
+  [`audio_dispatcher_architecture.md`](audio_dispatcher_architecture.md) so
+  binder hooks, mixer abstraction, and validation tooling stay synchronized
+  with the taxonomy.
 
 This taxonomy ensures mission-critical alerts retain priority while still
 supporting immersive ambience, historical callouts, and responsive UI
