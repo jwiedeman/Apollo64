@@ -32,7 +32,7 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
   - Validate `GET_nominal` formatting and sequential step numbering.
   - Catch duplicate `step_number` values that could desync manual/auto parity recordings.
 - **PADs:**
-  - Parse delivery/expiration GET stamps, parse parameter JSON payloads, and sanity-check embedded GET strings (e.g., TIG values).
+  - Parse delivery/expiration GET stamps, parse parameter JSON payloads, sanity-check embedded GET strings (e.g., TIG values), and warn when burn durations, Δv entries, v∞, or range figures are non-numeric or non-positive.
 - **Failures:**
   - Ensure unique IDs, recognized classifications, and the presence of trigger/effect/recovery descriptions for downstream tooling.
 - **Consumables:**

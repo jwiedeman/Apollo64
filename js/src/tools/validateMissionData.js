@@ -2,9 +2,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import process from 'process';
+import { pathToFileURL } from 'url';
 import { DATA_DIR } from '../config/paths.js';
 import { parseCsv } from '../utils/csv.js';
 import { formatGET, parseGET } from '../utils/time.js';
+import { normalizePadParameters } from '../data/missionDataLoader.js';
 
 const VALID_TRANSLATION_AXES = new Set(['+X', '-X', '+Y', '-Y', '+Z', '-Z']);
 const VALID_TORQUE_AXES = new Set(['+pitch', '-pitch', '+yaw', '-yaw', '+roll', '-roll']);
@@ -504,13 +506,7 @@ function validatePads(records, context) {
     if (record.parameters) {
       const parameters = parseJsonField(record.parameters, `PAD ${id} parameters`, context);
       if (parameters && typeof parameters === 'object') {
-        for (const [key, value] of Object.entries(parameters)) {
-          if (typeof value === 'string' && /GET$/i.test(key)) {
-            if (parseGET(value) == null) {
-              addWarning(context, `PAD ${id} parameter ${key} has invalid GET value: ${value}`);
-            }
-          }
-        }
+        validatePadParameters(parameters, context, id);
       }
     }
 
@@ -519,6 +515,96 @@ function validatePads(records, context) {
 
   context.stats.pads = pads.size;
   return pads;
+}
+
+export function validatePadParameters(parameters, context, padId) {
+  const normalized = normalizePadParameters(parameters);
+  const label = `PAD ${padId}`;
+
+  const tigEntry = getRawFieldValue(parameters, ['TIG', 'tig']);
+  if (tigEntry && (normalized.tig?.getSeconds == null || !normalized.tig?.get)) {
+    addWarning(context, `${label} parameter ${tigEntry.key} has invalid GET value: ${tigEntry.value}`);
+  }
+
+  const entryInterface = getRawFieldValue(parameters, ['entry_interface_get', 'entryInterfaceGet']);
+  if (entryInterface && (normalized.entryInterface?.getSeconds == null || !normalized.entryInterface?.get)) {
+    addWarning(
+      context,
+      `${label} parameter ${entryInterface.key} has invalid GET value: ${entryInterface.value}`,
+    );
+  }
+
+  const numericChecks = [
+    { keys: ['delta_v_ft_s', 'delta_v_ft', 'delta_v_ftps'], requirePositive: true },
+    { keys: ['delta_v_mps', 'delta_v_ms', 'delta_v_m_s'], requirePositive: true },
+    { keys: ['burn_duration_s', 'burn_duration_seconds', 'burn_duration'], requirePositive: true },
+    { keys: ['range_to_target_nm', 'range_nm'], allowZero: true },
+    { keys: ['flight_path_angle_deg', 'flightPathAngleDeg'], allowNegative: true, allowZero: true },
+    { keys: ['v_infinity_ft_s', 'v_infinity_ftps'], requirePositive: true },
+    { keys: ['v_infinity_mps', 'v_infinity_ms'], requirePositive: true },
+  ];
+
+  for (const spec of numericChecks) {
+    checkPadNumericField(parameters, context, label, spec);
+  }
+}
+
+function getRawFieldValue(object, keys) {
+  if (!object || typeof object !== 'object') {
+    return null;
+  }
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(object, key)) {
+      continue;
+    }
+    const value = object[key];
+    if (value == null) {
+      continue;
+    }
+    if (typeof value === 'string' && value.trim().length === 0) {
+      continue;
+    }
+    return { key, value };
+  }
+  return null;
+}
+
+function checkPadNumericField(parameters, context, label, spec) {
+  const entry = getRawFieldValue(parameters, spec.keys ?? []);
+  if (!entry) {
+    return;
+  }
+
+  const numeric = toFiniteNumber(entry.value);
+  if (numeric == null) {
+    addWarning(
+      context,
+      `${label} parameter ${entry.key} should be numeric (received ${String(entry.value)})`,
+    );
+    return;
+  }
+
+  const allowNegative = spec.allowNegative === true;
+  const allowZero = spec.allowZero === true;
+  const requirePositive = spec.requirePositive === true;
+
+  if (requirePositive) {
+    const isZero = numeric === 0;
+    if (numeric < 0 || (isZero && !allowZero)) {
+      addWarning(
+        context,
+        `${label} parameter ${entry.key} should be positive (received ${numeric})`,
+      );
+      return;
+    }
+  }
+
+  if (!allowNegative && numeric < 0) {
+    addWarning(
+      context,
+      `${label} parameter ${entry.key} should be non-negative (received ${numeric})`,
+    );
+  }
 }
 
 function validateEvents(records, { autopilotMap, checklistMap, failureMap, padMap, context }) {
@@ -1465,7 +1551,12 @@ function printSummary(context) {
   }
 }
 
-main().catch((error) => {
-  console.error('Mission data validation failed to execute:', error);
-  process.exitCode = 1;
-});
+if (process.argv[1]) {
+  const invokedPathUrl = pathToFileURL(process.argv[1]);
+  if (import.meta.url === invokedPathUrl.href) {
+    main().catch((error) => {
+      console.error('Mission data validation failed to execute:', error);
+      process.exitCode = 1;
+    });
+  }
+}
