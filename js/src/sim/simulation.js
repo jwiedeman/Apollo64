@@ -14,6 +14,7 @@ export class Simulation {
     logger,
     tickRate = 20,
     orbitPropagator = null,
+    missionLogAggregator = null,
   }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
@@ -27,6 +28,7 @@ export class Simulation {
     this.orbitPropagator = orbitPropagator;
     this.clock = new SimulationClock({ tickRate });
     this.tickRate = tickRate;
+    this.missionLogAggregator = missionLogAggregator;
   }
 
   run({ untilGetSeconds, onTick = null } = {}) {
@@ -62,6 +64,7 @@ export class Simulation {
           rcsController: this.rcsController,
           scoreSystem: this.scoreSystem,
           orbit: this.orbitPropagator,
+          missionLog: this.missionLogAggregator,
         });
       }
       if (typeof onTick === 'function') {
@@ -77,6 +80,7 @@ export class Simulation {
           hud: this.hud,
           scoreSystem: this.scoreSystem,
           orbit: this.orbitPropagator,
+          missionLog: this.missionLogAggregator,
         });
         if (shouldContinue === false) {
           break;
@@ -95,8 +99,14 @@ export class Simulation {
     const hudStats = this.hud ? this.hud.stats() : null;
     const scoreSummary = this.scoreSystem ? this.scoreSystem.summary() : null;
     const orbitSummary = this.orbitPropagator ? this.orbitPropagator.summary() : null;
+    const missionLogSummary = this.missionLogAggregator
+      ? this.missionLogAggregator.snapshot({ limit: 10 })
+      : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'notice',
       ticks,
       events: stats.counts,
       upcoming: stats.upcoming,
@@ -108,7 +118,12 @@ export class Simulation {
       hud: hudStats,
       score: scoreSummary,
       orbit: orbitSummary,
+      missionLog: missionLogSummary,
     });
+
+    const finalMissionLogSummary = this.missionLogAggregator
+      ? this.missionLogAggregator.snapshot({ limit: 10 })
+      : missionLogSummary;
 
     return {
       ticks,
@@ -122,6 +137,7 @@ export class Simulation {
       hud: hudStats,
       score: scoreSummary,
       orbit: orbitSummary,
+      missionLog: finalMissionLogSummary,
     };
   }
 }

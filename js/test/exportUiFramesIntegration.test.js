@@ -45,5 +45,9 @@ describe('exportUiFrames CLI', () => {
     const eventWithPad = frameWithPad.events.upcoming.find((event) => event?.pad?.id);
     assert.ok(eventWithPad.pad.parameters?.deltaVMetersPerSecond != null);
     assert.ok(eventWithPad.pad.parameters?.tig?.get);
+
+    const frameWithMissionLog = data.frames.find((frame) => frame?.missionLog?.entries?.length > 0);
+    assert.ok(frameWithMissionLog, 'Expected mission log entries in exported frames');
+    assert.ok(Array.isArray(data.missionLog?.entries), 'Top-level mission log snapshot should be exported');
   });
 });

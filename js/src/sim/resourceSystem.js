@@ -355,7 +355,11 @@ export class ResourceSystem {
     }
 
     if (Object.keys(applied).length > 0) {
+      const severity = type === 'failure' ? 'failure' : 'notice';
       this.logger?.log(getSeconds, `${type === 'failure' ? 'Failure' : 'Resource'} update from ${source}`, {
+        logSource: 'sim',
+        logCategory: 'resource',
+        logSeverity: severity,
         type,
         source,
         applied,
@@ -495,6 +499,9 @@ export class ResourceSystem {
     this._logCountdown -= dtSeconds;
     if (this._logCountdown <= 0) {
       this.logger?.log(getSeconds, 'Resource snapshot', {
+        logSource: 'sim',
+        logCategory: 'resource',
+        logSeverity: 'info',
         snapshot: this.snapshot(),
       });
       this._logCountdown = this.options.logIntervalSeconds;
@@ -513,6 +520,9 @@ export class ResourceSystem {
 
     if (previous == null) {
       this.logger?.log(getSeconds, `Propellant usage ignored for unknown tank ${normalizedKey}`, {
+        logSource: 'sim',
+        logCategory: 'resource',
+        logSeverity: 'warning',
         source,
         note,
         attemptedDeltaKg: amountKg,
@@ -533,6 +543,9 @@ export class ResourceSystem {
     });
 
     this.logger?.log(getSeconds, `Propellant update for ${normalizedKey} from ${source}`, {
+      logSource: 'sim',
+      logCategory: 'resource',
+      logSeverity: next < previous ? 'warning' : 'notice',
       source,
       note,
       deltaKg: next - previous,
@@ -550,6 +563,9 @@ export class ResourceSystem {
     const normalizedKey = metricKey.endsWith('_kw') ? metricKey : `${metricKey}_kw`;
     if (typeof this.state.power[normalizedKey] !== 'number') {
       this.logger?.log(getSeconds, `Power load update ignored for unknown metric ${normalizedKey}`, {
+        logSource: 'sim',
+        logCategory: 'resource',
+        logSeverity: 'warning',
         source,
         note,
         attemptedDeltaKw: deltaKw,
@@ -563,6 +579,9 @@ export class ResourceSystem {
     this.metrics.powerDeltaKw[normalizedKey] = (this.metrics.powerDeltaKw[normalizedKey] ?? 0) + deltaKw;
 
     this.logger?.log(getSeconds, `Power load update for ${normalizedKey} from ${source}`, {
+      logSource: 'sim',
+      logCategory: 'resource',
+      logSeverity: deltaKw > 0 ? 'notice' : 'info',
       source,
       note,
       deltaKw,
@@ -1205,7 +1224,11 @@ export class ResourceSystem {
       ? `Delta-v margin updated for ${label} propellant change`
       : `Delta-v margin adjusted for ${label}`;
 
+    const severity = deltaMargin < 0 ? 'warning' : 'notice';
     this.logger?.log(getSeconds, message, {
+      logSource: 'sim',
+      logCategory: 'resource',
+      logSeverity: severity,
       source,
       note,
       stage: stageId,
@@ -1535,6 +1558,9 @@ export class ResourceSystem {
     this.#updateActiveCommunicationsPass(pass, getSeconds);
 
     this.logger?.log(getSeconds, `Communications pass ${pass.id} active`, {
+      logSource: 'sim',
+      logCategory: 'resource',
+      logSeverity: 'notice',
       station: pass.station ?? null,
       window: `${comms.current_window_open_get} → ${comms.current_window_close_get}`,
       signalStrengthDb: pass.signalStrengthDb ?? null,
@@ -1572,6 +1598,9 @@ export class ResourceSystem {
     }
 
     this.logger?.log(getSeconds, `Communications pass ${this.activeCommunicationsPass.id} complete`, {
+      logSource: 'sim',
+      logCategory: 'resource',
+      logSeverity: 'notice',
       station: this.activeCommunicationsPass.station ?? null,
     });
 

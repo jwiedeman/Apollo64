@@ -98,6 +98,9 @@ export async function loadMissionData(dataDir, { logger } = {}) {
 
   if (logger) {
     logger.log(0, 'Mission data loaded', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'info',
       counts: {
         events: events.length,
         checklists: checklists.size,
@@ -144,6 +147,9 @@ async function loadAutopilotScript(dataDir, relativePath, logger) {
   } catch (error) {
     if (logger) {
       logger.log(0, `Failed to load autopilot script ${relativePath}`, {
+        logSource: 'sim',
+        logCategory: 'system',
+        logSeverity: 'failure',
         error: error.message,
       });
     }
@@ -243,7 +249,12 @@ function parseConsumables(content, logger) {
     }
     return parsed;
   } catch (error) {
-    logger?.log(0, 'Failed to parse consumables dataset', { error: error.message });
+    logger?.log(0, 'Failed to parse consumables dataset', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'failure',
+      error: error.message,
+    });
     return {};
   }
 }
@@ -256,7 +267,12 @@ function parseThrusters(content, logger) {
     }
     return parsed;
   } catch (error) {
-    logger?.log(0, 'Failed to parse thrusters dataset', { error: error.message });
+    logger?.log(0, 'Failed to parse thrusters dataset', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'failure',
+      error: error.message,
+    });
     return { craft: [] };
   }
 }
@@ -302,7 +318,12 @@ function parseCommunicationsTrends(content, logger) {
     schedule.sort((a, b) => a.getOpenSeconds - b.getOpenSeconds);
     return schedule;
   } catch (error) {
-    logger?.log(0, 'Failed to parse communications trends dataset', { error: error.message });
+    logger?.log(0, 'Failed to parse communications trends dataset', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'failure',
+      error: error.message,
+    });
     return [];
   }
 }
@@ -332,7 +353,12 @@ function parsePads(records, logger) {
           rawParameters = parsed;
         }
       } catch (error) {
-        logger?.log(0, `Failed to parse PAD parameters for ${id}`, { error: error.message });
+        logger?.log(0, `Failed to parse PAD parameters for ${id}`, {
+          logSource: 'sim',
+          logCategory: 'system',
+          logSeverity: 'failure',
+          error: error.message,
+        });
         rawParameters = {};
       }
     }
@@ -437,7 +463,12 @@ function parseAudioCues(content, logger) {
       ...rest,
     };
   } catch (error) {
-    logger?.log(0, 'Failed to parse audio cues dataset', { error: error.message });
+    logger?.log(0, 'Failed to parse audio cues dataset', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'failure',
+      error: error.message,
+    });
     return { version: null, description: '', buses: [], categories: [], cues: [] };
   }
 }

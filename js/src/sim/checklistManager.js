@@ -77,6 +77,9 @@ export class ChecklistManager {
     this.active.set(event.id, state);
 
     this.logger?.log(getSeconds, `Checklist ${checklist.id} started for event ${event.id}`, {
+      logSource: 'sim',
+      logCategory: 'checklist',
+      logSeverity: 'notice',
       title: checklist.title,
       crewRole: checklist.crewRole,
       totalSteps: steps.length,
@@ -85,6 +88,9 @@ export class ChecklistManager {
     // Empty checklists can be considered complete immediately.
     if (steps.length === 0) {
       this.logger?.log(getSeconds, `Checklist ${checklist.id} contains no steps`, {
+        logSource: 'sim',
+        logCategory: 'checklist',
+        logSeverity: 'warning',
         eventId: event.id,
       });
     }
@@ -191,6 +197,9 @@ export class ChecklistManager {
     this.metrics.completed += 1;
 
     this.logger?.log(getSeconds, `Checklist ${state.checklistId} complete for event ${eventId}`, {
+      logSource: 'sim',
+      logCategory: 'checklist',
+      logSeverity: 'notice',
       title: state.title,
       totalSteps: state.steps.length,
       acknowledgedSteps: state.steps.filter((step) => step.acknowledged).length,
@@ -208,6 +217,9 @@ export class ChecklistManager {
     this.metrics.aborted += 1;
 
     this.logger?.log(getSeconds, `Checklist ${state.checklistId} aborted for event ${eventId}`, {
+      logSource: 'sim',
+      logCategory: 'checklist',
+      logSeverity: 'warning',
       reason,
       acknowledgedSteps: state.steps.filter((step) => step.acknowledged).length,
       totalSteps: state.steps.length,
@@ -309,6 +321,9 @@ export class ChecklistManager {
     const remaining = state.steps.filter((item) => !item.acknowledged).length;
 
     this.logger?.log(getSeconds, `Checklist ${state.checklistId} step ${step.stepNumber} acknowledged`, {
+      logSource: 'sim',
+      logCategory: 'checklist',
+      logSeverity: 'notice',
       eventId: state.eventId,
       action: step.action,
       expectedResponse: step.expectedResponse,

@@ -30,6 +30,13 @@ Each UI emission conforms to the common envelope:
 | `message` | string | Human-readable summary. |
 | `context` | object | Structured payload (IDs, control states, cue IDs, accessibility flags). |
 
+Simulator subsystems now populate the envelope fields directly via
+`logCategory`, `logSeverity`, and `logSource` context metadata so the
+[`MissionLogAggregator`](../../js/src/logging/missionLogAggregator.js)
+and UI consumers no longer rely on string heuristics to classify
+entries. Manual, autopilot, checklist, and resource logs all emit these
+tags at the source, keeping downstream filtering deterministic.
+
 ### 1.2 Event Sources
 
 - **UI interactions:** Panel toggles, DSKY macros, checklist

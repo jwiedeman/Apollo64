@@ -33,6 +33,7 @@ const LOG_IGNORE_CONTEXT_PATHS = [
   'score.rating.commanderScore',
   'score.rating.grade',
   'score.rating.breakdown.manual',
+  'missionLog',
 ];
 
 const DEFAULT_OPTIONS = {

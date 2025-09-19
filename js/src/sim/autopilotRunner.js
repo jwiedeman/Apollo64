@@ -46,6 +46,9 @@ export class AutopilotRunner {
     const script = event.autopilot.script;
     if (!script || !Array.isArray(script.sequence)) {
       this.logger?.log(startGetSeconds, `Autopilot ${event.autopilotId} has no script payload`, {
+        logSource: 'sim',
+        logCategory: 'autopilot',
+        logSeverity: 'failure',
         eventId: event.id,
       });
       return;
@@ -93,6 +96,9 @@ export class AutopilotRunner {
     this.metrics.started += 1;
 
     this.logger?.log(startGetSeconds, `Autopilot ${state.autopilotId} engaged for event ${event.id}`, {
+      logSource: 'sim',
+      logCategory: 'autopilot',
+      logSeverity: 'notice',
       eventId: event.id,
       autopilotId: state.autopilotId,
       durationSeconds,
@@ -142,6 +148,9 @@ export class AutopilotRunner {
     this.metrics.aborted += 1;
 
     this.logger?.log(getSeconds, `Autopilot ${state.autopilotId} aborted for event ${eventId}`, {
+      logSource: 'sim',
+      logCategory: 'autopilot',
+      logSeverity: 'warning',
       reason,
       burnSeconds: state.metrics.burnSeconds,
       propellantKg: state.metrics.propellantKg,
@@ -252,6 +261,9 @@ export class AutopilotRunner {
       case 'attitude_hold': {
         state.metrics.attitudeChanges += 1;
         this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} attitude hold`, {
+          logSource: 'sim',
+          logCategory: 'autopilot',
+          logSeverity: 'notice',
           eventId: state.eventId,
           target: command.target ?? null,
         });
@@ -264,6 +276,9 @@ export class AutopilotRunner {
         const end = start + duration;
         state.ullageWindow = { start, end };
         this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} ullage fire`, {
+          logSource: 'sim',
+          logCategory: 'autopilot',
+          logSeverity: 'notice',
           eventId: state.eventId,
           durationSeconds: duration,
         });
@@ -275,6 +290,9 @@ export class AutopilotRunner {
         state.currentThrottle = level;
         state.throttleRamp = null;
         this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} throttle set`, {
+          logSource: 'sim',
+          logCategory: 'autopilot',
+          logSeverity: 'notice',
           eventId: state.eventId,
           level,
           propulsion: state.propulsion.type,
@@ -312,6 +330,9 @@ export class AutopilotRunner {
           state.currentThrottle = toLevel;
           state.throttleRamp = null;
           this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} throttle instant set`, {
+            logSource: 'sim',
+            logCategory: 'autopilot',
+            logSeverity: 'notice',
             eventId: state.eventId,
             fromLevel,
             level: toLevel,
@@ -327,6 +348,9 @@ export class AutopilotRunner {
           };
           state.currentThrottle = fromLevel;
           this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} throttle ramp`, {
+            logSource: 'sim',
+            logCategory: 'autopilot',
+            logSeverity: 'notice',
             eventId: state.eventId,
             fromLevel,
             toLevel,
@@ -339,6 +363,9 @@ export class AutopilotRunner {
       case 'rcs_pulse': {
         if (!this.rcsController) {
           this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} RCS pulse skipped`, {
+            logSource: 'sim',
+            logCategory: 'autopilot',
+            logSeverity: 'warning',
             eventId: state.eventId,
             reason: 'no_rcs_controller',
           });
@@ -401,6 +428,9 @@ export class AutopilotRunner {
         const entry = this.#normalizeDskyCommand(command);
         if (!entry) {
           this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} DSKY entry skipped`, {
+            logSource: 'sim',
+            logCategory: 'autopilot',
+            logSeverity: 'warning',
             eventId: state.eventId,
             reason: 'invalid_payload',
           });
@@ -412,6 +442,9 @@ export class AutopilotRunner {
       }
       default: {
         this.logger?.log(commandGetSeconds, `Autopilot ${state.autopilotId} unknown command ${commandName}`, {
+          logSource: 'sim',
+          logCategory: 'autopilot',
+          logSeverity: 'warning',
           eventId: state.eventId,
         });
         break;
@@ -439,7 +472,12 @@ export class AutopilotRunner {
       note: entry.note ?? undefined,
     };
 
-    this.logger?.log(getSeconds, `Autopilot ${state.autopilotId} DSKY entry executed`, payload);
+    this.logger?.log(getSeconds, `Autopilot ${state.autopilotId} DSKY entry executed`, {
+      logSource: 'sim',
+      logCategory: 'autopilot',
+      logSeverity: 'notice',
+      ...payload,
+    });
     state.metrics.dskyEntries += 1;
     this.metrics.dskyEntries += 1;
 
@@ -645,6 +683,9 @@ export class AutopilotRunner {
 
     state.throttleRamp = null;
     this.logger?.log(getSeconds, `Autopilot ${state.autopilotId} complete for event ${state.eventId}`, {
+      logSource: 'sim',
+      logCategory: 'autopilot',
+      logSeverity: 'notice',
       reason,
       burnSeconds: state.metrics.burnSeconds,
       ullageSeconds: state.metrics.ullageSeconds,
