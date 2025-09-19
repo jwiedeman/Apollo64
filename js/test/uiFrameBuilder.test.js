@@ -108,6 +108,13 @@ describe('UiFrameBuilder', () => {
           id: 'FAIL_COMM_PASS_MISSED',
           classification: 'Recoverable',
           trigger: 'DSN window skipped',
+          breadcrumb: {
+            summary: 'Missed DSN pass → next window 45m',
+            chain: [
+              { id: 'station', label: 'Station', value: 'Honeysuckle' },
+              { id: 'power_delta', label: 'Power margin impact', value: '-0.10 kW' },
+            ],
+          },
         },
       ],
     };
@@ -348,6 +355,14 @@ describe('UiFrameBuilder', () => {
 
     const cautionIds = frame.alerts.cautions.map((alert) => alert.id);
     assert.deepEqual(cautionIds, ['propellant_lm_descent']);
+
+    const resourceFailures = frame.resources.alerts.failures;
+    assert.equal(resourceFailures.length, 1);
+    const [resourceFailure] = resourceFailures;
+    assert.equal(resourceFailure.id, 'FAIL_COMM_PASS_MISSED');
+    assert.ok(resourceFailure.breadcrumb);
+    assert.equal(resourceFailure.breadcrumb.summary, 'Missed DSN pass → next window 45m');
+    assert.deepEqual(resourceFailure.breadcrumb.chain[0], { id: 'station', label: 'Station', value: 'Honeysuckle' });
 
     assert.equal(frame.autopilot.primary.autopilotId, 'PGM_TLI');
     assert.equal(frame.autopilot.activeAutopilots.length, 1);

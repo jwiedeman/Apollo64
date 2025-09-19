@@ -87,3 +87,61 @@ describe('ResourceSystem delta-v tracking', () => {
     assert.equal(snapshot.metrics.deltaV.recoveredMps, 30);
   });
 });
+
+
+describe('ResourceSystem failures', () => {
+  test('records failure breadcrumbs from resource state', () => {
+    const system = new ResourceSystem(null);
+    system.state.ptc_active = false;
+    system.state.thermal_balance_state = 'IDLE';
+    system.state.cryo_boiloff_rate_pct_per_hr = 2.4;
+    system.state.power_margin_pct = 42.5;
+
+    system.applyEffect({ failure_id: 'FAIL_THERMAL_PTC_LATE' }, {
+      getSeconds: 18 * 3600,
+      source: 'COAST_001',
+      type: 'failure',
+    });
+
+    const snapshot = system.snapshot();
+    const failure = snapshot.failures.find((entry) => entry.id === 'FAIL_THERMAL_PTC_LATE');
+    assert.ok(failure);
+    assert.ok(failure.breadcrumb);
+    assert.match(failure.breadcrumb.summary, /PTC/);
+    assert.ok(Array.isArray(failure.breadcrumb.chain));
+    assert.ok(failure.breadcrumb.chain.length >= 1);
+  });
+
+  test('records autopilot failure breadcrumbs with context', () => {
+    const system = new ResourceSystem(null, {
+      consumables: {
+        propellant: {
+          csm_sps: { initial_kg: 1000, reserve_kg: 200, usable_delta_v_mps: 2000 },
+        },
+      },
+    });
+
+    system.applyEffect({ failure_id: 'FAIL_TLI_UNDERBURN' }, {
+      getSeconds: 200,
+      source: 'TLI_002',
+      type: 'failure',
+      context: {
+        autopilotSummary: {
+          autopilotId: 'PGM_06_TLI',
+          deviations: { deltaVMps: -12.4 },
+          metrics: { deltaVMps: 3125 },
+          expected: { deltaVMps: 3137.4 },
+          propulsion: { tankKey: 'csm_sps_kg' },
+        },
+      },
+    });
+
+    const snapshot = system.snapshot();
+    const failure = snapshot.failures.find((entry) => entry.id === 'FAIL_TLI_UNDERBURN');
+    assert.ok(failure);
+    assert.ok(failure.breadcrumb);
+    assert.match(failure.breadcrumb.summary, /Autopilot PGM_06_TLI/);
+    assert.ok(Array.isArray(failure.breadcrumb.chain));
+    assert.ok(failure.breadcrumb.chain.some((item) => item.id === 'stage_margin'));
+  });
+});

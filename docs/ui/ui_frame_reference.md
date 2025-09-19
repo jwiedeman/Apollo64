@@ -218,7 +218,7 @@ Summarizes the current orbit state as reported by the patched-conic propagator.
 
 - `warnings[]`: Resource or failure conditions in warning state (e.g., low SPS propellant, cryo boil-off exceeding thresholds).
 - `cautions[]`: Advisory conditions approaching warning levels.
-- `failures[]`: Failure summaries (id, classification, trigger, immediate/ongoing penalties, recovery guidance, first/last GET stamps, occurrences, sources, notes) mirrored from the `ResourceSystem` failure registry.
+- `failures[]`: Failure summaries (id, classification, trigger, immediate/ongoing penalties, recovery guidance, first/last GET stamps, occurrences, sources, notes) mirrored from the `ResourceSystem` failure registry along with breadcrumb metadata for HUD fault lanes.
 
 #### `alerts.failures[]`
 
@@ -235,6 +235,7 @@ Summarizes the current orbit state as reported by the patched-conic propagator.
 | `occurrences` | number&#124;null | Count of how many times the failure has been latched this run. |
 | `sources[]` | array | Event IDs or subsystems that produced the failure. |
 | `notes[]` | array | Additional notes captured by the resource system when the failure latched. |
+| `breadcrumb` | object&#124;null | Optional breadcrumb summary with `summary` text and `chain[]` entries describing cause/effect nodes for HUD displays. |
 | `metadata` | object&#124;null | Raw metadata object recorded with the failure (e.g., manual override details). |
 
 ### `score`

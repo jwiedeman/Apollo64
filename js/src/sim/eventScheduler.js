@@ -309,14 +309,6 @@ export class EventScheduler {
       phase: event.phase,
       ...context,
     });
-    this.resourceSystem.applyEffect(event.failureEffects, {
-      getSeconds: currentGetSeconds,
-      source: event.id,
-      type: 'failure',
-    });
-    if (event.checklistId && this.checklistManager) {
-      this.checklistManager.abortEvent(event.id, currentGetSeconds, reason);
-    }
     let autopilotSummary = null;
     if (this.autopilotRunner && (event.autopilot || abortAutopilot)) {
       if (abortAutopilot) {
@@ -326,6 +318,19 @@ export class EventScheduler {
     }
     if (autopilotSummary) {
       event.lastAutopilotSummary = autopilotSummary;
+    }
+    const failureContext = context ? { ...context } : {};
+    if (event.lastAutopilotSummary && !failureContext.autopilotSummary) {
+      failureContext.autopilotSummary = event.lastAutopilotSummary;
+    }
+    this.resourceSystem.applyEffect(event.failureEffects, {
+      getSeconds: currentGetSeconds,
+      source: event.id,
+      type: 'failure',
+      context: failureContext,
+    });
+    if (event.checklistId && this.checklistManager) {
+      this.checklistManager.abortEvent(event.id, currentGetSeconds, reason);
     }
     if (event.lastAutopilotSummary) {
       this.#emitAutopilotSummary(event, event.lastAutopilotSummary);
