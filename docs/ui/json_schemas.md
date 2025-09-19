@@ -208,6 +208,6 @@ Workspace packs define preset tile arrangements for the three primary views and 
 ## Integration Workflow
 
 1. **Source of Truth:** The ingestion pipeline converts annotated CSV notebooks into the JSON structures above, preserving provenance and checklist ordering while enriching records with UI-specific metadata.
-2. **Validation:** `validateMissionData.js` gains schema checks to ensure checklist steps reference valid panels, controls, and macros. Separate JSON Schema documents (Draft 2020-12) will be generated to support CI validation.
+2. **Validation:** `validateMissionData.js` now enforces these relationships by loading the JSON bundles, confirming panels/controls/states exist, verifying checklist IDs against the mission dataset, and checking workspace tiles against known panels. Separate JSON Schema documents (Draft 2020-12) will be generated to support CI validation.
 3. **Runtime Consumption:** `createSimulationContext` loads the packs, injecting control metadata into the checklist manager so auto/manual steps block until panel states satisfy prerequisites. Tile presets drive the upcoming UI layout manager.
 4. **Portability:** The N64 build will consume the same JSON (converted to binary packs) so layout constraints, panel dependencies, and macro definitions stay consistent across platforms.
