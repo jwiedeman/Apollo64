@@ -34,6 +34,7 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "autopilot": { ... },
   "checklists": { ... },
   "manualQueue": { ... },
+  "trajectory": { ... },
   "alerts": { "warnings": [], "cautions": [], "failures": [] },
   "score": { ... },
   "resourceHistory": { ... }
@@ -178,6 +179,32 @@ metrics so trend widgets can consume the same telemetry as the HUD.
 ### `manualQueue`
 
 Mirrors `ManualActionQueue.stats()` with counts for scheduled, pending, executed, failed, retried actions plus checklist acknowledgements and resource deltas injected by the manual queue.
+
+### `trajectory`
+
+Summarizes the current orbit state as reported by the patched-conic propagator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `body.id` / `body.name` | string&#124;null | Identifier/name for the active primary body (e.g., `earth`, `Earth`). |
+| `altitude.meters` | number&#124;null | Radius minus body radius in meters. |
+| `altitude.kilometers` | number&#124;null | Convenience conversion of altitude to kilometers. |
+| `radiusKm` | number&#124;null | Distance from the primary body center in kilometers. |
+| `speed.metersPerSecond` | number&#124;null | Current inertial speed. |
+| `speed.kilometersPerSecond` | number&#124;null | Speed expressed in km/s. |
+| `elements.eccentricity` | number&#124;null | Orbital eccentricity. |
+| `elements.inclinationDeg` | number&#124;null | Inclination in degrees. |
+| `elements.raanDeg` | number&#124;null | Right ascension of ascending node in degrees. |
+| `elements.argumentOfPeriapsisDeg` | number&#124;null | Argument of periapsis in degrees. |
+| `elements.trueAnomalyDeg` | number&#124;null | True anomaly in degrees. |
+| `elements.periapsisKm` | number&#124;null | Periapsis altitude above the primary body (km). |
+| `elements.apoapsisKm` | number&#124;null | Apoapsis altitude above the primary body (km) when defined. |
+| `elements.semiMajorAxisKm` | number&#124;null | Semi-major axis in kilometers. |
+| `elements.periodMinutes` | number&#124;null | Orbital period in minutes for bounded orbits. |
+| `metrics.totalDeltaVMps` | number&#124;null | Cumulative Δv applied via recorded impulses (m/s). |
+| `metrics.lastImpulse` | object&#124;null | Metadata for the latest applied Δv impulse (`magnitude`, `frame`, `appliedAtSeconds`). |
+| `alerts` | object | Orbit-specific cautions/warnings (`orbit_periapsis_low`) and failures (`orbit_periapsis_below_surface`). These entries are merged into the top-level `alerts` buckets. |
+| `history` | object&#124;null | Optional history sample payload (meta + samples) mirroring `OrbitPropagator.historySnapshot()`. |
 
 ### `alerts`
 
