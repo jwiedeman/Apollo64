@@ -63,7 +63,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 
 ## 6. Mission Data & Control Loops
 - **Event scheduler:** Deterministic timeline with prerequisites, windows, autopilot scripts, manual ops, and effects.
-- **Physics:** Patched-conic two-body model, 20 Hz fixed simulation, RK2/RK4 integration, analytic drag during entry.
+- **Physics:** Patched-conic two-body model, 20 Hz fixed simulation, RK2/RK4 integration, analytic drag during entry; the current orbit propagator, impulse logging, and HUD bindings are detailed in [`docs/sim/orbit_propagator.md`](sim/orbit_propagator.md).
 - **Attitude & RCS loops:** PD controllers with pulse quantization and PTC maintenance.
 - **Resources:** Fuel cell power tied to cryogenic states, CO₂ accumulation, and comms windows governing PAD delivery.
 - **Manual input loop:** `ManualActionQueue` mediates checklist acknowledgements, resource deltas, propellant burns, and DSKY macros for parity with automated runs; the UI contract lives in [`docs/ui/manual_actions_reference.md`](ui/manual_actions_reference.md) so future front-ends dispatch deterministic actions against the same schema.
