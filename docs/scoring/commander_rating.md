@@ -85,6 +85,10 @@ producing false failures.
 - Unlock logic (future work) can read the commander score and component metrics
   to gate alternate missions (Apollo 8 flyby, Apollo 13 emergency) while also
   rewarding high manual participation.
+- Progression thresholds and persistence expectations are detailed in
+  [`progression_unlocks.md`](progression_unlocks.md), ensuring score outputs map
+  cleanly onto campaign gates, challenge variants, and cosmetic rewards across
+  both platforms.
 - Future scoring extensions can add mission-specific modifiers (e.g., landing
   fuel reserves, docking attempt count) by extending `ScoreSystem.summary()`
   without altering the top-level rating contract.
