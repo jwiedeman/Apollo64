@@ -66,6 +66,23 @@ Key options:
 
 The exporter writes a JSON payload containing metadata, the simulation summary, and an ordered array of `ui_frame` objects that follow the schema documented in [`docs/ui/ui_frame_reference.md`](../docs/ui/ui_frame_reference.md).
 
+## Autopilot Burn Analyzer
+
+Inspect autopilot execution metrics against historical PADs and tolerance envelopes with:
+
+```
+npm run analyze:autopilots -- --until 015:00:00 --autopilot PGM_06_TLI --pretty
+```
+
+Key options:
+
+- `--until <GET>` – Mission GET to stop the analysis run (defaults to `015:00:00`).
+- `--autopilot <id>` / `--event <id>` – Focus the report on specific automation programs or events.
+- `--json` / `--pretty` – Emit structured JSON suitable for regression dashboards or notebook ingestion.
+- `--output <path>` – Persist the report to disk.
+
+The analyzer replays the mission slice with the full simulator stack, capturing actual vs. expected burn seconds, propellant draw, Δv deltas, ullage usage, and PAD metadata for each autopilot event. Runs exit non-zero when any analyzed event fails so tolerance regressions surface immediately.
+
 ## Module Overview
 - `src/index.js` – CLI entrypoint that wires the loader, scheduler, resource model, and simulation loop.
 - `src/data/missionDataLoader.js` – CSV/JSON ingestion with autopilot duration estimation and checklist/failure maps.
