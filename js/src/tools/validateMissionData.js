@@ -22,10 +22,10 @@ async function main() {
   const checklistMap = validateChecklists(checklistRecords, context);
 
   const padRecords = await readCsvFile('pads.csv', context);
-  validatePads(padRecords, context);
+  const padMap = validatePads(padRecords, context);
 
   const eventRecords = await readCsvFile('events.csv', context);
-  validateEvents(eventRecords, { autopilotMap, checklistMap, failureMap, context });
+  validateEvents(eventRecords, { autopilotMap, checklistMap, failureMap, padMap, context });
 
   await validateConsumables(context);
   validateAutopilotPropellantReferences(context);
@@ -521,7 +521,7 @@ function validatePads(records, context) {
   return pads;
 }
 
-function validateEvents(records, { autopilotMap, checklistMap, failureMap, context }) {
+function validateEvents(records, { autopilotMap, checklistMap, failureMap, padMap, context }) {
   const events = new Map();
   const phaseOpenTimes = new Map();
 
@@ -590,6 +590,15 @@ function validateEvents(records, { autopilotMap, checklistMap, failureMap, conte
       const checklistId = record.checklist_id.trim();
       if (!checklistMap.has(checklistId)) {
         addError(context, `Event ${id} references unknown checklist_id ${checklistId}`);
+      }
+    }
+
+    if (record.pad_id) {
+      const padId = record.pad_id.trim();
+      if (padId && padMap && !padMap.has(padId)) {
+        addError(context, `Event ${id} references unknown pad_id ${padId}`);
+      } else if (padId) {
+        trackReference(context, 'eventPadIds', padId);
       }
     }
 

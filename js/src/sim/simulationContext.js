@@ -64,7 +64,12 @@ export async function createSimulationContext({
   const orbitConfig = { ...DEFAULT_ORBIT_OPTIONS, ...(orbitOptions ?? {}) };
   const orbitPropagator = new OrbitPropagator({ ...orbitConfig, logger });
 
-  const hudConfig = { audioCues: missionData.audioCues, ...(hudOptions ?? {}) };
+  const hudConfig = {
+    audioCues: missionData.audioCues,
+    pads: missionData.pads,
+    events: missionData.events,
+    ...(hudOptions ?? {}),
+  };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);
   const hud = new TextHud({
     logger,

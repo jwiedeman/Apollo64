@@ -61,6 +61,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     prerequisites: parseList(record.prerequisites),
     autopilotId: record.autopilot_script || null,
     checklistId: record.checklist_id || null,
+    padId: record.pad_id ? record.pad_id.trim() || null : null,
     successEffects: parseOptionalJson(record.success_effects),
     failureEffects: parseOptionalJson(record.failure_effects),
     notes: record.notes ?? '',
@@ -70,7 +71,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const checklistRecords = parseCsv(checklistsContent);
   const checklists = buildChecklists(checklistRecords);
   const failures = buildLookup(parseCsv(failuresContent), 'failure_id');
-  const pads = buildLookup(parseCsv(padsContent), 'pad_id');
+  const pads = parsePads(parseCsv(padsContent), logger);
   const consumables = parseConsumables(consumablesContent, logger);
   const thrusters = parseThrusters(thrustersContent, logger);
   const communications = parseCommunicationsTrends(communicationsContent, logger);
@@ -304,6 +305,119 @@ function parseCommunicationsTrends(content, logger) {
     logger?.log(0, 'Failed to parse communications trends dataset', { error: error.message });
     return [];
   }
+}
+
+function parsePads(records, logger) {
+  const pads = new Map();
+
+  for (const record of records) {
+    const id = record.pad_id?.trim();
+    if (!id) {
+      continue;
+    }
+
+    const deliveryRaw = record.GET_delivery ?? record.get_delivery ?? null;
+    const deliveryGet = typeof deliveryRaw === 'string' ? deliveryRaw.trim() : null;
+    const deliveryGetSeconds = deliveryGet ? parseGET(deliveryGet) : null;
+
+    const validUntilRaw = record.valid_until ?? null;
+    const validUntilGet = typeof validUntilRaw === 'string' ? validUntilRaw.trim() : null;
+    const validUntilSeconds = validUntilGet ? parseGET(validUntilGet) : null;
+
+    let rawParameters = {};
+    if (record.parameters) {
+      try {
+        const parsed = JSON.parse(record.parameters);
+        if (parsed && typeof parsed === 'object') {
+          rawParameters = parsed;
+        }
+      } catch (error) {
+        logger?.log(0, `Failed to parse PAD parameters for ${id}`, { error: error.message });
+        rawParameters = {};
+      }
+    }
+
+    const parameters = normalizePadParameters(rawParameters);
+
+    pads.set(id, {
+      id,
+      purpose: record.purpose ?? null,
+      deliveryGet,
+      deliveryGetSeconds,
+      validUntilGet,
+      validUntilSeconds,
+      source: record.source_ref ?? record.source ?? null,
+      parameters,
+    });
+  }
+
+  return pads;
+}
+
+export function normalizePadParameters(raw) {
+  const parameters = raw && typeof raw === 'object' ? { ...raw } : {};
+
+  const tig = parsePadTime(parameters, ['TIG', 'tig']);
+  const entryInterface = parsePadTime(parameters, ['entry_interface_get', 'entryInterfaceGet']);
+
+  const deltaVFtPerSec = coerceNumber(
+    parameters.delta_v_ft_s ?? parameters.delta_v_ft ?? parameters.delta_v_ftps,
+  );
+  const deltaVMetersPerSecond = coerceNumber(
+    parameters.delta_v_mps ?? parameters.delta_v_ms ?? parameters.delta_v_m_s,
+  );
+  const resolvedDeltaVMps = Number.isFinite(deltaVMetersPerSecond)
+    ? deltaVMetersPerSecond
+    : Number.isFinite(deltaVFtPerSec)
+      ? feetPerSecondToMetersPerSecond(deltaVFtPerSec)
+      : null;
+
+  const burnDurationSeconds = coerceNumber(
+    parameters.burn_duration_s ?? parameters.burn_duration_seconds ?? parameters.burn_duration,
+  );
+
+  const vInfinityFtPerSec = coerceNumber(parameters.v_infinity_ft_s ?? parameters.v_infinity_ftps);
+  const vInfinityMetersPerSecond = coerceNumber(parameters.v_infinity_mps ?? parameters.v_infinity_ms);
+  const resolvedVInfinityMps = Number.isFinite(vInfinityMetersPerSecond)
+    ? vInfinityMetersPerSecond
+    : Number.isFinite(vInfinityFtPerSec)
+      ? feetPerSecondToMetersPerSecond(vInfinityFtPerSec)
+      : null;
+
+  return {
+    raw: parameters,
+    tig,
+    entryInterface,
+    deltaVFtPerSec: Number.isFinite(deltaVFtPerSec) ? deltaVFtPerSec : null,
+    deltaVMetersPerSecond: Number.isFinite(resolvedDeltaVMps) ? resolvedDeltaVMps : null,
+    burnDurationSeconds: Number.isFinite(burnDurationSeconds) ? burnDurationSeconds : null,
+    attitude: typeof parameters.attitude === 'string' ? parameters.attitude : null,
+    rangeToTargetNm: coerceNumber(parameters.range_to_target_nm ?? parameters.range_nm),
+    flightPathAngleDeg: coerceNumber(
+      parameters.flight_path_angle_deg ?? parameters.flightPathAngleDeg,
+    ),
+    vInfinityFtPerSec: Number.isFinite(vInfinityFtPerSec) ? vInfinityFtPerSec : null,
+    vInfinityMetersPerSecond: Number.isFinite(resolvedVInfinityMps) ? resolvedVInfinityMps : null,
+    notes: typeof parameters.notes === 'string' ? parameters.notes : null,
+  };
+}
+
+function parsePadTime(parameters, keys) {
+  for (const key of keys) {
+    const value = parameters[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const trimmed = value.trim();
+      return { get: trimmed, getSeconds: parseGET(trimmed) };
+    }
+  }
+  return { get: null, getSeconds: null };
+}
+
+function feetPerSecondToMetersPerSecond(value) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return value * 0.3048;
 }
 
 function parseAudioCues(content, logger) {

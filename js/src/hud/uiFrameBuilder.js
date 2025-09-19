@@ -27,6 +27,8 @@ export class UiFrameBuilder {
   constructor(options = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.lastFrame = null;
+    this.padMap = this.#normalizePadMap(this.options.pads);
+    this.eventPadMap = this.#buildEventPadMap(this.options.events);
   }
 
   build(currentGetSeconds, context = {}) {
@@ -37,11 +39,13 @@ export class UiFrameBuilder {
       met: formatGET(currentGetSeconds),
     };
 
-    const eventStats = context.scheduler?.stats?.() ?? { counts: {}, upcoming: [] };
+    const scheduler = context.scheduler ?? null;
+    const eventStats = scheduler?.stats?.() ?? { counts: {}, upcoming: [] };
     const upcomingLimit = Math.max(0, Number(this.options.upcomingLimit) || 0);
     const upcomingRaw = Array.isArray(eventStats.upcoming) ? eventStats.upcoming : [];
+    const resolvePad = (eventId) => this.#resolvePadForEvent(eventId, scheduler);
     const upcoming = (upcomingLimit > 0 ? upcomingRaw.slice(0, upcomingLimit) : upcomingRaw).map((event) =>
-      this.#buildNextEvent(event, currentGetSeconds),
+      this.#buildNextEvent(event, currentGetSeconds, resolvePad),
     );
     const nextEvent = upcoming.length > 0 ? upcoming[0] : null;
 
@@ -64,10 +68,10 @@ export class UiFrameBuilder {
     };
 
     const autopilotStats = context.autopilotRunner?.stats?.() ?? null;
-    const autopilot = this.#summarizeAutopilot(autopilotStats);
+    const autopilot = this.#summarizeAutopilot(autopilotStats, resolvePad);
 
     const checklistStats = context.checklistManager?.stats?.() ?? null;
-    const checklists = this.#summarizeChecklists(checklistStats);
+    const checklists = this.#summarizeChecklists(checklistStats, resolvePad);
 
     const manualStats = context.manualQueue?.stats?.() ?? null;
 
@@ -135,7 +139,7 @@ export class UiFrameBuilder {
     return this.lastFrame;
   }
 
-  #buildNextEvent(event, currentGetSeconds) {
+  #buildNextEvent(event, currentGetSeconds, resolvePad) {
     if (!event) {
       return null;
     }
@@ -154,6 +158,8 @@ export class UiFrameBuilder {
       tMinusSeconds,
       tMinusLabel: tMinusSeconds != null ? this.#formatOffset(tMinusSeconds) : null,
       isOverdue: tMinusSeconds != null && tMinusSeconds < 0,
+      padId: event.padId ?? null,
+      pad: resolvePad ? resolvePad(event.id) : null,
     };
   }
 
@@ -554,22 +560,27 @@ export class UiFrameBuilder {
     };
   }
 
-  #summarizeAutopilot(stats) {
+  #summarizeAutopilot(stats, resolvePad) {
     if (!stats) {
       return null;
     }
 
     const activeLimit = Math.max(0, Number(this.options.activeAutopilotLimit) || 0);
-    const activeAutopilots = activeLimit > 0 ? (stats.activeAutopilots ?? []).slice(0, activeLimit) : [];
+    const activeAutopilotsRaw = Array.isArray(stats.activeAutopilots) ? stats.activeAutopilots : [];
+    const activeAutopilots = activeLimit > 0 ? activeAutopilotsRaw.slice(0, activeLimit) : activeAutopilotsRaw.slice();
+    const augmentedActive = activeAutopilots.map((entry) => ({
+      ...entry,
+      pad: resolvePad ? resolvePad(entry.eventId) : null,
+    }));
 
     let primary = null;
-    if (Array.isArray(stats.activeAutopilots) && stats.activeAutopilots.length > 0) {
-      const sorted = [...stats.activeAutopilots].sort((a, b) => {
+    if (activeAutopilotsRaw.length > 0) {
+      const sorted = [...activeAutopilotsRaw].sort((a, b) => {
         const aRemaining = Number.isFinite(a.remainingSeconds) ? a.remainingSeconds : Infinity;
         const bRemaining = Number.isFinite(b.remainingSeconds) ? b.remainingSeconds : Infinity;
         return aRemaining - bRemaining;
       });
-      primary = sorted[0];
+      primary = { ...sorted[0], pad: resolvePad ? resolvePad(sorted[0].eventId) : null };
     }
 
     return {
@@ -583,28 +594,152 @@ export class UiFrameBuilder {
       totalRcsPulses: stats.totalRcsPulses ?? 0,
       totalDskyEntries: stats.totalDskyEntries ?? 0,
       propellantKgByTank: stats.propellantKgByTank ?? {},
-      activeAutopilots,
+      activeAutopilots: augmentedActive,
       primary,
     };
   }
 
-  #summarizeChecklists(stats) {
+  #normalizePadMap(padsOption) {
+    if (!padsOption) {
+      return new Map();
+    }
+    if (padsOption instanceof Map) {
+      return new Map(padsOption);
+    }
+    const map = new Map();
+    if (Array.isArray(padsOption)) {
+      for (const entry of padsOption) {
+        if (entry && entry.id) {
+          map.set(entry.id, entry);
+        }
+      }
+      return map;
+    }
+    if (typeof padsOption === 'object') {
+      for (const [key, value] of Object.entries(padsOption)) {
+        if (value && typeof value === 'object') {
+          map.set(key, value);
+        }
+      }
+      return map;
+    }
+    return map;
+  }
+
+  #buildEventPadMap(eventsOption) {
+    const map = new Map();
+    if (!eventsOption) {
+      return map;
+    }
+    if (eventsOption instanceof Map) {
+      for (const [id, event] of eventsOption.entries()) {
+        if (event?.padId) {
+          map.set(id, event.padId);
+        }
+      }
+      return map;
+    }
+    if (Array.isArray(eventsOption)) {
+      for (const event of eventsOption) {
+        if (event?.id && event.padId) {
+          map.set(event.id, event.padId);
+        }
+      }
+    }
+    return map;
+  }
+
+  #resolvePadForEvent(eventId, scheduler) {
+    if (!eventId) {
+      return null;
+    }
+    const key = String(eventId);
+    let padId = this.eventPadMap.get(key) ?? null;
+    if (!padId && typeof scheduler?.getEventById === 'function') {
+      const event = scheduler.getEventById(key);
+      padId = event?.padId ?? null;
+    }
+    if (!padId) {
+      return null;
+    }
+    const pad = this.padMap.get(padId) ?? null;
+    return this.#summarizePad(pad, padId);
+  }
+
+  #summarizePad(pad, padId) {
+    if (!pad) {
+      if (!padId) {
+        return null;
+      }
+      return { id: padId, purpose: null };
+    }
+
+    const parameters = pad.parameters ?? {};
+
+    return {
+      id: pad.id ?? padId ?? null,
+      purpose: pad.purpose ?? null,
+      delivery: {
+        get: typeof pad.deliveryGet === 'string' ? pad.deliveryGet : null,
+        getSeconds: this.#coerceNumber(pad.deliveryGetSeconds),
+      },
+      validUntil: {
+        get: typeof pad.validUntilGet === 'string' ? pad.validUntilGet : null,
+        getSeconds: this.#coerceNumber(pad.validUntilSeconds),
+      },
+      source: pad.source ?? null,
+      parameters: {
+        tig: this.#clonePadTime(parameters.tig),
+        entryInterface: this.#clonePadTime(parameters.entryInterface),
+        deltaVFtPerSec: this.#coerceNumber(parameters.deltaVFtPerSec),
+        deltaVMetersPerSecond: this.#coerceNumber(parameters.deltaVMetersPerSecond),
+        burnDurationSeconds: this.#coerceNumber(parameters.burnDurationSeconds),
+        attitude: typeof parameters.attitude === 'string' ? parameters.attitude : null,
+        rangeToTargetNm: this.#coerceNumber(parameters.rangeToTargetNm),
+        flightPathAngleDeg: this.#coerceNumber(parameters.flightPathAngleDeg),
+        vInfinityFtPerSec: this.#coerceNumber(parameters.vInfinityFtPerSec),
+        vInfinityMetersPerSecond: this.#coerceNumber(parameters.vInfinityMetersPerSecond),
+        notes: typeof parameters.notes === 'string' ? parameters.notes : null,
+        raw: parameters.raw && typeof parameters.raw === 'object'
+          ? { ...parameters.raw }
+          : {},
+      },
+    };
+  }
+
+  #clonePadTime(time) {
+    if (!time || typeof time !== 'object') {
+      return null;
+    }
+    const get = typeof time.get === 'string' ? time.get : null;
+    const getSeconds = this.#coerceNumber(time.getSeconds);
+    if (get == null && getSeconds == null) {
+      return null;
+    }
+    return { get, getSeconds };
+  }
+
+  #summarizeChecklists(stats, resolvePad) {
     if (!stats) {
       return null;
     }
 
     const limit = Math.max(0, Number(this.options.activeChecklistLimit) || 0);
     const active = limit > 0 ? stats.active.slice(0, limit) : stats.active.slice();
-    const chip = this.#selectChecklistChip(stats.active);
+    const augmentedActive = active.map((entry) => ({
+      ...entry,
+      pad: resolvePad ? resolvePad(entry.eventId) : null,
+    }));
+    const chip = this.#selectChecklistChip(stats.active, resolvePad);
 
     return {
       totals: stats.totals,
-      active,
+      active: augmentedActive,
       chip,
     };
   }
 
-  #selectChecklistChip(active) {
+  #selectChecklistChip(active, resolvePad) {
     if (!Array.isArray(active) || active.length === 0) {
       return null;
     }
@@ -631,6 +766,7 @@ export class UiFrameBuilder {
       nextStepAction: selected.nextStepAction,
       stepsRemaining: Math.max(0, selected.totalSteps - selected.completedSteps),
       autoAdvancePending: selected.autoAdvancePending,
+      pad: resolvePad ? resolvePad(selected.eventId) : null,
     };
   }
 
