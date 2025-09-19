@@ -90,6 +90,10 @@ catalog metadata, tracks first/last occurrence GET stamps, records notes, and
 emits log entries for mission archives and HUD fault lanes.【F:js/src/sim/resourceSystem.js†L336-L466】 The resulting entries are
 mirrored into resource snapshots, giving Systems view panels the classification,
 penalty, and recovery guidance needed to visualise cascading issues.【F:js/src/sim/resourceSystem.js†L594-L655】
+Failure records now also capture breadcrumb summaries synthesised by
+`createFailureBreadcrumb()` so downstream HUD and Systems panes can display
+compact cause/effect chains (e.g., PTC state, cryo drift, Δv shortfall) alongside
+classification metadata.【F:js/src/sim/failureBreadcrumbs.js†L1-L341】【F:js/src/sim/resourceSystem.js†L388-L466】
 
 ## Communications Scheduling
 

@@ -1,4 +1,5 @@
 import { formatGET, parseGET } from '../utils/time.js';
+import { createFailureBreadcrumb } from './failureBreadcrumbs.js';
 
 const DEFAULT_STATE = {
   power_margin_pct: 100,
@@ -281,7 +282,7 @@ export class ResourceSystem {
     }
   }
 
-  applyEffect(effect, { getSeconds, source, type }) {
+  applyEffect(effect, { getSeconds, source, type, context } = {}) {
     if (!effect || Object.keys(effect).length === 0) {
       return;
     }
@@ -291,7 +292,7 @@ export class ResourceSystem {
     for (const [key, value] of Object.entries(effect)) {
       if (key === 'failure_id') {
         if (value) {
-          const failure = this.recordFailure(value, { getSeconds, source, type });
+          const failure = this.recordFailure(value, { getSeconds, source, type, context });
           applied.failure_id = failure ? failure.id : value;
         }
         continue;
@@ -317,6 +318,7 @@ export class ResourceSystem {
             type,
             note,
             metadata,
+            context,
           });
           if (failure) {
             recorded.push(failure.id);
@@ -369,7 +371,7 @@ export class ResourceSystem {
 
   recordFailure(
     failureId,
-    { getSeconds = null, source = null, type = null, note = null, metadata = null } = {},
+    { getSeconds = null, source = null, type = null, note = null, metadata = null, context = null } = {},
   ) {
     if (!failureId) {
       return null;
@@ -448,6 +450,22 @@ export class ResourceSystem {
       if (!entry.recoveryActions && metadata.recovery_actions) {
         entry.recoveryActions = metadata.recovery_actions;
       }
+    }
+
+    const effectiveMetadata =
+      metadata && typeof metadata === 'object'
+        ? metadata
+        : entry.metadata ?? catalogEntry ?? null;
+    const breadcrumb = createFailureBreadcrumb(id, {
+      resourceSystem: this,
+      state: this.state,
+      metadata: effectiveMetadata,
+      note,
+      source,
+      context,
+    });
+    if (breadcrumb) {
+      entry.breadcrumb = breadcrumb;
     }
 
     if (this.logger) {

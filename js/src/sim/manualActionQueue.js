@@ -239,6 +239,7 @@ export class ManualActionQueue {
       getSeconds: currentGetSeconds,
       source: action.source,
       type: 'manual',
+      context: action.context ?? null,
     });
     this.metrics.resourceDeltas += 1;
 

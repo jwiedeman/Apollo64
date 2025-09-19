@@ -907,6 +907,13 @@ export class UiFrameBuilder {
         if (entry.metadata && typeof entry.metadata === 'object') {
           summary.metadata = { ...entry.metadata };
         }
+        if (entry.breadcrumb && typeof entry.breadcrumb === 'object') {
+          const breadcrumb = { ...entry.breadcrumb };
+          if (Array.isArray(entry.breadcrumb.chain)) {
+            breadcrumb.chain = entry.breadcrumb.chain.map((item) => ({ ...item }));
+          }
+          summary.breadcrumb = breadcrumb;
+        }
         summaries.push(summary);
       } else {
         summaries.push({ id: entry });

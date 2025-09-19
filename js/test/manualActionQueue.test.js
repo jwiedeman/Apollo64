@@ -95,6 +95,7 @@ describe('ManualActionQueue', () => {
         getSeconds: 15,
         source: 'resource_delta_2',
         type: 'manual',
+        context: null,
       },
     });
 
