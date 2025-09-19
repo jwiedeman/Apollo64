@@ -45,6 +45,10 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
 - **Audio cues:**
   - Parse `audio_cues.json`, ensuring buses and categories expose unique IDs, ducking rules reference known targets, and cooldown/priority fields stay numeric.
   - Validate that each cue references a known category, defines playback duration/loop metadata, includes at least one platform asset path, and carries mission-source citations for provenance tracking.
+- **UI bundles:**
+  - Parse `docs/ui/panels.json`, confirming panel IDs remain unique, control definitions list valid states, dependencies reference existing controls, alerts carry valid triggers, and cross-panel references resolve correctly.
+  - Validate `docs/ui/checklists.json`, ensuring checklist IDs exist in the CSV dataset, phases/roles use the documented enums, panel/control/state references resolve, and per-checklist step ordering stays sequential.
+  - Inspect `docs/ui/workspaces.json` so preset IDs remain unique, tile IDs and coordinates stay in range, constraints use numeric values, and optional `panelFocus` references point at known panels.
 
 ## Extending the Sweep
 

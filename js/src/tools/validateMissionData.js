@@ -3,13 +3,19 @@ import fs from 'fs/promises';
 import path from 'path';
 import process from 'process';
 import { pathToFileURL } from 'url';
-import { DATA_DIR } from '../config/paths.js';
+import { DATA_DIR, UI_DOCS_DIR } from '../config/paths.js';
 import { parseCsv } from '../utils/csv.js';
 import { formatGET, parseGET } from '../utils/time.js';
 import { normalizePadParameters } from '../data/missionDataLoader.js';
 
 const VALID_TRANSLATION_AXES = new Set(['+X', '-X', '+Y', '-Y', '+Z', '-Z']);
 const VALID_TORQUE_AXES = new Set(['+pitch', '-pitch', '+yaw', '-yaw', '+roll', '-roll']);
+const UI_CONTROL_TYPES = new Set(['toggle', 'enum', 'rotary', 'momentary', 'analog']);
+const UI_DEPENDENCY_TYPES = new Set(['control', 'circuitbreaker']);
+const UI_PHASES = new Set(['Launch', 'Translunar', 'LunarOrbit', 'Surface', 'Transearth', 'Entry']);
+const UI_ROLES = new Set(['CDR', 'CMP', 'LMP', 'Joint']);
+const UI_WINDOW_ID_PATTERN = /^[A-Za-z][A-Za-z0-9]*$/;
+const UI_RESOURCE_OPERATORS = new Set(['>', '>=', '<', '<=', '===', '!==']);
 
 async function main() {
   const context = createContext();
@@ -34,6 +40,7 @@ async function main() {
   await validateCommunicationsTrends(context);
   await validateThrusters(context);
   await validateAudioCues(context);
+  await validateUiDefinitions({ context, checklistMap });
 
   printSummary(context);
 
@@ -59,6 +66,22 @@ async function readCsvFile(relativePath, context) {
   } catch (error) {
     addError(context, `Failed to read ${relativePath}: ${error.message}`);
     return [];
+  }
+}
+
+async function readUiJsonFile(relativePath, context) {
+  const absolutePath = path.resolve(UI_DOCS_DIR, relativePath);
+  try {
+    const content = await fs.readFile(absolutePath, 'utf8');
+    const data = JSON.parse(content);
+    if (!data || typeof data !== 'object') {
+      addError(context, `docs/ui/${relativePath} is not a valid JSON object`);
+      return null;
+    }
+    return data;
+  } catch (error) {
+    addError(context, `Failed to read docs/ui/${relativePath}: ${error.message}`);
+    return null;
   }
 }
 
@@ -1027,6 +1050,869 @@ async function validateAudioCues(context) {
   context.refs.audioCategories = new Set(categoryIds.keys());
   context.refs.audioCueIds = new Set(cueIds.keys());
   context.refs.audioCueMap = cueIds;
+}
+
+async function validateUiDefinitions({ context, checklistMap }) {
+  const panelBundle = await readUiJsonFile('panels.json', context);
+  validateUiPanelsBundle(panelBundle, context);
+  const panelInfo = context.refs.uiPanelInfo ?? { panels: new Map() };
+
+  const checklistBundle = await readUiJsonFile('checklists.json', context);
+  validateUiChecklistsBundle(checklistBundle, { context, checklistMap, panelInfo });
+
+  const workspaceBundle = await readUiJsonFile('workspaces.json', context);
+  validateUiWorkspacesBundle(workspaceBundle, { context, panelInfo });
+}
+
+function validateUiPanelsBundle(bundle, context) {
+  const panelInfo = { panels: new Map() };
+
+  context.refs.uiPanelInfo = panelInfo;
+
+  if (!bundle) {
+    context.stats.uiPanels = 0;
+    context.stats.uiPanelControls = 0;
+    context.stats.uiPanelAlerts = 0;
+    return;
+  }
+
+  if (typeof bundle.version !== 'number' || !Number.isFinite(bundle.version)) {
+    addWarning(context, 'docs/ui/panels.json version should be a finite number');
+  }
+
+  if (bundle.description != null && typeof bundle.description !== 'string') {
+    addWarning(context, 'docs/ui/panels.json description should be a string when present');
+  }
+
+  if (!context.refs.uiPanels) {
+    context.refs.uiPanels = new Set();
+  }
+
+  const panelsArray = Array.isArray(bundle.panels) ? bundle.panels : [];
+  if (!Array.isArray(bundle.panels)) {
+    addError(context, 'docs/ui/panels.json panels should be an array');
+  }
+
+  const panelIds = new Set();
+  const crossPanelDependencies = [];
+  let totalControls = 0;
+  let totalAlerts = 0;
+
+  for (const [index, panel] of panelsArray.entries()) {
+    const label = `docs/ui/panels.json panels[${index}]`;
+    if (!panel || typeof panel !== 'object') {
+      addError(context, `${label} is not an object`);
+      continue;
+    }
+
+    const panelId = normalizeString(panel.id);
+    if (!panelId) {
+      addError(context, `${label} is missing an id`);
+      continue;
+    }
+    if (panelIds.has(panelId)) {
+      addError(context, `${label} duplicates panel id ${panelId}`);
+      continue;
+    }
+    panelIds.add(panelId);
+    context.refs.uiPanels.add(panelId);
+
+    const controlMap = new Map();
+    panelInfo.panels.set(panelId, { controls: controlMap });
+
+    if (panel.name != null && typeof panel.name !== 'string') {
+      addWarning(context, `${label}.name should be a string when present`);
+    }
+    if (panel.craft == null || typeof panel.craft !== 'string') {
+      addWarning(context, `${label}.craft should be a string`);
+    }
+
+    let layoutHotspots = null;
+    if (panel.layout != null && typeof panel.layout !== 'object') {
+      addWarning(context, `${label}.layout should be an object when present`);
+    } else if (panel.layout) {
+      if (panel.layout.schematic != null && typeof panel.layout.schematic !== 'string') {
+        addWarning(context, `${label}.layout.schematic should be a string when present`);
+      }
+      if (panel.layout.hotspots != null) {
+        if (Array.isArray(panel.layout.hotspots)) {
+          layoutHotspots = panel.layout.hotspots;
+        } else {
+          addWarning(context, `${label}.layout.hotspots should be an array when present`);
+          layoutHotspots = [];
+        }
+      }
+    }
+
+    const controlsArray = Array.isArray(panel.controls) ? panel.controls : [];
+    if (panel.controls != null && !Array.isArray(panel.controls)) {
+      addError(context, `${label}.controls should be an array`);
+    }
+    if (controlsArray.length === 0) {
+      addWarning(context, `${label} defines no controls`);
+    }
+    const controlIds = new Set();
+
+    for (const [controlIndex, control] of controlsArray.entries()) {
+      const controlLabel = `${label}.controls[${controlIndex}]`;
+      if (!control || typeof control !== 'object') {
+        addError(context, `${controlLabel} is not an object`);
+        continue;
+      }
+
+      const controlId = normalizeString(control.id);
+      if (!controlId) {
+        addError(context, `${controlLabel} is missing an id`);
+        continue;
+      }
+      if (controlIds.has(controlId)) {
+        addError(context, `${controlLabel} duplicates control id ${controlId} within panel ${panelId}`);
+        continue;
+      }
+      controlIds.add(controlId);
+
+      if (control.type == null || typeof control.type !== 'string') {
+        addWarning(context, `${controlLabel}.type should be a string`);
+      } else {
+        const typeNormalized = control.type.trim().toLowerCase();
+        if (!UI_CONTROL_TYPES.has(typeNormalized)) {
+          addWarning(context, `${controlLabel}.type uses unexpected value ${control.type}`);
+        }
+      }
+
+      if (control.label != null && typeof control.label !== 'string') {
+        addWarning(context, `${controlLabel}.label should be a string when present`);
+      }
+
+      const statesArray = Array.isArray(control.states) ? control.states : [];
+      if (control.states != null && !Array.isArray(control.states)) {
+        addError(context, `${controlLabel}.states should be an array`);
+      }
+      if (statesArray.length === 0) {
+        addWarning(context, `${controlLabel} defines no states`);
+      }
+      const stateIds = new Set();
+      for (const [stateIndex, state] of statesArray.entries()) {
+        const stateLabel = `${controlLabel}.states[${stateIndex}]`;
+        if (!state || typeof state !== 'object') {
+          addWarning(context, `${stateLabel} is not an object`);
+          continue;
+        }
+        const stateId = normalizeString(state.id);
+        if (!stateId) {
+          addWarning(context, `${stateLabel} is missing an id`);
+          continue;
+        }
+        if (stateIds.has(stateId)) {
+          addWarning(context, `${stateLabel} duplicates state id ${stateId}`);
+        } else {
+          stateIds.add(stateId);
+        }
+        if (state.label != null && typeof state.label !== 'string') {
+          addWarning(context, `${stateLabel}.label should be a string when present`);
+        }
+        if (state.drawKw != null && !Number.isFinite(Number(state.drawKw))) {
+          addWarning(context, `${stateLabel}.drawKw should be numeric when present`);
+        }
+        if (state.propellantKg != null && !Number.isFinite(Number(state.propellantKg))) {
+          addWarning(context, `${stateLabel}.propellantKg should be numeric when present`);
+        }
+      }
+
+      const defaultState = normalizeString(control.defaultState);
+      if (!defaultState) {
+        addWarning(context, `${controlLabel} is missing defaultState`);
+      } else if (!stateIds.has(defaultState)) {
+        addWarning(
+          context,
+          `${controlLabel}.defaultState ${control.defaultState} is not defined in states for panel ${panelId}`,
+        );
+      }
+
+      controlMap.set(controlId, { states: stateIds });
+
+      if (control.dependencies != null && !Array.isArray(control.dependencies)) {
+        addWarning(context, `${controlLabel}.dependencies should be an array when present`);
+      } else if (Array.isArray(control.dependencies)) {
+        for (const [dependencyIndex, dependency] of control.dependencies.entries()) {
+          const dependencyLabel = `${controlLabel}.dependencies[${dependencyIndex}]`;
+          if (!dependency || typeof dependency !== 'object') {
+            addWarning(context, `${dependencyLabel} is not an object`);
+            continue;
+          }
+          const dependencyTypeRaw = normalizeString(dependency.type);
+          const dependencyType = dependencyTypeRaw ? dependencyTypeRaw.toLowerCase() : '';
+          if (!dependencyType) {
+            addWarning(context, `${dependencyLabel} is missing a type`);
+          } else if (!UI_DEPENDENCY_TYPES.has(dependencyType)) {
+            addWarning(context, `${dependencyLabel} has unexpected type ${dependency.type}`);
+          }
+          const targetPanelId = normalizeString(dependency.panel) || panelId;
+          const targetControlId = normalizeString(dependency.id);
+          if (!targetControlId) {
+            addWarning(context, `${dependencyLabel} should define an id`);
+          } else if (dependencyType === 'control' && targetPanelId === panelId) {
+            const targetControl = controlMap.get(targetControlId);
+            if (!targetControl) {
+              addWarning(
+                context,
+                `${dependencyLabel} references unknown control ${targetControlId} on panel ${panelId}`,
+              );
+            } else if (dependency.states != null) {
+              if (!Array.isArray(dependency.states)) {
+                addWarning(context, `${dependencyLabel}.states should be an array when present`);
+              } else {
+                for (const [stateIndex, stateRaw] of dependency.states.entries()) {
+                  const stateId = normalizeString(stateRaw);
+                  if (!stateId) {
+                    addWarning(context, `${dependencyLabel}.states[${stateIndex}] should be a string`);
+                  } else if (!targetControl.states.has(stateId)) {
+                    addWarning(
+                      context,
+                      `${dependencyLabel}.states[${stateIndex}] references unknown state ${stateId} on control ${targetControlId}`,
+                    );
+                  }
+                }
+              }
+            }
+          } else if (dependencyType === 'control') {
+            crossPanelDependencies.push({
+              label: dependencyLabel,
+              targetPanelId,
+              controlId: targetControlId,
+              states: Array.isArray(dependency.states) ? dependency.states : [],
+            });
+          }
+        }
+      }
+
+      if (control.telemetry != null) {
+        if (typeof control.telemetry !== 'object') {
+          addWarning(context, `${controlLabel}.telemetry should be an object when present`);
+        } else {
+          if (control.telemetry.resource != null && typeof control.telemetry.resource !== 'string') {
+            addWarning(context, `${controlLabel}.telemetry.resource should be a string when present`);
+          }
+          if (control.telemetry.flag != null && typeof control.telemetry.flag !== 'string') {
+            addWarning(context, `${controlLabel}.telemetry.flag should be a string when present`);
+          }
+        }
+      }
+
+      if (control.effects != null && !Array.isArray(control.effects)) {
+        addWarning(context, `${controlLabel}.effects should be an array when present`);
+      } else if (Array.isArray(control.effects)) {
+        for (const [effectIndex, effect] of control.effects.entries()) {
+          const effectLabel = `${controlLabel}.effects[${effectIndex}]`;
+          if (!effect || typeof effect !== 'object') {
+            addWarning(context, `${effectLabel} is not an object`);
+            continue;
+          }
+          if (!normalizeString(effect.type)) {
+            addWarning(context, `${effectLabel} is missing a type`);
+          }
+          if (!normalizeString(effect.id)) {
+            addWarning(context, `${effectLabel} is missing an id`);
+          }
+        }
+      }
+
+      totalControls += 1;
+    }
+
+    if (Array.isArray(layoutHotspots)) {
+      for (const [hotspotIndex, hotspot] of layoutHotspots.entries()) {
+        const hotspotLabel = `${label}.layout.hotspots[${hotspotIndex}]`;
+        if (!hotspot || typeof hotspot !== 'object') {
+          addWarning(context, `${hotspotLabel} is not an object`);
+          continue;
+        }
+        const hotspotControlId = normalizeString(hotspot.controlId);
+        if (!hotspotControlId) {
+          addWarning(context, `${hotspotLabel} should define controlId`);
+        } else if (!controlMap.has(hotspotControlId)) {
+          addWarning(context, `${hotspotLabel} references unknown control ${hotspotControlId}`);
+        }
+        for (const field of ['x', 'y', 'width', 'height']) {
+          const value = toFiniteNumber(hotspot[field]);
+          if (value == null) {
+            addWarning(context, `${hotspotLabel}.${field} should be numeric`);
+          }
+        }
+      }
+    }
+
+    if (panel.alerts != null && !Array.isArray(panel.alerts)) {
+      addWarning(context, `${label}.alerts should be an array when present`);
+    } else if (Array.isArray(panel.alerts)) {
+      const alertIds = new Set();
+      for (const [alertIndex, alert] of panel.alerts.entries()) {
+        const alertLabel = `${label}.alerts[${alertIndex}]`;
+        if (!alert || typeof alert !== 'object') {
+          addWarning(context, `${alertLabel} is not an object`);
+          continue;
+        }
+        const alertId = normalizeString(alert.id);
+        if (!alertId) {
+          addWarning(context, `${alertLabel} is missing an id`);
+        } else if (alertIds.has(alertId)) {
+          addWarning(context, `${alertLabel} duplicates alert id ${alertId}`);
+        } else {
+          alertIds.add(alertId);
+        }
+
+        const severity = normalizeString(alert.severity).toLowerCase();
+        if (!severity) {
+          addWarning(context, `${alertLabel} is missing a severity`);
+        } else if (!['caution', 'warning', 'advisory'].includes(severity)) {
+          addWarning(context, `${alertLabel} has unexpected severity ${alert.severity}`);
+        }
+
+        if (alert.message != null && typeof alert.message !== 'string') {
+          addWarning(context, `${alertLabel}.message should be a string when present`);
+        }
+
+        if (!alert.trigger || typeof alert.trigger !== 'object') {
+          addWarning(context, `${alertLabel}.trigger should be an object`);
+        } else {
+          const conditions = alert.trigger.all;
+          if (!Array.isArray(conditions) || conditions.length === 0) {
+            addWarning(context, `${alertLabel}.trigger.all should be a non-empty array`);
+          } else {
+            for (const [conditionIndex, condition] of conditions.entries()) {
+              validateAlertCondition(condition, {
+                context,
+                panelId,
+                controlsByPanel: panelInfo.panels,
+                path: `${alertLabel}.trigger.all[${conditionIndex}]`,
+              });
+            }
+          }
+        }
+      }
+      totalAlerts += alertIds.size;
+    }
+  }
+
+  for (const dependency of crossPanelDependencies) {
+    if (!dependency.controlId) {
+      continue;
+    }
+    const targetPanel = panelInfo.panels.get(dependency.targetPanelId);
+    if (!targetPanel) {
+      addWarning(
+        context,
+        `${dependency.label} references unknown panel ${dependency.targetPanelId}`,
+      );
+      continue;
+    }
+    const control = targetPanel.controls.get(dependency.controlId);
+    if (!control) {
+      addWarning(
+        context,
+        `${dependency.label} references unknown control ${dependency.controlId} on panel ${dependency.targetPanelId}`,
+      );
+      continue;
+    }
+    for (const [index, stateRaw] of dependency.states.entries()) {
+      const stateId = normalizeString(stateRaw);
+      if (!stateId) {
+        addWarning(context, `${dependency.label}.states[${index}] should be a string`);
+      } else if (!control.states.has(stateId)) {
+        addWarning(
+          context,
+          `${dependency.label}.states[${index}] references unknown state ${stateId} on panel ${dependency.targetPanelId}`,
+        );
+      }
+    }
+  }
+
+  context.stats.uiPanels = panelIds.size;
+  context.stats.uiPanelControls = totalControls;
+  context.stats.uiPanelAlerts = totalAlerts;
+}
+
+function validateUiChecklistsBundle(bundle, { context, checklistMap, panelInfo }) {
+  if (!bundle) {
+    context.stats.uiChecklists = 0;
+    context.stats.uiChecklistSteps = 0;
+    return;
+  }
+
+  if (typeof bundle.version !== 'number' || !Number.isFinite(bundle.version)) {
+    addWarning(context, 'docs/ui/checklists.json version should be a finite number');
+  }
+
+  if (bundle.description != null && typeof bundle.description !== 'string') {
+    addWarning(context, 'docs/ui/checklists.json description should be a string when present');
+  }
+
+  const checklistsArray = Array.isArray(bundle.checklists) ? bundle.checklists : [];
+  if (!Array.isArray(bundle.checklists)) {
+    addError(context, 'docs/ui/checklists.json checklists should be an array');
+  }
+
+  const checklistIds = new Set();
+  const stepIds = new Set();
+  let totalSteps = 0;
+
+  for (const [index, checklist] of checklistsArray.entries()) {
+    const label = `docs/ui/checklists.json checklists[${index}]`;
+    if (!checklist || typeof checklist !== 'object') {
+      addError(context, `${label} is not an object`);
+      continue;
+    }
+
+    const checklistId = normalizeString(checklist.id);
+    if (!checklistId) {
+      addError(context, `${label} is missing an id`);
+      continue;
+    }
+    if (checklistIds.has(checklistId)) {
+      addError(context, `${label} duplicates checklist id ${checklistId}`);
+      continue;
+    }
+    checklistIds.add(checklistId);
+
+    if (checklistMap && !checklistMap.has(checklistId)) {
+      addError(context, `${label} references checklist id ${checklistId} not found in docs/data/checklists.csv`);
+    }
+
+    if (checklist.title != null && typeof checklist.title !== 'string') {
+      addWarning(context, `${label}.title should be a string when present`);
+    }
+
+    const phase = normalizeString(checklist.phase);
+    if (phase && !UI_PHASES.has(phase)) {
+      addWarning(context, `${label}.phase uses unexpected value ${checklist.phase}`);
+    }
+
+    const role = normalizeString(checklist.role);
+    if (role && !UI_ROLES.has(role)) {
+      addWarning(context, `${label}.role uses unexpected value ${checklist.role}`);
+    }
+
+    const nominalGet = normalizeString(checklist.nominalGet);
+    if (nominalGet && parseGET(nominalGet) == null) {
+      addWarning(context, `${label}.nominalGet has invalid GET value ${nominalGet}`);
+    }
+
+    if (checklist.source != null && typeof checklist.source !== 'object') {
+      addWarning(context, `${label}.source should be an object when present`);
+    }
+
+    const stepsArray = Array.isArray(checklist.steps) ? checklist.steps : [];
+    if (checklist.steps != null && !Array.isArray(checklist.steps)) {
+      addError(context, `${label}.steps should be an array`);
+    }
+    if (stepsArray.length === 0) {
+      addWarning(context, `${label} defines no steps`);
+    }
+
+    const orderValues = [];
+
+    for (const [stepIndex, step] of stepsArray.entries()) {
+      const stepLabel = `${label}.steps[${stepIndex}]`;
+      if (!step || typeof step !== 'object') {
+        addError(context, `${stepLabel} is not an object`);
+        continue;
+      }
+
+      const stepId = normalizeString(step.id);
+      if (!stepId) {
+        addError(context, `${stepLabel} is missing an id`);
+        continue;
+      }
+      if (stepIds.has(stepId)) {
+        addError(context, `${stepLabel} duplicates step id ${stepId}`);
+        continue;
+      }
+      stepIds.add(stepId);
+
+      const orderValue = toFiniteNumber(step.order);
+      if (orderValue == null || !Number.isInteger(orderValue) || orderValue <= 0) {
+        addWarning(context, `${stepLabel}.order should be a positive integer`);
+      } else {
+        orderValues.push(orderValue);
+      }
+
+      if (step.callout != null && typeof step.callout !== 'string') {
+        addWarning(context, `${stepLabel}.callout should be a string when present`);
+      }
+
+      const panelId = normalizeString(step.panel);
+      const panelControls = panelId ? panelInfo.panels.get(panelId)?.controls : null;
+      if (!panelId) {
+        addError(context, `${stepLabel} is missing a panel reference`);
+      } else if (!panelControls) {
+        addError(context, `${stepLabel} references unknown panel ${panelId}`);
+      }
+
+      if (step.controls != null && !Array.isArray(step.controls)) {
+        addWarning(context, `${stepLabel}.controls should be an array when present`);
+      } else if (Array.isArray(step.controls) && step.controls.length > 0) {
+        for (const [controlIndex, controlRef] of step.controls.entries()) {
+          const controlLabel = `${stepLabel}.controls[${controlIndex}]`;
+          if (!controlRef || typeof controlRef !== 'object') {
+            addWarning(context, `${controlLabel} is not an object`);
+            continue;
+          }
+          const controlId = normalizeString(controlRef.controlId);
+          if (!controlId) {
+            addWarning(context, `${controlLabel} should define controlId`);
+            continue;
+          }
+          if (!panelControls || !panelControls.has(controlId)) {
+            addWarning(
+              context,
+              `${controlLabel} references unknown control ${controlId} on panel ${panelId}`,
+            );
+          } else {
+            const targetState = normalizeString(controlRef.targetState);
+            if (!targetState) {
+              addWarning(context, `${controlLabel}.targetState should be a string`);
+            } else {
+              const controlInfo = panelControls.get(controlId);
+              if (controlInfo && !controlInfo.states.has(targetState)) {
+                addWarning(
+                  context,
+                  `${controlLabel}.targetState ${targetState} is not defined on control ${controlId}`,
+                );
+              }
+            }
+          }
+          if (controlRef.verification != null && typeof controlRef.verification !== 'string') {
+            addWarning(context, `${controlLabel}.verification should be a string when present`);
+          }
+        }
+      }
+
+      if (step.dskyMacro != null && typeof step.dskyMacro !== 'string') {
+        addWarning(context, `${stepLabel}.dskyMacro should be a string when present`);
+      }
+
+      if (step.prerequisites != null && !Array.isArray(step.prerequisites)) {
+        addWarning(context, `${stepLabel}.prerequisites should be an array when present`);
+      } else if (Array.isArray(step.prerequisites)) {
+        for (const [prereqIndex, prereq] of step.prerequisites.entries()) {
+          if (typeof prereq !== 'string' || prereq.trim().length === 0) {
+            addWarning(context, `${stepLabel}.prerequisites[${prereqIndex}] should be a non-empty string`);
+          }
+        }
+      }
+
+      if (step.effects != null && !Array.isArray(step.effects)) {
+        addWarning(context, `${stepLabel}.effects should be an array when present`);
+      } else if (Array.isArray(step.effects)) {
+        for (const [effectIndex, effect] of step.effects.entries()) {
+          const effectLabel = `${stepLabel}.effects[${effectIndex}]`;
+          if (!effect || typeof effect !== 'object') {
+            addWarning(context, `${effectLabel} is not an object`);
+            continue;
+          }
+          const effectType = normalizeString(effect.type);
+          if (!effectType) {
+            addWarning(context, `${effectLabel} is missing a type`);
+          } else if (effectType === 'flag') {
+            if (!normalizeString(effect.id)) {
+              addWarning(context, `${effectLabel} flag effect is missing an id`);
+            }
+            if (typeof effect.value !== 'boolean') {
+              addWarning(context, `${effectLabel} flag effect should define a boolean value`);
+            }
+          }
+        }
+      }
+
+      if (step.manualOnly != null && typeof step.manualOnly !== 'boolean') {
+        addWarning(context, `${stepLabel}.manualOnly should be a boolean when present`);
+      }
+
+      if (step.notes != null && typeof step.notes !== 'string') {
+        addWarning(context, `${stepLabel}.notes should be a string when present`);
+      }
+
+      totalSteps += 1;
+    }
+
+    const sortedOrders = orderValues.sort((a, b) => a - b);
+    for (let i = 0; i < sortedOrders.length; i += 1) {
+      const expected = i + 1;
+      if (sortedOrders[i] !== expected) {
+        addWarning(
+          context,
+          `${label} has non-sequential order values; expected ${expected} at position ${i + 1} but found ${sortedOrders[i]}`,
+        );
+        break;
+      }
+    }
+  }
+
+  context.stats.uiChecklists = checklistIds.size;
+  context.stats.uiChecklistSteps = totalSteps;
+}
+
+function validateUiWorkspacesBundle(bundle, { context, panelInfo }) {
+  if (!bundle) {
+    context.stats.uiWorkspaces = 0;
+    context.stats.uiWorkspaceTiles = 0;
+    return;
+  }
+
+  if (typeof bundle.version !== 'number' || !Number.isFinite(bundle.version)) {
+    addWarning(context, 'docs/ui/workspaces.json version should be a finite number');
+  }
+
+  if (bundle.description != null && typeof bundle.description !== 'string') {
+    addWarning(context, 'docs/ui/workspaces.json description should be a string when present');
+  }
+
+  const presetsArray = Array.isArray(bundle.presets) ? bundle.presets : [];
+  if (!Array.isArray(bundle.presets)) {
+    addError(context, 'docs/ui/workspaces.json presets should be an array');
+  }
+
+  const presetIds = new Set();
+  let totalTiles = 0;
+
+  for (const [index, preset] of presetsArray.entries()) {
+    const label = `docs/ui/workspaces.json presets[${index}]`;
+    if (!preset || typeof preset !== 'object') {
+      addError(context, `${label} is not an object`);
+      continue;
+    }
+
+    const presetId = normalizeString(preset.id);
+    if (!presetId) {
+      addError(context, `${label} is missing an id`);
+      continue;
+    }
+    if (presetIds.has(presetId)) {
+      addError(context, `${label} duplicates preset id ${presetId}`);
+      continue;
+    }
+    presetIds.add(presetId);
+
+    if (preset.name != null && typeof preset.name !== 'string') {
+      addWarning(context, `${label}.name should be a string when present`);
+    }
+    if (preset.description != null && typeof preset.description !== 'string') {
+      addWarning(context, `${label}.description should be a string when present`);
+    }
+
+    if (preset.viewport != null && typeof preset.viewport !== 'object') {
+      addWarning(context, `${label}.viewport should be an object when present`);
+    } else if (preset.viewport) {
+      const minWidth = toFiniteNumber(preset.viewport.minWidth ?? preset.viewport.min_width);
+      if (minWidth == null || minWidth <= 0) {
+        addWarning(context, `${label}.viewport.minWidth should be a positive number`);
+      }
+      const minHeight = toFiniteNumber(preset.viewport.minHeight ?? preset.viewport.min_height);
+      if (minHeight == null || minHeight <= 0) {
+        addWarning(context, `${label}.viewport.minHeight should be a positive number`);
+      }
+      if (preset.viewport.hudPinned != null && typeof preset.viewport.hudPinned !== 'boolean') {
+        addWarning(context, `${label}.viewport.hudPinned should be a boolean when present`);
+      }
+    } else {
+      addWarning(context, `${label} is missing viewport metadata`);
+    }
+
+    const tilesArray = Array.isArray(preset.tiles) ? preset.tiles : [];
+    if (preset.tiles != null && !Array.isArray(preset.tiles)) {
+      addError(context, `${label}.tiles should be an array`);
+    }
+    if (tilesArray.length === 0) {
+      addWarning(context, `${label} defines no tiles`);
+    }
+    const tileIds = new Set();
+
+    for (const [tileIndex, tile] of tilesArray.entries()) {
+      const tileLabel = `${label}.tiles[${tileIndex}]`;
+      if (!tile || typeof tile !== 'object') {
+        addError(context, `${tileLabel} is not an object`);
+        continue;
+      }
+
+      const tileId = normalizeString(tile.id);
+      if (!tileId) {
+        addWarning(context, `${tileLabel} is missing an id`);
+      } else if (tileIds.has(tileId)) {
+        addWarning(context, `${tileLabel} duplicates tile id ${tileId} within preset ${presetId}`);
+      } else {
+        tileIds.add(tileId);
+      }
+
+      const windowId = normalizeString(tile.window);
+      if (!windowId) {
+        addWarning(context, `${tileLabel} should define a window identifier`);
+      } else if (!UI_WINDOW_ID_PATTERN.test(windowId)) {
+        addWarning(context, `${tileLabel}.window ${tile.window} should match ${UI_WINDOW_ID_PATTERN}`);
+      }
+
+      for (const field of ['x', 'y', 'width', 'height']) {
+        const value = toFiniteNumber(tile[field]);
+        if (value == null) {
+          addWarning(context, `${tileLabel}.${field} should be numeric`);
+        } else if ((field === 'width' || field === 'height') && value <= 0) {
+          addWarning(context, `${tileLabel}.${field} should be greater than zero`);
+        } else if ((field === 'x' || field === 'y') && (value < 0 || value > 1)) {
+          addWarning(context, `${tileLabel}.${field} should be between 0 and 1`);
+        } else if ((field === 'width' || field === 'height') && value > 1) {
+          addWarning(context, `${tileLabel}.${field} should be ≤ 1 to fit within the viewport`);
+        }
+      }
+
+      if (tile.constraints != null && typeof tile.constraints !== 'object') {
+        addWarning(context, `${tileLabel}.constraints should be an object when present`);
+      } else if (tile.constraints) {
+        const minWidth = toFiniteNumber(tile.constraints.minWidth ?? tile.constraints.min_width);
+        if (minWidth != null && minWidth <= 0) {
+          addWarning(context, `${tileLabel}.constraints.minWidth should be > 0 when present`);
+        }
+        const minHeight = toFiniteNumber(tile.constraints.minHeight ?? tile.constraints.min_height);
+        if (minHeight != null && minHeight <= 0) {
+          addWarning(context, `${tileLabel}.constraints.minHeight should be > 0 when present`);
+        }
+        const aspectRatio = toFiniteNumber(tile.constraints.aspectRatio ?? tile.constraints.aspect_ratio);
+        if (aspectRatio != null && aspectRatio <= 0) {
+          addWarning(context, `${tileLabel}.constraints.aspectRatio should be > 0 when present`);
+        }
+        if (
+          tile.constraints.maximizedOnly != null
+          && typeof tile.constraints.maximizedOnly !== 'boolean'
+        ) {
+          addWarning(context, `${tileLabel}.constraints.maximizedOnly should be a boolean when present`);
+        }
+      }
+
+      if (tile.panelFocus != null) {
+        if (typeof tile.panelFocus !== 'string') {
+          addWarning(context, `${tileLabel}.panelFocus should be a string when present`);
+        } else if (!panelInfo.panels.has(tile.panelFocus.trim())) {
+          addWarning(context, `${tileLabel}.panelFocus references unknown panel ${tile.panelFocus}`);
+        }
+      }
+    }
+
+    if (preset.tileMode != null && typeof preset.tileMode !== 'object') {
+      addWarning(context, `${label}.tileMode should be an object when present`);
+    } else if (preset.tileMode) {
+      const snap = toFiniteNumber(preset.tileMode.snap);
+      if (snap != null && snap <= 0) {
+        addWarning(context, `${label}.tileMode.snap should be > 0 when present`);
+      }
+      if (preset.tileMode.grid != null) {
+        if (!Array.isArray(preset.tileMode.grid) || preset.tileMode.grid.length !== 2) {
+          addWarning(context, `${label}.tileMode.grid should be a [columns, rows] array when present`);
+        } else {
+          const [cols, rows] = preset.tileMode.grid;
+          if (!Number.isFinite(Number(cols)) || Number(cols) <= 0) {
+            addWarning(context, `${label}.tileMode.grid[0] should be > 0`);
+          }
+          if (!Number.isFinite(Number(rows)) || Number(rows) <= 0) {
+            addWarning(context, `${label}.tileMode.grid[1] should be > 0`);
+          }
+        }
+      }
+      if (preset.tileMode.focus != null) {
+        if (typeof preset.tileMode.focus !== 'object') {
+          addWarning(context, `${label}.tileMode.focus should be an object when present`);
+        } else {
+          if (preset.tileMode.focus.retainHud != null && typeof preset.tileMode.focus.retainHud !== 'boolean') {
+            addWarning(context, `${label}.tileMode.focus.retainHud should be a boolean when present`);
+          }
+          const animationMs = toFiniteNumber(preset.tileMode.focus.animationMs ?? preset.tileMode.focus.animation_ms);
+          if (animationMs != null && animationMs < 0) {
+            addWarning(context, `${label}.tileMode.focus.animationMs should be ≥ 0 when present`);
+          }
+        }
+      }
+    }
+
+    totalTiles += tilesArray.length;
+  }
+
+  context.stats.uiWorkspaces = presetIds.size;
+  context.stats.uiWorkspaceTiles = totalTiles;
+}
+
+function validateAlertCondition(condition, { context, panelId, controlsByPanel, path }) {
+  if (!condition || typeof condition !== 'object') {
+    addWarning(context, `${path} is not an object`);
+    return;
+  }
+
+  if (condition.any != null) {
+    if (!Array.isArray(condition.any)) {
+      addWarning(context, `${path}.any should be an array when present`);
+    } else if (condition.any.length === 0) {
+      addWarning(context, `${path}.any should not be empty`);
+    } else {
+      for (const [index, entry] of condition.any.entries()) {
+        validateAlertCondition(entry, {
+          context,
+          panelId,
+          controlsByPanel,
+          path: `${path}.any[${index}]`,
+        });
+      }
+    }
+  }
+
+  if (condition.control != null) {
+    const targetPanelId = normalizeString(condition.panel) || panelId;
+    const controlId = normalizeString(condition.control);
+    if (!controlId) {
+      addWarning(context, `${path}.control should be a string`);
+    } else {
+      const targetPanel = controlsByPanel.get(targetPanelId);
+      if (!targetPanel) {
+        addWarning(
+          context,
+          `${path}.control references panel ${targetPanelId} which is not defined`,
+        );
+      } else {
+        const control = targetPanel.controls.get(controlId);
+        if (!control) {
+          addWarning(
+            context,
+            `${path}.control references unknown control ${controlId} on panel ${targetPanelId}`,
+          );
+        } else if (condition.state != null) {
+          const stateId = normalizeString(condition.state);
+          if (!stateId) {
+            addWarning(context, `${path}.state should be a string when present`);
+          } else if (!control.states.has(stateId)) {
+            addWarning(
+              context,
+              `${path}.state references unknown state ${stateId} on control ${controlId}`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  if (condition.flag != null && typeof condition.flag !== 'string') {
+    addWarning(context, `${path}.flag should be a string when present`);
+  }
+
+  if (condition.resource != null) {
+    if (typeof condition.resource !== 'string') {
+      addWarning(context, `${path}.resource should be a string when present`);
+    }
+    const operatorRaw = condition.operator ?? condition.op;
+    if (operatorRaw != null) {
+      const operator = typeof operatorRaw === 'string' ? operatorRaw.trim() : '';
+      if (!UI_RESOURCE_OPERATORS.has(operator)) {
+        addWarning(context, `${path}.operator should be one of ${[...UI_RESOURCE_OPERATORS].join(', ')}`);
+      }
+    }
+    if (condition.value != null && toFiniteNumber(condition.value) == null) {
+      addWarning(context, `${path}.value should be numeric when resource comparisons are defined`);
+    }
+  }
 }
 
 async function validateCommunicationsTrends(context) {
