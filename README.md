@@ -77,6 +77,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/data/README.md`](docs/data/README.md) – Normalized mission datasets produced during Milestone M0 (currently covering launch through splashdown).
 - [`docs/data/VALIDATION_CHECKS.md`](docs/data/VALIDATION_CHECKS.md) – Automated dataset sweep coverage and guidance for extending the validation CLI.
 - [`docs/data/INGESTION_PIPELINE.md`](docs/data/INGESTION_PIPELINE.md) – Step-by-step workflow for running the ingestion notebooks, validating outputs, and planning future automation.
+- [`docs/data/pads_reference.md`](docs/data/pads_reference.md) – Column definitions, parameter payload schema, and integration notes for the mission PAD dataset consumed by events, HUD bindings, and validation tooling.
 - [`docs/ui/AGENTS.md`](docs/ui/AGENTS.md) – Front-end layout, interaction, and workspace guidelines for the Milestone M3 UI build.
 - [`docs/ui/panel_hierarchy.md`](docs/ui/panel_hierarchy.md) – Mission panel inventory with control states, checklist links, and simulation notes for CSM/LM stations.
 - [`docs/ui/dsky_reference.md`](docs/ui/dsky_reference.md) – DSKY macro catalog covering alignment, burn, docking, and entry Verb/Noun pairs with prerequisite logic.
