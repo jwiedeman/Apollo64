@@ -24,8 +24,8 @@ These notebooks rely on the `ingestlib` helper package for GET parsing, prerequi
 The `ingestlib` Python package now ships with the workspace and consolidates the shared notebook helpers:
 
 - **`ingestlib.time`** – canonical Ground Elapsed Time parsing/formatting helpers that mirror the simulator's expectations.
-- **`ingestlib.records`** – dataclass-backed representations of events, checklists, autopilots, PADs, failures, and the combined `MissionData` container.
-- **`ingestlib.loader`** – CSV/JSON loaders that resolve file paths relative to `docs/data/` and return typed records ready for analysis.
+- **`ingestlib.records`** – dataclass-backed representations of events, checklists, autopilots, PADs, failures, the audio cue catalog, and the combined `MissionData` container.
+- **`ingestlib.loader`** – CSV/JSON loaders that resolve file paths relative to `docs/data/` and return typed records ready for analysis, including the audio routing pack.
 - **`ingestlib.validation`** – reusable structural checks (window ordering, reference resolution, autopilot script health, PAD GET parsing).
 - **`ingestlib.provenance`** – utilities for composing Markdown tables that document row ranges and source citations.
 
