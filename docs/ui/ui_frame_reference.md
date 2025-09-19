@@ -70,6 +70,7 @@ metrics so trend widgets can consume the same telemetry as the HUD.
 | `counts.failed` | number | Failed events. |
 | `upcoming[]` | array | Next events (bounded by `upcomingLimit`, default 3). Each entry includes `id`, `phase`, `status`, `opensAt`, `opensAtSeconds`, `tMinusSeconds`, `tMinusLabel`, and `isOverdue`. |
 | `next` | object&#124;null | Alias of `upcoming[0]` for convenience. |
+| `next.pad` | object&#124;null | When present, summarizes the PAD metadata linked to the upcoming event (see PAD summary below). |
 
 ### `resources`
 
@@ -126,6 +127,8 @@ metrics so trend widgets can consume the same telemetry as the HUD.
 | `powerMarginDeltaKw` | number&#124;null | Power margin delta reported by the dataset. |
 | `powerLoadDeltaKw` | number&#124;null | Load delta applied to the resource model while the pass is active. |
 
+Each entry in `events.upcoming[]` now exposes `padId` (raw string) and `pad` (summarized object) so the UI can load TIG, Δv, attitude, and other PAD cues without re-querying the dataset.
+
 #### `communications.next`
 
 | Field | Type | Description |
@@ -165,6 +168,8 @@ metrics so trend widgets can consume the same telemetry as the HUD.
 | `propellantKgByTank` | object | Propellant consumption keyed by tank ID. |
 | `activeAutopilots[]` | array | Up to `activeAutopilotLimit` entries summarizing active scripts (each entry now exposes `rcsPulses`, `rcsImpulseNs`, and `rcsKg`). |
 | `primary` | object&#124;null | The active script with the smallest remaining time. |
+| `primary.pad` | object&#124;null | PAD summary for the primary event when available. |
+| `activeAutopilots[].pad` | object&#124;null | PAD summary for each active event, mirroring the structure described below. |
 
 ### `checklists`
 
@@ -175,6 +180,8 @@ metrics so trend widgets can consume the same telemetry as the HUD.
 | `totals.pending` | number | Pending checklist count. |
 | `active[]` | array | Active checklist summaries (bounded by `activeChecklistLimit`). |
 | `chip` | object&#124;null | Checklist chip metadata for the Always-On HUD (event ID, checklist ID, crew role, next step number/action, steps remaining, `autoAdvancePending`). |
+| `active[].pad` | object&#124;null | PAD summary for each active event when a `pad_id` is defined. |
+| `chip.pad` | object&#124;null | PAD summary for the chip-selected event when available. |
 
 ### `manualQueue`
 
@@ -316,3 +323,29 @@ console.log(frame.events.next, frame.resources.power);
 
 Store or serialize frames as needed; they are deterministic summaries that can be
 replayed for regression testing or UI development without rerunning the simulation.
+#### PAD Summary Structure
+
+`events.upcoming[].pad`, `autopilot.primary.pad`, `autopilot.activeAutopilots[].pad`, and
+`checklists.*.pad` share a common structure derived from `pads.csv`:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string&#124;null | PAD identifier (e.g., `PAD_TLI_002`). |
+| `purpose` | string&#124;null | Human-readable PAD purpose description. |
+| `delivery.get` | string&#124;null | GET when the PAD was delivered. |
+| `delivery.getSeconds` | number&#124;null | Delivery GET expressed in seconds. |
+| `validUntil.get` | string&#124;null | GET when the PAD expires. |
+| `validUntil.getSeconds` | number&#124;null | Expiration GET expressed in seconds. |
+| `source` | string&#124;null | Source reference for provenance. |
+| `parameters.tig.get` | string&#124;null | TIG string from the PAD. |
+| `parameters.tig.getSeconds` | number&#124;null | TIG converted to seconds. |
+| `parameters.deltaVFtPerSec` | number&#124;null | Δv magnitude in ft/s when provided. |
+| `parameters.deltaVMetersPerSecond` | number&#124;null | Δv magnitude in m/s (converted when only ft/s provided). |
+| `parameters.burnDurationSeconds` | number&#124;null | Planned burn duration. |
+| `parameters.attitude` | string&#124;null | Attitude callout from the PAD. |
+| `parameters.rangeToTargetNm` | number&#124;null | Range-to-target (nm) when provided. |
+| `parameters.flightPathAngleDeg` | number&#124;null | Flight path angle (degrees) when provided. |
+| `parameters.vInfinityFtPerSec` | number&#124;null | Asymptotic velocity magnitude in ft/s when provided. |
+| `parameters.vInfinityMetersPerSecond` | number&#124;null | Asymptotic velocity magnitude in m/s (converted when only ft/s provided). |
+| `parameters.notes` | string&#124;null | Free-form notes captured with the PAD. |
+| `parameters.raw` | object | Raw parameter payload parsed from `pads.csv`. |

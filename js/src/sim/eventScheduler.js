@@ -41,6 +41,7 @@ export class EventScheduler {
     const expectedDurationSeconds = this.estimateExpectedDuration({ event, autopilot, hasChecklist });
     const requiresDurationGate = Boolean(autopilot) || !hasChecklist;
 
+    const padId = event.padId ? event.padId.trim() || null : null;
     return {
       ...event,
       autopilotId,
@@ -52,6 +53,7 @@ export class EventScheduler {
       requiresDurationGate,
       requiresChecklist: hasChecklist,
       lastAutopilotSummary: null,
+      padId,
     };
   }
 
@@ -259,6 +261,7 @@ export class EventScheduler {
         status: event.status,
         checklistId: event.checklistId ?? null,
         autopilotId: event.autopilotId ?? null,
+        padId: event.padId ?? null,
         expectedDurationSeconds: event.expectedDurationSeconds ?? null,
         activationSeconds,
         completionSeconds,
@@ -277,6 +280,7 @@ export class EventScheduler {
         status: event.status,
         opensAt: formatGET(event.getOpenSeconds ?? 0),
         opensAtSeconds: event.getOpenSeconds ?? null,
+        padId: event.padId ?? null,
       }));
 
     return { counts, upcoming, timeline };
@@ -334,6 +338,13 @@ export class EventScheduler {
         });
       }
     }
+  }
+
+  getEventById(eventId) {
+    if (!eventId) {
+      return null;
+    }
+    return this.eventMap.get(eventId) ?? null;
   }
 
   evaluateAutopilotTolerance(event, summary) {

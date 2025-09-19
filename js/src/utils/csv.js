@@ -7,6 +7,7 @@ export function parseCsv(content) {
 
   for (let i = 0; i < normalized.length; i += 1) {
     const char = normalized[i];
+    const prevChar = i > 0 ? normalized[i - 1] : null;
 
     if (inQuotes) {
       if (char === '\\') {
@@ -33,6 +34,13 @@ export function parseCsv(content) {
     }
 
     if (char === '"') {
+      if (!inQuotes && prevChar === '\\') {
+        if (field.endsWith('\\')) {
+          field = field.slice(0, -1);
+        }
+        field += '"';
+        continue;
+      }
       inQuotes = true;
       continue;
     }

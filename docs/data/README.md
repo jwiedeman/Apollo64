@@ -20,7 +20,9 @@ The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/inge
 - Extend the harness alongside new ingest work—surface EVA and transearth communication records should introduce companion checks so regression runs highlight schema drift early.
 
 ## File Inventory
-- `events.csv` – Mission beat definitions with prerequisites, windows, and resource effects.
+- `events.csv` – Mission beat definitions with prerequisites, windows, resource effects, and the
+  new optional `pad_id` column that links each burn or PAD review event to the matching entry in
+  `pads.csv` for TIG/delta-v/attitude metadata.
 - `checklists.csv` – Crew procedures broken into atomic steps.
 - `autopilots.csv` – High-level metadata for automation scripts, each pointing to a JSON profile under `autopilots/` and
   defining `propulsion` JSON payloads that capture tank assignments, mass-flow rates, and optional ullage usage for the

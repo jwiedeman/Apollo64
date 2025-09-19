@@ -6,10 +6,42 @@ import { EARTH_BODY } from '../src/config/orbit.js';
 
 describe('UiFrameBuilder', () => {
   test('summarizes scheduler, resources, autopilot, and checklist state', () => {
+    const padMap = new Map([
+      [
+        'PAD_EVT1',
+        {
+          id: 'PAD_EVT1',
+          purpose: 'Translunar Injection Burn',
+          deliveryGet: '000:05:00',
+          deliveryGetSeconds: 300,
+          validUntilGet: '000:10:00',
+          validUntilSeconds: 600,
+          parameters: {
+            tig: { get: '000:07:30', getSeconds: 450 },
+            deltaVFtPerSec: 10030,
+            deltaVMetersPerSecond: 3058.944,
+            burnDurationSeconds: 347,
+            attitude: 'R000/P000/Y000',
+            rangeToTargetNm: 2150,
+            notes: 'Test pad values',
+            raw: { TIG: '000:07:30' },
+          },
+        },
+      ],
+    ]);
+
+    const eventList = [
+      { id: 'EVT1', padId: 'PAD_EVT1' },
+      { id: 'EVT_CHECK', padId: 'PAD_EVT1' },
+      { id: 'EVT_AUTOP', padId: 'PAD_EVT1' },
+    ];
+
     const builder = new UiFrameBuilder({
       includeResourceHistory: true,
       upcomingLimit: 1,
       activeChecklistLimit: 1,
+      pads: padMap,
+      events: eventList,
     });
 
     const resourceSnapshot = {
@@ -187,6 +219,7 @@ describe('UiFrameBuilder', () => {
             { id: 'EVT2', phase: 'PTC', status: 'queued', opensAtSeconds: 180 },
           ],
         }),
+        getEventById: (id) => eventList.find((event) => event.id === id) ?? null,
       },
       resourceSystem: {
         snapshot: () => resourceSnapshot,
@@ -206,7 +239,7 @@ describe('UiFrameBuilder', () => {
           propellantKgByTank: { csm_sps_kg: 42 },
           activeAutopilots: [
             {
-              eventId: 'EVT1',
+              eventId: 'EVT_AUTOP',
               autopilotId: 'PGM_TLI',
               propulsion: 'csm_sps',
               elapsedSeconds: 10,
@@ -222,7 +255,7 @@ describe('UiFrameBuilder', () => {
             },
           ],
           primary: {
-            eventId: 'EVT1',
+            eventId: 'EVT_AUTOP',
             autopilotId: 'PGM_TLI',
             remainingSeconds: 20,
             currentThrottle: 0.75,
@@ -291,6 +324,8 @@ describe('UiFrameBuilder', () => {
     assert.equal(frame.events.upcoming.length, 1);
     assert.equal(frame.events.next.id, 'EVT1');
     assert.equal(frame.events.next.tMinusLabel, 'T-000:00:30');
+    assert.equal(frame.events.next.pad.id, 'PAD_EVT1');
+    assert.equal(frame.events.next.pad.parameters.tig.get, '000:07:30');
 
     const deltaVSummary = frame.resources.deltaV;
     assert.equal(deltaVSummary.totalMps, 3950);
@@ -316,9 +351,13 @@ describe('UiFrameBuilder', () => {
 
     assert.equal(frame.autopilot.primary.autopilotId, 'PGM_TLI');
     assert.equal(frame.autopilot.activeAutopilots.length, 1);
+    assert.equal(frame.autopilot.primary.pad.id, 'PAD_EVT1');
+    assert.equal(frame.autopilot.activeAutopilots[0].pad.id, 'PAD_EVT1');
 
     assert.equal(frame.checklists.active.length, 1);
     assert.equal(frame.checklists.chip.eventId, 'EVT1');
+    assert.equal(frame.checklists.active[0].pad.id, 'PAD_EVT1');
+    assert.equal(frame.checklists.chip.pad.id, 'PAD_EVT1');
 
     assert.ok(frame.resourceHistory);
     assert.equal(frame.resourceHistory.meta.enabled, true);

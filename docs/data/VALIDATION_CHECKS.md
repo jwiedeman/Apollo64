@@ -18,6 +18,7 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
   - Track phase-local chronology to highlight regressions where a new entry opens before previously documented phase events.
   - Verify prerequisite references exist, are not self-referential, and open after their dependencies.
   - Confirm referenced `checklist_id`, `autopilot_script`, and `failure_id` values resolve to known datasets.
+  - Validate that optional `pad_id` references resolve to rows in `pads.csv` so UI bindings can surface PAD metadata.
   - Parse `success_effects`/`failure_effects` JSON payloads to ensure GET-like fields remain well-formed.
 - **Autopilots:**
   - Confirm each CSV record has a unique `autopilot_id` and a resolvable JSON script.
