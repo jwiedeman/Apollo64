@@ -24,8 +24,8 @@ These notebooks rely on the `ingestlib` helper package for GET parsing, prerequi
 The `ingestlib` Python package now ships with the workspace and consolidates the shared notebook helpers:
 
 - **`ingestlib.time`** – canonical Ground Elapsed Time parsing/formatting helpers that mirror the simulator's expectations.
-- **`ingestlib.records`** – dataclass-backed representations of events, checklists, autopilots, PADs, failures, the audio cue catalog, and the combined `MissionData` container.
-- **`ingestlib.loader`** – CSV/JSON loaders that resolve file paths relative to `docs/data/` and return typed records ready for analysis, including the audio routing pack.
+- **`ingestlib.records`** – dataclass-backed representations of events, checklists, autopilots, PADs, failures, audio cues, UI checklists/panels/workspaces, and the combined `MissionData` container.
+- **`ingestlib.loader`** – CSV/JSON loaders that resolve file paths relative to `docs/data/` (and `docs/ui/` for presentation bundles) and return typed records ready for analysis, including the audio routing and UI definition packs.
 - **`ingestlib.validation`** – reusable structural checks (window ordering, reference resolution, autopilot script health, PAD GET parsing).
 - **`ingestlib.provenance`** – utilities for composing Markdown tables that document row ranges and source citations.
 
@@ -36,7 +36,8 @@ from ingestlib import load_mission_data, validate_mission_data
 from ingestlib.provenance import ProvenanceBuilder
 
 data_dir = Path('..') / 'docs' / 'data'
-mission = load_mission_data(data_dir)
+ui_dir = Path('..') / 'docs' / 'ui'
+mission = load_mission_data(data_dir, ui_dir=ui_dir)
 issues = validate_mission_data(mission)
 
 if issues:

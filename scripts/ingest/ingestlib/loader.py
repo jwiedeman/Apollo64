@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 
 from .records import (
     AutopilotRecord,
@@ -15,7 +15,11 @@ from .records import (
     FailureRecord,
     MissionData,
     PadRecord,
+    UiChecklistPack,
+    UiPanelPack,
+    UiWorkspacePack,
 )
+
 _DATA_FILES = {
     "events": "events.csv",
     "checklists": "checklists.csv",
@@ -26,6 +30,12 @@ _DATA_FILES = {
     "communications": "communications_trends.json",
     "thrusters": "thrusters.json",
     "audio_cues": "audio_cues.json",
+}
+
+_UI_FILES = {
+    "ui_checklists": "checklists.json",
+    "ui_panels": "panels.json",
+    "ui_workspaces": "workspaces.json",
 }
 
 
@@ -64,8 +74,10 @@ def load_audio_cues(path: Path) -> AudioCuePack:
     return AudioCuePack.from_dict(_read_json(path))
 
 
-def load_mission_data(data_dir: Path) -> MissionData:
+def load_mission_data(data_dir: Path, ui_dir: Optional[Path] = None) -> MissionData:
     base = Path(data_dir).resolve()
+    ui_base = Path(ui_dir).resolve() if ui_dir is not None else base.parent / "ui"
+
     events = load_events(base / _DATA_FILES["events"])
     checklists = load_checklists(base / _DATA_FILES["checklists"])
     autopilots = load_autopilots(base / _DATA_FILES["autopilots"], base)
@@ -77,6 +89,10 @@ def load_mission_data(data_dir: Path) -> MissionData:
     thrusters = _read_json(base / _DATA_FILES["thrusters"])
     audio_cues = load_audio_cues(base / _DATA_FILES["audio_cues"])
 
+    ui_checklists = load_ui_checklists(ui_base / _UI_FILES["ui_checklists"])
+    ui_panels = load_ui_panels(ui_base / _UI_FILES["ui_panels"])
+    ui_workspaces = load_ui_workspaces(ui_base / _UI_FILES["ui_workspaces"])
+
     return MissionData(
         events=events,
         checklists=checklists,
@@ -87,13 +103,43 @@ def load_mission_data(data_dir: Path) -> MissionData:
         communications=communications,
         thrusters=thrusters,
         audio_cues=audio_cues,
+        ui_checklists=ui_checklists,
+        ui_panels=ui_panels,
+        ui_workspaces=ui_workspaces,
     )
 
 
 def available_datasets() -> Iterable[str]:
     """Return the dataset keys known to the loader."""
 
-    return tuple(_DATA_FILES.keys())
+    return tuple({**_DATA_FILES, **_UI_FILES}.keys())
+
+
+def load_ui_checklists(path: Path) -> Optional[UiChecklistPack]:
+    if not path.is_file():
+        return None
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        return None
+    return UiChecklistPack.from_dict(payload)
+
+
+def load_ui_panels(path: Path) -> Optional[UiPanelPack]:
+    if not path.is_file():
+        return None
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        return None
+    return UiPanelPack.from_dict(payload)
+
+
+def load_ui_workspaces(path: Path) -> Optional[UiWorkspacePack]:
+    if not path.is_file():
+        return None
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        return None
+    return UiWorkspacePack.from_dict(payload)
 
 
 __all__ = [
@@ -104,5 +150,8 @@ __all__ = [
     "load_failures",
     "load_audio_cues",
     "load_mission_data",
+    "load_ui_checklists",
+    "load_ui_panels",
+    "load_ui_workspaces",
     "available_datasets",
 ]
