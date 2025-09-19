@@ -79,6 +79,9 @@ export class RcsController {
 
     if (thrusters.length === 0) {
       this.logger?.log(getSeconds, 'RCS pulse skipped — no thrusters resolved', {
+        logSource: 'sim',
+        logCategory: 'autopilot',
+        logSeverity: 'warning',
         autopilotId,
         eventId,
         craftId: normalizedCraft,
@@ -149,6 +152,9 @@ export class RcsController {
 
     if (!(totalMassKg > 0) || usedThrusters.length === 0) {
       this.logger?.log(getSeconds, 'RCS pulse produced no propellant usage', {
+        logSource: 'sim',
+        logCategory: 'autopilot',
+        logSeverity: 'warning',
         autopilotId,
         eventId,
         craftId: normalizedCraft,
@@ -194,6 +200,9 @@ export class RcsController {
     });
 
     this.logger?.log(getSeconds, 'RCS pulse executed', {
+      logSource: 'sim',
+      logCategory: 'autopilot',
+      logSeverity: 'notice',
       autopilotId,
       eventId,
       craftId: craftForUsage,

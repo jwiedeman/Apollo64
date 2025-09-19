@@ -21,6 +21,7 @@ const DEFAULT_OPTIONS = {
   cautionPeriapsisKm: 120,
   warningPeriapsisKm: 85,
   includeResourceHistory: false,
+  missionLogLimit: 50,
 };
 
 export class UiFrameBuilder {
@@ -102,6 +103,8 @@ export class UiFrameBuilder {
       }
     }
 
+    const missionLog = this.#summarizeMissionLog(context.missionLog ?? context.missionLogAggregator);
+
     const frame = {
       generatedAtSeconds: currentGetSeconds,
       time,
@@ -117,6 +120,8 @@ export class UiFrameBuilder {
       alerts,
       score,
     };
+
+    frame.missionLog = missionLog ?? null;
 
     if (includeHistory && resourceHistory) {
       frame.resourceHistory = resourceHistory;
@@ -335,6 +340,106 @@ export class UiFrameBuilder {
       communications,
       alerts,
     };
+  }
+
+  #summarizeMissionLog(source) {
+    if (!source) {
+      return null;
+    }
+
+    let snapshot = null;
+    if (typeof source.snapshot === 'function') {
+      snapshot = source.snapshot({ limit: this.options.missionLogLimit });
+    } else if (Array.isArray(source.entries)) {
+      snapshot = { entries: source.entries };
+    } else if (Array.isArray(source)) {
+      snapshot = { entries: source };
+    }
+
+    if (!snapshot) {
+      return null;
+    }
+
+    const entries = Array.isArray(snapshot.entries)
+      ? snapshot.entries
+          .map((entry) => this.#normalizeMissionLogEntry(entry))
+          .filter(Boolean)
+      : [];
+
+    const filteredCount = Number.isFinite(snapshot.filteredCount) ? snapshot.filteredCount : entries.length;
+    const totalCount = Number.isFinite(snapshot.totalCount) ? snapshot.totalCount : entries.length;
+    const categories = this.#normalizeCountMap(snapshot.filteredCategories ?? snapshot.categories ?? null);
+    const severities = this.#normalizeCountMap(snapshot.filteredSeverities ?? snapshot.severities ?? null);
+    const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
+    const lastTimestampSeconds = snapshot.lastTimestampSeconds ?? lastEntry?.timestampSeconds ?? null;
+    const lastTimestampGet = snapshot.lastTimestampGet ?? lastEntry?.timestampGet ?? null;
+
+    return {
+      entries,
+      totalCount,
+      filteredCount,
+      categories,
+      severities,
+      lastTimestampSeconds,
+      lastTimestampGet,
+    };
+  }
+
+  #normalizeMissionLogEntry(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+
+    const timestampSeconds = Number.isFinite(entry.timestampSeconds)
+      ? entry.timestampSeconds
+      : null;
+    const timestampGet =
+      typeof entry.timestampGet === 'string' && entry.timestampGet.length > 0
+        ? entry.timestampGet
+        : timestampSeconds != null
+          ? formatGET(timestampSeconds)
+          : null;
+    const category = typeof entry.category === 'string' && entry.category.length > 0
+      ? entry.category
+      : 'system';
+    const source = typeof entry.source === 'string' && entry.source.length > 0
+      ? entry.source
+      : 'sim';
+    const severity = typeof entry.severity === 'string' && entry.severity.length > 0
+      ? entry.severity
+      : null;
+    const message = typeof entry.message === 'string' ? entry.message : String(entry.message ?? '');
+    const context = entry.context && typeof entry.context === 'object' ? deepClone(entry.context) : {};
+
+    return {
+      id: entry.id ?? null,
+      sequence: Number.isFinite(entry.sequence) ? entry.sequence : Number.isFinite(entry.index) ? entry.index : null,
+      timestampSeconds,
+      timestampGet,
+      category,
+      source,
+      severity,
+      message,
+      context,
+    };
+  }
+
+  #normalizeCountMap(map) {
+    if (!map || typeof map !== 'object') {
+      return {};
+    }
+    const result = {};
+    for (const [key, value] of Object.entries(map)) {
+      if (!key) {
+        continue;
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        continue;
+      }
+      result[key] = numeric;
+    }
+    return result;
   }
 
   #summarizeCommunications(snapshot) {
@@ -915,4 +1020,8 @@ export class UiFrameBuilder {
     }
     return value.endsWith('_kg') ? value.slice(0, -3) : value;
   }
+}
+
+function deepClone(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
 }

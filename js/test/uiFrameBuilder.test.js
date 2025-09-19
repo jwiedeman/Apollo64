@@ -380,6 +380,7 @@ describe('UiFrameBuilder', () => {
       'FAIL_COMM_PASS_MISSED',
       'FAIL_POWER_LOW',
     ]);
+    assert.equal(frame.missionLog, null);
   });
 
   test('flags low periapsis without duplicating alerts', () => {
@@ -430,5 +431,46 @@ describe('UiFrameBuilder', () => {
     assert.equal(failureFrame.alerts.cautions.length, 0);
     assert.equal(failureFrame.alerts.failures.length, 1);
     assert.equal(failureFrame.alerts.failures[0].id, 'orbit_periapsis_below_surface');
+  });
+
+  test('includes mission log summary when aggregator provided', () => {
+    const builder = new UiFrameBuilder();
+    const missionLogSource = {
+      snapshot: ({ limit }) => ({
+        entries: [
+          {
+            id: 'log-000001',
+            sequence: 1,
+            timestampSeconds: 120,
+            timestampGet: '000:02:00',
+            category: 'event',
+            source: 'sim',
+            severity: 'info',
+            message: 'Event EVT_TEST complete',
+            context: { eventId: 'EVT_TEST' },
+          },
+        ],
+        totalCount: 5,
+        filteredCount: limit ?? 1,
+        filteredCategories: { event: 1 },
+        filteredSeverities: { info: 1 },
+        lastTimestampSeconds: 120,
+        lastTimestampGet: '000:02:00',
+      }),
+    };
+
+    const frame = builder.build(200, {
+      missionLog: missionLogSource,
+      scheduler: { stats: () => ({ counts: {}, upcoming: [] }) },
+      resourceSystem: { snapshot: () => ({}) },
+    });
+
+    assert.ok(frame.missionLog);
+    assert.equal(frame.missionLog.totalCount, 5);
+    assert.equal(frame.missionLog.entries.length, 1);
+    assert.equal(frame.missionLog.entries[0].id, 'log-000001');
+    assert.equal(frame.missionLog.entries[0].category, 'event');
+    assert.deepEqual(frame.missionLog.categories, { event: 1 });
+    assert.equal(frame.missionLog.lastTimestampGet, '000:02:00');
   });
 });

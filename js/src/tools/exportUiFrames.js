@@ -47,7 +47,13 @@ async function main() {
   });
 
   const frames = [];
-  const { uiFrameBuilder, simulation, scoreSystem: contextScoreSystem, orbitPropagator } = context;
+  const {
+    uiFrameBuilder,
+    simulation,
+    scoreSystem: contextScoreSystem,
+    orbitPropagator,
+    missionLogAggregator,
+  } = context;
   const startSeconds = Math.max(0, args.startSeconds);
   const intervalSeconds = args.intervalSeconds;
   let nextSampleSeconds = startSeconds;
@@ -79,6 +85,7 @@ async function main() {
         rcsController,
         scoreSystem: tickScoreSystem,
         orbit: orbitPropagator,
+        missionLog: missionLogAggregator,
       });
       frames.push(frame);
       captured = true;
@@ -102,6 +109,7 @@ async function main() {
         rcsController,
         scoreSystem: tickScoreSystem,
         orbit: orbitPropagator,
+        missionLog: missionLogAggregator,
       });
       frames.push(frame);
       if (frames.length >= args.maxFrames) {
@@ -128,6 +136,7 @@ async function main() {
       scoreSystem: contextScoreSystem,
       scoreSummary: summary.score ?? null,
       orbit: orbitPropagator,
+      missionLog: missionLogAggregator,
     });
     frames.push(finalFrame);
   }
@@ -158,6 +167,7 @@ async function main() {
       score: summary.score,
     },
     frames,
+    missionLog: missionLogAggregator?.snapshot?.({ limit: null }) ?? null,
   };
 
   const outPath = path.resolve(args.outputPath);

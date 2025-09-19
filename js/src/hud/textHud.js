@@ -55,7 +55,12 @@ export class TextHud {
     this.nextRenderGetSeconds = currentGetSeconds + this.renderIntervalSeconds;
 
     if (this.logger) {
-      this.logger.log(currentGetSeconds, message, frame);
+      this.logger.log(currentGetSeconds, message, {
+        ...frame,
+        logSource: 'ui',
+        logCategory: 'ui',
+        logSeverity: 'info',
+      });
     } else {
       console.log(`[HUD ${formatGET(currentGetSeconds)}] ${message}`, frame);
     }

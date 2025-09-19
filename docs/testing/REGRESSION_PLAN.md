@@ -39,8 +39,8 @@ This guide documents the repeatable checks that keep the Apollo 11 mission datas
 ### UI Frame Exporter & HUD Snapshots
 - **Command:** `npm run export:ui-frames -- --until <GET> --output out/frames.json`
 - **Location:** [`js/src/tools/exportUiFrames.js`](../../js/src/tools/exportUiFrames.js)
-- **Scope:** Calls [`UiFrameBuilder`](../../js/src/hud/uiFrameBuilder.js) at a fixed cadence to capture `ui_frame` sequences (including commander rating blocks and optional resource histories) for UI prototyping, accessibility audits, and regression fixtures.【F:docs/ui/ui_frame_reference.md†L1-L88】【F:js/src/tools/exportUiFrames.js†L1-L220】
-- **When to run:** After changes to HUD bindings, resource summaries, scoring, or whenever new UI components require fresh fixtures.
+- **Scope:** Calls [`UiFrameBuilder`](../../js/src/hud/uiFrameBuilder.js) at a fixed cadence to capture `ui_frame` sequences (including commander rating blocks, optional resource histories, and the normalized mission log stream) for UI prototyping, accessibility audits, and regression fixtures.【F:docs/ui/ui_frame_reference.md†L1-L88】【F:js/src/tools/exportUiFrames.js†L1-L220】
+- **When to run:** After changes to HUD bindings, resource summaries, scoring, mission log categorization, or whenever new UI components require fresh fixtures.
 
 ### Mission Logging & Manual Action Recorder
 - **Command:** `npm start -- --until <GET> --log-file out/run.json --record-manual-script out/manual.json`

@@ -59,6 +59,9 @@ export class ManualActionQueue {
     queue.addActions(actions);
     queue.metrics.scheduled = queue.queue.length;
     queue.logger?.log(0, 'Manual action script loaded', {
+      logSource: 'sim',
+      logCategory: 'manual',
+      logSeverity: 'notice',
       scriptPath: absolutePath,
       scheduledActions: queue.queue.length,
     });
@@ -162,6 +165,9 @@ export class ManualActionQueue {
         return this.#executeDskyEntry(action, currentGetSeconds);
       default:
         this.logger?.log(currentGetSeconds, `Unknown manual action type ${action.type}`, {
+          logSource: 'sim',
+          logCategory: 'manual',
+          logSeverity: 'warning',
           actionId: action.id,
         });
         return { status: ACTION_STATUS.FAILURE, details: { reason: 'unknown_action_type' } };
@@ -207,6 +213,9 @@ export class ManualActionQueue {
 
     this.metrics.acknowledgedSteps += acknowledged;
     this.logger?.log(currentGetSeconds, 'Manual checklist override executed', {
+      logSource: 'sim',
+      logCategory: 'manual',
+      logSeverity: 'notice',
       actionId: action.id,
       eventId: action.eventId,
       acknowledgedSteps: acknowledged,
@@ -234,6 +243,9 @@ export class ManualActionQueue {
     this.metrics.resourceDeltas += 1;
 
     this.logger?.log(currentGetSeconds, 'Manual resource delta applied', {
+      logSource: 'sim',
+      logCategory: 'manual',
+      logSeverity: 'notice',
       actionId: action.id,
       source: action.source,
     });
@@ -308,7 +320,12 @@ export class ManualActionQueue {
       payload.note = action.note;
     }
 
-    this.logger?.log(currentGetSeconds, 'Manual DSKY entry executed', payload);
+    this.logger?.log(currentGetSeconds, 'Manual DSKY entry executed', {
+      logSource: 'sim',
+      logCategory: 'manual',
+      logSeverity: 'notice',
+      ...payload,
+    });
     this.metrics.dskyEntries += 1;
 
     const details = { ...payload };

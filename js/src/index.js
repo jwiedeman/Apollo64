@@ -11,6 +11,9 @@ async function main() {
   const logger = new MissionLogger({ silent: args.quiet });
 
   logger.log(0, 'Initializing mission simulation prototype', {
+    logSource: 'cli',
+    logCategory: 'system',
+    logSeverity: 'info',
     dataDir: DATA_DIR,
     tickRate: args.tickRate,
   });
@@ -33,7 +36,11 @@ async function main() {
   });
 
   const untilSeconds = args.untilSeconds ?? parseGET('015:00:00');
-  logger.log(0, `Running simulation until GET ${formatGET(untilSeconds)}`);
+  logger.log(0, `Running simulation until GET ${formatGET(untilSeconds)}`, {
+    logSource: 'cli',
+    logCategory: 'system',
+    logSeverity: 'notice',
+  });
 
   const summary = simulation.run({ untilGetSeconds: untilSeconds });
   printSummary(summary);
@@ -252,6 +259,14 @@ function printSummary(summary) {
       thermalViolationSeconds: resources?.thermalViolationSeconds,
       commsHitRatePct: comms?.hitRatePct,
       manualFraction: manual?.manualFraction,
+    });
+  }
+  if (summary.missionLog) {
+    const { totalCount, filteredCount, lastTimestampGet } = summary.missionLog;
+    console.log('Mission log summary:', {
+      totalEntries: totalCount,
+      recentEntries: filteredCount,
+      lastEntryGet: lastTimestampGet,
     });
   }
 }

@@ -13,6 +13,7 @@ import { UiFrameBuilder } from '../hud/uiFrameBuilder.js';
 import { ScoreSystem } from './scoreSystem.js';
 import { RcsController } from './rcsController.js';
 import { OrbitPropagator } from './orbitPropagator.js';
+import { MissionLogAggregator } from '../logging/missionLogAggregator.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -40,6 +41,8 @@ export async function createSimulationContext({
 } = {}) {
   const resolvedDataDir = path.resolve(dataDir);
   const missionData = await loadMissionData(resolvedDataDir, { logger });
+
+  const missionLogAggregator = new MissionLogAggregator(logger);
 
   const checklistManager = new ChecklistManager(missionData.checklists, logger, {
     autoAdvance: autoAdvanceChecklists,
@@ -149,6 +152,7 @@ export async function createSimulationContext({
     logger,
     tickRate,
     orbitPropagator,
+    missionLogAggregator,
   });
 
   return {
@@ -165,6 +169,7 @@ export async function createSimulationContext({
     uiFrameBuilder,
     scoreSystem,
     manualActionRecorder,
+    missionLogAggregator,
     audioCues: missionData.audioCues,
     logger,
     options: {

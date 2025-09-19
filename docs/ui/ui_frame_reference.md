@@ -37,6 +37,7 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "trajectory": { ... },
   "alerts": { "warnings": [], "cautions": [], "failures": [] },
   "score": { ... },
+  "missionLog": { ... },
   "resourceHistory": { ... }
 }
 ```
@@ -268,6 +269,31 @@ recomputing from raw telemetry.
 | `rating.baseScore` | number&#124;null | Base score before manual bonus. |
 | `rating.manualBonus` | number&#124;null | Bonus applied for manual participation. |
 | `rating.breakdown.*` | object&#124;null | Weight/score pairs for events, resources, faults, and manual contribution. |
+
+### `missionLog`
+
+Deterministic console feed assembled from the mission logger via the
+[`MissionLogAggregator`](../../js/src/logging/missionLogAggregator.js). Entries
+are ordered by GET and limited by the builder option `missionLogLimit`
+(default 50) so the HUD console, export harness, and replay tools share the same
+payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `entries[]` | array | Mission log entries with `id`, `sequence`, `timestampSeconds`, `timestampGet`, `category`, `source`, `severity`, `message`, and `context`. |
+| `totalCount` | number | Total entries retained by the aggregator during the run. |
+| `filteredCount` | number | Count of entries included in this frame (bounded by `missionLogLimit`). |
+| `categories` | object | Map of category → count for the filtered entries. |
+| `severities` | object | Map of severity → count (`info`, `notice`, `caution`, `warning`, `failure`). |
+| `lastTimestampSeconds` | number&#124;null | GET seconds for the most recent entry. |
+| `lastTimestampGet` | string&#124;null | GET label (`HHH:MM:SS`) for the most recent entry. |
+
+Each entry exposes the original simulator context (event IDs, autopilot IDs,
+checklist references, etc.). Consumers should treat the nested `context` object
+as read-only metadata and rely on `category`/`severity` for filtering and alert
+styling. Simulator subsystems now tag mission log emissions with
+`logCategory`, `logSeverity`, and `logSource` metadata so these fields
+arrive pre-classified rather than inferred from the message string.
 
 ### `resourceHistory`
 

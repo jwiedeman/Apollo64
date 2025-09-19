@@ -122,6 +122,9 @@ export class EventScheduler {
 
     event.status = STATUS.ARMED;
     this.logger.log(currentGetSeconds, `Event ${event.id} armed`, {
+      logSource: 'sim',
+      logCategory: 'event',
+      logSeverity: 'notice',
       phase: event.phase,
       window: `${formatGET(event.getOpenSeconds)} → ${formatGET(event.getCloseSeconds)}`,
     });
@@ -139,6 +142,9 @@ export class EventScheduler {
     event.status = STATUS.ACTIVE;
     event.activationTimeSeconds = currentGetSeconds;
     this.logger.log(currentGetSeconds, `Event ${event.id} active`, {
+      logSource: 'sim',
+      logCategory: 'event',
+      logSeverity: 'notice',
       autopilot: event.autopilotId,
       checklist: event.checklistId,
       expectedDurationSeconds: event.expectedDurationSeconds,
@@ -187,6 +193,9 @@ export class EventScheduler {
     event.status = STATUS.COMPLETE;
     event.completionTimeSeconds = currentGetSeconds;
     this.logger.log(currentGetSeconds, `Event ${event.id} complete`, {
+      logSource: 'sim',
+      logCategory: 'event',
+      logSeverity: 'notice',
       phase: event.phase,
     });
     this.resourceSystem.applyEffect(event.successEffects, {
@@ -294,6 +303,9 @@ export class EventScheduler {
     event.status = STATUS.FAILED;
     event.completionTimeSeconds = currentGetSeconds;
     this.logger.log(currentGetSeconds, `Event ${event.id} failed — ${reason}`, {
+      logSource: 'sim',
+      logCategory: 'event',
+      logSeverity: 'failure',
       phase: event.phase,
       ...context,
     });
@@ -332,6 +344,9 @@ export class EventScheduler {
         handler(event, summary);
       } catch (error) {
         this.logger?.log(summary.completedAtSeconds ?? event.completionTimeSeconds ?? 0, 'Autopilot summary handler error', {
+          logSource: 'sim',
+          logCategory: 'autopilot',
+          logSeverity: 'failure',
           eventId: event?.id ?? null,
           autopilotId: summary?.autopilotId ?? null,
           error: error?.message ?? String(error),
