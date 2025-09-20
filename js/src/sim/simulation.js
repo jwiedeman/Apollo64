@@ -9,6 +9,7 @@ export class Simulation {
     manualActionQueue = null,
     autopilotRunner = null,
     rcsController = null,
+    agcRuntime = null,
     hud = null,
     scoreSystem = null,
     logger,
@@ -24,6 +25,7 @@ export class Simulation {
     this.manualActions = manualActionQueue;
     this.autopilotRunner = autopilotRunner;
     this.rcsController = rcsController;
+    this.agcRuntime = agcRuntime;
     this.hud = hud;
     this.scoreSystem = scoreSystem;
     this.logger = logger;
@@ -69,6 +71,7 @@ export class Simulation {
           checklistManager: this.checklistManager,
           manualQueue: this.manualActions,
           rcsController: this.rcsController,
+          agcRuntime: this.agcRuntime,
           scoreSystem: this.scoreSystem,
           orbit: this.orbitPropagator,
           missionLog: this.missionLogAggregator,
@@ -86,6 +89,7 @@ export class Simulation {
           checklistManager: this.checklistManager,
           manualQueue: this.manualActions,
           rcsController: this.rcsController,
+          agcRuntime: this.agcRuntime,
           hud: this.hud,
           scoreSystem: this.scoreSystem,
           orbit: this.orbitPropagator,
@@ -107,6 +111,9 @@ export class Simulation {
     const manualStats = this.manualActions ? this.manualActions.stats() : null;
     const autopilotStats = this.autopilotRunner ? this.autopilotRunner.stats() : null;
     const rcsStats = this.rcsController ? this.rcsController.stats() : null;
+    const agcStats = this.agcRuntime && typeof this.agcRuntime.stats === 'function'
+      ? this.agcRuntime.stats()
+      : null;
     const hudStats = this.hud ? this.hud.stats() : null;
     const scoreSummary = this.scoreSystem ? this.scoreSystem.summary() : null;
     const orbitSummary = this.orbitPropagator ? this.orbitPropagator.summary() : null;
@@ -134,6 +141,7 @@ export class Simulation {
       manualActions: manualStats,
       autopilot: autopilotStats,
       rcs: rcsStats,
+      agc: agcStats,
       hud: hudStats,
       score: scoreSummary,
       orbit: orbitSummary,
@@ -154,6 +162,7 @@ export class Simulation {
       manualActions: manualStats,
       autopilot: autopilotStats,
       rcs: rcsStats,
+      agc: agcStats,
       hud: hudStats,
       score: scoreSummary,
       orbit: orbitSummary,

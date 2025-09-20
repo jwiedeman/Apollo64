@@ -52,6 +52,7 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
 - **UI bundles:**
   - Parse `docs/ui/panels.json`, confirming panel IDs remain unique, control definitions list valid states, dependencies reference existing controls, alerts carry valid triggers, and cross-panel references resolve correctly.
   - Validate `docs/ui/checklists.json`, ensuring checklist IDs exist in the CSV dataset, phases/roles use the documented enums, panel/control/state references resolve, and per-checklist step ordering stays sequential.
+  - Validate `docs/ui/dsky_macros.json`, ensuring macro IDs remain unique, modes fall within the supported set, registers expose identifiers, prerequisites reference known panels/controls/states, and checklist references resolve to `docs/data/checklists.csv` entries.
   - Inspect `docs/ui/workspaces.json` so preset IDs remain unique, tile IDs and coordinates stay in range, constraints use numeric values, and optional `panelFocus` references point at known panels.
   - Validate `docs/ui/entry_overlay.json` so pad/event references resolve, corridor/g-load states stay numeric, blackout GET stamps parse, and recovery milestones expose deterministic IDs, GETs, and offsets.
 

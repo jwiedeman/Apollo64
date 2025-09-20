@@ -1,6 +1,6 @@
 # DSKY Macro Reference for Mission-Critical Procedures
 
-This reference enumerates the Verb/Noun pairs and macro groupings that the UI must expose for checklist-driven DSKY interactions. The combinations below prioritize alignment, burn monitoring, docking support, and entry checks so the "Do Next" shortcut can pre-fill inputs while validating prerequisite panel states.
+This reference enumerates the Verb/Noun pairs and macro groupings that the UI must expose for checklist-driven DSKY interactions. The combinations below prioritize alignment, burn monitoring, docking support, and entry checks so the "Do Next" shortcut can pre-fill inputs while validating prerequisite panel states. The authoritative data now lives in [`docs/ui/dsky_macros.json`](dsky_macros.json); `AgcRuntime` ingests that pack, enforces prerequisites, mirrors annunciator state, and exposes register snapshots to the HUD and mission log pipeline.
 
 ## Macro Catalog
 
@@ -23,28 +23,34 @@ This reference enumerates the Verb/Noun pairs and macro groupings that the UI mu
 
 1. **Prerequisite Enforcement:** Macros that alter guidance targets (`V21N33`, `V21N38`, `V25N07`, `V49N20`, `V50N18`) must verify the relevant panel toggles before dispatch. For example, `V21N33_LOAD_DV` checks that SPS banks are armed and that the associated event is within its window before updating the guidance registers.
 2. **HUD Integration:** Monitor macros (`V06*`, `V16*`, `V63N63`) emit snapshots to the HUD overlay so the navball, burn widgets, and landing rate tapes display the same values the player sees on the DSKY.
-3. **Auto vs. Manual Parity:** When autopilot scripts execute macros, the mission log records the Verb/Noun, input values, and GET to feed parity reports. Manual entries replay the same pipeline to guarantee deterministic outcomes.
+3. **Auto vs. Manual Parity:** When autopilot scripts or manual queue entries execute macros, the mission log records the Verb/Noun, input values, annunciator state, and GET to feed parity reports. Manual entries replay the same pipeline to guarantee deterministic outcomes.
 4. **Error Handling:** Invalid entries (e.g., TIG outside event window, ΔV magnitude beyond PAD tolerances) respond with a simulated `OPR ERR` lamp and an actionable console log entry describing the violated constraint.
-5. **Controller Hotkeys:** Keyboard/controller bindings map to macro IDs so `Plan Burn` buttons or checklist steps can queue `V21N33` + `V21N38` pairs without forcing players to retype values.
+5. **Controller Hotkeys:** Keyboard/controller bindings map to macro IDs so `Plan Burn` buttons or checklist steps can queue `V21N33` + `V21N38` pairs without forcing players to retype values. The UI reads the curated macro pack to surface applicable shortcuts and disable entries when prerequisites fail.
 
 ## Data Representation
 
-Macros referenced here correspond to the `dsky_macro` field in upcoming `checklists.json` records. Each macro entry includes:
+Macros referenced here correspond to the `dskyMacro` field in `docs/ui/checklists.json` records. Each macro entry includes:
 
 ```json
 {
   "id": "V06N33_DELTA_V_RESIDUAL",
   "verb": 6,
   "noun": 33,
-  "mode": "monitor", // monitor | entry
+  "mode": "monitor",
   "label": "ΔV Residuals",
+  "description": "Displays remaining Δv components after burns to confirm guidance residuals are within tolerance.",
+  "hudBindings": ["navigation.maneuver.deltaVResidual"],
+  "checklists": ["FP_3-12_TLI_EXEC", "FP_6-24_LOI2_EXEC", "FP_8-16_MCC5_EXEC"],
   "requires": [
     { "panel": "CSM_SPS_PROPULSION", "controlId": "SPS_BANK_A_ARM", "state": "ARM" },
     { "panel": "CSM_SPS_PROPULSION", "controlId": "SPS_BANK_B_ARM", "state": "ARM" }
   ],
-  "hudBindings": ["burn.deltaVResidual"],
-  "checklists": ["FP_3-12_TLI_EXEC", "FP_6-24_LOI2_EXEC", "FP_8-16_MCC5_EXEC"]
+  "registers": [
+    { "id": "R1", "label": "ΔV X", "units": "ft/s" },
+    { "id": "R2", "label": "ΔV Y", "units": "ft/s" },
+    { "id": "R3", "label": "ΔV Z", "units": "ft/s" }
+  ]
 }
 ```
 
-The UI layer will hydrate these macros into keyboard/controller bindings, DSKY keypad shortcuts, and autopilot replay scripts.
+`state` entries may specify either a single `state` or a `states` array to allow multiple valid positions (e.g., VHF transmitter A/B). The UI layer hydrates these macros into keyboard/controller bindings, DSKY keypad shortcuts, autopilot replay scripts, and HUD register panels surfaced by `AgcRuntime`.

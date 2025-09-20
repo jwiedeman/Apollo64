@@ -17,6 +17,7 @@ from .records import (
     MissionData,
     PadRecord,
     UiChecklistPack,
+    UiDskyMacroPack,
     UiPanelPack,
     UiWorkspacePack,
 )
@@ -38,6 +39,7 @@ _UI_FILES = {
     "ui_panels": "panels.json",
     "ui_workspaces": "workspaces.json",
     "docking_gates": "docking_gates.json",
+    "ui_dsky_macros": "dsky_macros.json",
 }
 
 
@@ -103,6 +105,7 @@ def load_mission_data(data_dir: Path, ui_dir: Optional[Path] = None) -> MissionD
     ui_checklists = load_ui_checklists(ui_base / _UI_FILES["ui_checklists"])
     ui_panels = load_ui_panels(ui_base / _UI_FILES["ui_panels"])
     ui_workspaces = load_ui_workspaces(ui_base / _UI_FILES["ui_workspaces"])
+    ui_dsky_macros = load_ui_dsky_macros(ui_base / _UI_FILES["ui_dsky_macros"])
     docking_gates = load_docking_gates(ui_base / _UI_FILES["docking_gates"])
 
     return MissionData(
@@ -118,6 +121,7 @@ def load_mission_data(data_dir: Path, ui_dir: Optional[Path] = None) -> MissionD
         ui_checklists=ui_checklists,
         ui_panels=ui_panels,
         ui_workspaces=ui_workspaces,
+        ui_dsky_macros=ui_dsky_macros,
         docking_gates=docking_gates,
     )
 
@@ -155,6 +159,15 @@ def load_ui_workspaces(path: Path) -> Optional[UiWorkspacePack]:
     return UiWorkspacePack.from_dict(payload)
 
 
+def load_ui_dsky_macros(path: Path) -> Optional[UiDskyMacroPack]:
+    if not path.is_file():
+        return None
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        return None
+    return UiDskyMacroPack.from_dict(payload)
+
+
 __all__ = [
     "load_events",
     "load_checklists",
@@ -167,5 +180,6 @@ __all__ = [
     "load_ui_checklists",
     "load_ui_panels",
     "load_ui_workspaces",
+    "load_ui_dsky_macros",
     "available_datasets",
 ]

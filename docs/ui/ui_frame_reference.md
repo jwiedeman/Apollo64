@@ -34,6 +34,7 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "autopilot": { ... },
   "checklists": { ... },
   "manualQueue": { ... },
+  "agc": { ... },
   "trajectory": { ... },
   "docking": { ... },
   "entry": { ... },
@@ -52,7 +53,10 @@ Strings representing GET values are formatted as `HHH:MM:SS`.
 `includeResourceHistory: true`. The payload mirrors
 [`ResourceSystem.historySnapshot()`](../../js/src/sim/resourceSystem.js), providing
 minute-resolution samples for power, thermal, propellant, and communications
-metrics so trend widgets can consume the same telemetry as the HUD.
+metrics so trend widgets can consume the same telemetry as the HUD. When an
+`AgcRuntime` instance is supplied, the builder also injects an `agc` block with
+program state, annunciators, register displays, recent macro history, pending
+PRO acknowledgements, and execution metrics.
 
 ### `time`
 
@@ -190,6 +194,27 @@ Each entry in `events.upcoming[]` now exposes `padId` (raw string) and `pad` (su
 ### `manualQueue`
 
 Mirrors `ManualActionQueue.stats()` with counts for scheduled, pending, executed, failed, retried actions plus checklist acknowledgements and resource deltas injected by the manual queue.
+
+### `agc`
+
+Summarises the AGC runtime snapshot when available.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `program.current` | string&#124;null | Current AGC program (e.g., `P30`). |
+| `program.majorMode` / `program.subMode` | string&#124;null | Reported major/submode labels. |
+| `program.pendingAck` | boolean | Indicates whether PRO acknowledgement is required. |
+| `program.lastVerb` / `program.lastNoun` | number&#124;null | Most recent Verb/Noun values on the display. |
+| `program.verbLabel` / `program.nounLabel` | string&#124;null | Human-readable labels derived from the macro catalog. |
+| `program.macroId` / `program.macroLabel` | string&#124;null | Identifier/label of the active macro, if any. |
+| `program.mode` | string&#124;null | Macro mode (`monitor`, `entry`, `utility`). |
+| `program.lastUpdateSeconds` | number&#124;null | GET seconds when the display last changed. |
+| `program.lastUpdateGet` | string&#124;null | GET label for `lastUpdateSeconds`. |
+| `annunciators.pro` / `.keyRel` / `.oprErr` / `.temp` / `.gimbalLock` | boolean | Current annunciator lamp state. |
+| `registers[]` | array | Up to three register entries with `id`, `label`, `units`, and `value`. |
+| `history[]` | array | Recent macro executions including `macroId`, `macroLabel`, `verbLabel`, `nounLabel`, actor/source tags, GET stamp, and any issues. |
+| `pendingAck` | object&#124;null | When PRO is lit, includes `macroId`, `macroLabel`, `issuedAtSeconds`, and `issuedAtGet`. |
+| `metrics` | object&#124;null | Aggregate counts from the runtime (`commands`, `macros`, `rejected`, `acknowledged`). |
 
 ### `trajectory`
 
@@ -416,11 +441,12 @@ payload.
 | `lastTimestampGet` | string&#124;null | GET label (`HHH:MM:SS`) for the most recent entry. |
 
 Each entry exposes the original simulator context (event IDs, autopilot IDs,
-checklist references, etc.). Consumers should treat the nested `context` object
+checklist references, AGC macro identifiers, etc.). Consumers should treat the nested `context` object
 as read-only metadata and rely on `category`/`severity` for filtering and alert
 styling. Simulator subsystems now tag mission log emissions with
-`logCategory`, `logSeverity`, and `logSource` metadata so these fields
-arrive pre-classified rather than inferred from the message string.
+`logCategory`, `logSeverity`, and `logSource` metadata (including the new `agc`
+category) so these fields arrive pre-classified rather than inferred from the
+message string.
 
 ### `resourceHistory`
 

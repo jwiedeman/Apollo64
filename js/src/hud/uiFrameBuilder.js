@@ -114,6 +114,12 @@ export class UiFrameBuilder {
     const missionLog = this.#summarizeMissionLog(context.missionLog ?? context.missionLogAggregator);
     const docking = this.#summarizeDocking(currentGetSeconds, context);
     const entry = this.#summarizeEntry(currentGetSeconds, context, { orbitSummary });
+    const agcState =
+      context.agcState
+      ?? (context.agcRuntime && typeof context.agcRuntime.snapshot === 'function'
+        ? context.agcRuntime.snapshot()
+        : null);
+    const agc = this.#summarizeAgc(agcState);
 
     const frame = {
       generatedAtSeconds: currentGetSeconds,
@@ -152,6 +158,10 @@ export class UiFrameBuilder {
 
     if (entry) {
       frame.entry = entry;
+    }
+
+    if (agc) {
+      frame.agc = agc;
     }
 
     const audio = this.#summarizeAudio({
@@ -194,6 +204,78 @@ export class UiFrameBuilder {
       isOverdue: tMinusSeconds != null && tMinusSeconds < 0,
       padId: event.padId ?? null,
       pad: resolvePad ? resolvePad(event.id) : null,
+    };
+  }
+
+  #summarizeAgc(state) {
+    if (!state) {
+      return null;
+    }
+
+    const registers = Array.isArray(state.registers)
+      ? state.registers.map((entry) => ({
+          id: entry.id ?? null,
+          label: entry.label ?? entry.id ?? null,
+          units: entry.units ?? null,
+          value: entry.value ?? null,
+        }))
+      : [];
+
+    const history = Array.isArray(state.history)
+      ? state.history.slice(0, 8).map((item) => ({
+          id: item.id ?? null,
+          macroId: item.macroId ?? null,
+          macroLabel: item.macroLabel ?? null,
+          program: item.program ?? null,
+          verbLabel: item.verbLabel ?? null,
+          nounLabel: item.nounLabel ?? null,
+          actor: item.actor ?? null,
+          source: item.source ?? null,
+          get: item.get ?? null,
+          issues: Array.isArray(item.issues) ? item.issues.map((issue) => ({ ...issue })) : [],
+        }))
+      : [];
+
+    const pendingAck = state.pendingAck
+      ? {
+          macroId: state.pendingAck.macroId ?? null,
+          macroLabel: state.pendingAck.macroLabel ?? null,
+          issuedAtSeconds: state.pendingAck.issuedAtSeconds ?? null,
+          issuedAtGet: Number.isFinite(state.pendingAck.issuedAtSeconds)
+            ? formatGET(state.pendingAck.issuedAtSeconds)
+            : null,
+        }
+      : null;
+
+    const lastUpdateSeconds = state.lastUpdatedSeconds ?? null;
+
+    return {
+      program: {
+        current: state.program?.current ?? null,
+        majorMode: state.program?.majorMode ?? null,
+        subMode: state.program?.subMode ?? null,
+        pendingAck: Boolean(state.pendingAck),
+        lastVerb: state.display?.verb ?? null,
+        lastNoun: state.display?.noun ?? null,
+        verbLabel: state.display?.verbLabel ?? null,
+        nounLabel: state.display?.nounLabel ?? null,
+        macroId: state.display?.macroId ?? null,
+        macroLabel: state.display?.macroLabel ?? null,
+        mode: state.display?.mode ?? null,
+        lastUpdateSeconds,
+        lastUpdateGet: Number.isFinite(lastUpdateSeconds) ? formatGET(lastUpdateSeconds) : null,
+      },
+      annunciators: {
+        pro: Boolean(state.annunciators?.pro),
+        keyRel: Boolean(state.annunciators?.keyRel),
+        oprErr: Boolean(state.annunciators?.oprErr),
+        temp: Boolean(state.annunciators?.temp),
+        gimbalLock: Boolean(state.annunciators?.gimbalLock),
+      },
+      registers,
+      history,
+      pendingAck,
+      metrics: state.metrics ? { ...state.metrics } : null,
     };
   }
 

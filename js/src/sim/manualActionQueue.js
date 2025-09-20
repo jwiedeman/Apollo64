@@ -14,10 +14,14 @@ const ACTION_STATUS = {
 };
 
 export class ManualActionQueue {
-  constructor(actions = [], { logger = null, checklistManager = null, resourceSystem = null, options = {} } = {}) {
+  constructor(
+    actions = [],
+    { logger = null, checklistManager = null, resourceSystem = null, agcRuntime = null, options = {} } = {},
+  ) {
     this.logger = logger;
     this.checklistManager = checklistManager;
     this.resourceSystem = resourceSystem;
+    this.agcRuntime = agcRuntime ?? null;
     this.options = { ...DEFAULT_OPTIONS, ...options };
 
     this.queue = [];
@@ -40,7 +44,10 @@ export class ManualActionQueue {
     this.metrics.scheduled = this.queue.length;
   }
 
-  static async fromFile(filePath, { logger = null, checklistManager = null, resourceSystem = null, options = {} } = {}) {
+  static async fromFile(
+    filePath,
+    { logger = null, checklistManager = null, resourceSystem = null, agcRuntime = null, options = {} } = {},
+  ) {
     const absolutePath = path.resolve(filePath);
     const content = await fs.readFile(absolutePath, 'utf8');
     let payload;
@@ -55,7 +62,7 @@ export class ManualActionQueue {
       throw new Error(`Manual action script ${absolutePath} must contain an array of actions`);
     }
 
-    const queue = new ManualActionQueue([], { logger, checklistManager, resourceSystem, options });
+    const queue = new ManualActionQueue([], { logger, checklistManager, resourceSystem, agcRuntime, options });
     queue.addActions(actions);
     queue.metrics.scheduled = queue.queue.length;
     queue.logger?.log(0, 'Manual action script loaded', {
@@ -328,6 +335,26 @@ export class ManualActionQueue {
       ...payload,
     });
     this.metrics.dskyEntries += 1;
+
+    if (this.agcRuntime) {
+      this.agcRuntime.executeEntry(
+        {
+          macroId: action.macroId ?? null,
+          verb: action.verb ?? null,
+          noun: action.noun ?? null,
+          program: action.program ?? null,
+          registers,
+          sequence,
+          actor: action.source ?? 'MANUAL_CREW',
+          note: action.note ?? null,
+        },
+        {
+          getSeconds: currentGetSeconds,
+          source: 'manual_queue',
+          actor: action.source ?? 'MANUAL_CREW',
+        },
+      );
+    }
 
     const details = { ...payload };
     delete details.actionId;

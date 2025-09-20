@@ -17,6 +17,7 @@ const KNOWN_CATEGORIES = new Set([
   'system',
   'score',
   'resource',
+  'agc',
 ]);
 
 const KNOWN_SEVERITIES = new Set(['info', 'notice', 'caution', 'warning', 'failure']);

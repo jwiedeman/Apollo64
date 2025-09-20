@@ -157,6 +157,22 @@ export class TextHud {
       parts.push('Checklist idle');
     }
 
+    const agc = snapshot.agc;
+    if (agc?.program) {
+      const program = agc.program;
+      const programLabel = program.current ?? '---';
+      const verbLabel = program.verbLabel ?? null;
+      const nounLabel = program.nounLabel ?? null;
+      let message = `AGC ${programLabel}`;
+      if (verbLabel && nounLabel) {
+        message += ` V${verbLabel}N${nounLabel}`;
+      }
+      if (program.pendingAck) {
+        message += ' PRO?';
+      }
+      parts.push(message.trim());
+    }
+
     const autop = snapshot.autopilot;
     if (autop?.active > 0) {
       if (autop.primary) {

@@ -16,6 +16,7 @@ import { OrbitPropagator } from './orbitPropagator.js';
 import { MissionLogAggregator } from '../logging/missionLogAggregator.js';
 import { AudioCueBinder } from '../audio/audioCueBinder.js';
 import { AudioDispatcher, NullAudioMixer } from '../audio/audioDispatcher.js';
+import { AgcRuntime } from './agcRuntime.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -70,9 +71,15 @@ export async function createSimulationContext({
 
   const rcsController = new RcsController(missionData.thrusters, resourceSystem, logger);
 
+  const agcRuntime = new AgcRuntime({
+    logger,
+    macros: missionData.dskyMacros,
+  });
+
   const autopilotRunner = new AutopilotRunner(resourceSystem, logger, {
     rcsController,
     manualActionRecorder,
+    agcRuntime,
   });
 
   const orbitConfig = { ...DEFAULT_ORBIT_OPTIONS, ...(orbitOptions ?? {}) };
@@ -99,6 +106,7 @@ export async function createSimulationContext({
       logger,
       checklistManager,
       resourceSystem,
+      agcRuntime,
       options: manualQueueOptions ?? undefined,
     });
   } else if (manualActionScriptPath) {
@@ -106,6 +114,7 @@ export async function createSimulationContext({
       logger,
       checklistManager,
       resourceSystem,
+      agcRuntime,
       options: manualQueueOptions ?? undefined,
     });
   }
@@ -161,6 +170,7 @@ export async function createSimulationContext({
     manualActionQueue,
     autopilotRunner,
     rcsController,
+    agcRuntime,
     hud,
     scoreSystem,
     logger,
@@ -180,6 +190,7 @@ export async function createSimulationContext({
     manualActionQueue,
     autopilotRunner,
     rcsController,
+    agcRuntime,
     orbitPropagator,
     hud,
     uiFrameBuilder,

@@ -24,7 +24,7 @@ the Apollo checklist cadence documented in `docs/PROJECT_PLAN.md`.
    `renderIntervalSeconds` (default 600 s for the CLI, lower for the visual
    HUD).
 2. **UiFrameBuilder:** `hud/uiFrameBuilder.js` snapshots scheduler,
-   resource, checklist, manual action, and autopilot state into a
+   resource, checklist, manual action, AGC, and autopilot state into a
    deterministic `ui_frame` payload (see
    [`ui_frame_reference.md`](ui_frame_reference.md)).
 3. **Presentation Store:** The UI keeps a read-only store (immutable frame
@@ -101,7 +101,7 @@ marker focuses the checklist and primes DSKY macros.
 | --- | --- | --- |
 | Panel Rail | `<PanelList />` | Checklist metadata, `panels.json` hierarchy |
 | Active Panel | `<PanelDiagram />`, `<SwitchTooltip />` | Panel control states, checklist highlights, dependencies |
-| DSKY | `<DskyShell />`, `<VerbNounDisplay />` | AGC program state, macro previews, manual input buffer |
+| DSKY | `<DskyShell />`, `<VerbNounDisplay />` | `frame.agc`, curated macro pack (`docs/ui/dsky_macros.json`), manual input buffer |
 | Checklist Lane | `<ChecklistScroller />`, `<StepCard />` | Active checklist from `frame.checklists`, manual queue feedback |
 
 DSKY macros validate required switch states (`panels.json` dependencies)

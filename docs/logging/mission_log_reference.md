@@ -28,7 +28,7 @@ consumers do not need bespoke heuristics:
 
 - **Categories** – `logCategory`, `category`, or `type` fields map to a
   curated set (`event`, `checklist`, `manual`, `autopilot`, `audio`,
-  `ui`, `accessibility`, `entry`, `system`, `score`, `resource`). Unknown values
+  `ui`, `accessibility`, `entry`, `system`, `score`, `resource`, `agc`). Unknown values
   fall back to `system` after keyword inspection of the message.【F:js/src/logging/missionLogAggregator.js†L9-L203】
 - **Severities** – `logSeverity` or `severity` collapse onto the
   canonical `info`, `notice`, `caution`, `warning`, or `failure` bands.
@@ -51,6 +51,7 @@ Subsystems already emit metadata following this contract:
   actor tags and retry reasons, keeping UI parity scripts in sync.【F:js/src/sim/manualActionQueue.js†L61-L252】
 - `AutopilotRunner` logs engagement, abort, and summary lines under the
   `autopilot` category for guidance debugging.【F:js/src/sim/autopilotRunner.js†L46-L167】
+- `AgcRuntime` records macro executions, annunciator changes, and PRO acknowledgements using the `agc` category so DSKY activity stays visible across HUD snapshots and exports.【F:js/src/sim/agcRuntime.js†L1-L296】
 - `ResourceSystem` adds `resource` updates and failure cascades so power,
   Δv, and communications alerts inherit structured metadata.【F:js/src/sim/resourceSystem.js†L347-L367】
 - `Simulation.run()` records the final halt summary as a `system` entry,

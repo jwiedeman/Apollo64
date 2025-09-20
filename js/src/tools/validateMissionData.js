@@ -1839,6 +1839,9 @@ async function validateUiDefinitions({ context, checklistMap }) {
   validateUiPanelsBundle(panelBundle, context);
   const panelInfo = context.refs.uiPanelInfo ?? { panels: new Map() };
 
+  const macroBundle = await readUiJsonFile('dsky_macros.json', context);
+  validateUiDskyMacrosBundle(macroBundle, { context, panelInfo, checklistMap });
+
   const checklistBundle = await readUiJsonFile('checklists.json', context);
   validateUiChecklistsBundle(checklistBundle, { context, checklistMap, panelInfo });
 
@@ -2214,6 +2217,178 @@ function validateUiPanelsBundle(bundle, context) {
   context.stats.uiPanelAlerts = totalAlerts;
 }
 
+function validateUiDskyMacrosBundle(bundle, { context, panelInfo, checklistMap }) {
+  const macroMap = new Map();
+  context.refs.uiDskyMacros = macroMap;
+
+  if (!bundle) {
+    context.stats.uiDskyMacros = 0;
+    return;
+  }
+
+  if (typeof bundle.version !== 'number' || !Number.isFinite(bundle.version)) {
+    addWarning(context, 'docs/ui/dsky_macros.json version should be a finite number');
+  }
+
+  if (bundle.description != null && typeof bundle.description !== 'string') {
+    addWarning(context, 'docs/ui/dsky_macros.json description should be a string when present');
+  }
+
+  const macrosArray = Array.isArray(bundle.macros) ? bundle.macros : [];
+  if (!Array.isArray(bundle.macros)) {
+    addError(context, 'docs/ui/dsky_macros.json macros should be an array');
+  }
+
+  const macroIds = new Set();
+  const allowedModes = new Set(['monitor', 'entry', 'utility']);
+
+  for (const [index, macro] of macrosArray.entries()) {
+    const label = `docs/ui/dsky_macros.json macros[${index}]`;
+    if (!macro || typeof macro !== 'object') {
+      addError(context, `${label} is not an object`);
+      continue;
+    }
+
+    const macroId = normalizeString(macro.id);
+    if (!macroId) {
+      addError(context, `${label} is missing an id`);
+      continue;
+    }
+    if (macroIds.has(macroId)) {
+      addError(context, `${label} duplicates macro id ${macroId}`);
+      continue;
+    }
+    macroIds.add(macroId);
+    macroMap.set(macroId, macro);
+
+    if (macro.label != null && typeof macro.label !== 'string') {
+      addWarning(context, `${label}.label should be a string when present`);
+    }
+    if (macro.description != null && typeof macro.description !== 'string') {
+      addWarning(context, `${label}.description should be a string when present`);
+    }
+
+    if (macro.program != null && typeof macro.program !== 'string') {
+      addWarning(context, `${label}.program should be a string when present`);
+    }
+
+    const verbValue = toFiniteNumber(macro.verb);
+    if (macro.verb != null && verbValue == null) {
+      addWarning(context, `${label}.verb should be numeric when present`);
+    }
+
+    const nounValue = toFiniteNumber(macro.noun);
+    if (macro.noun != null && nounValue == null) {
+      addWarning(context, `${label}.noun should be numeric when present`);
+    }
+
+    const mode = normalizeString(macro.mode);
+    if (mode && !allowedModes.has(mode.toLowerCase())) {
+      addWarning(context, `${label}.mode uses unexpected value ${macro.mode}`);
+    }
+
+    if (macro.hudBindings != null && !Array.isArray(macro.hudBindings)) {
+      addWarning(context, `${label}.hudBindings should be an array when present`);
+    }
+
+    if (macro.checklists != null && !Array.isArray(macro.checklists)) {
+      addWarning(context, `${label}.checklists should be an array when present`);
+    } else if (Array.isArray(macro.checklists)) {
+      for (const [checklistIndex, checklistIdRaw] of macro.checklists.entries()) {
+        const checklistId = normalizeString(checklistIdRaw);
+        if (!checklistId) {
+          addWarning(context, `${label}.checklists[${checklistIndex}] should be a string`);
+          continue;
+        }
+        if (checklistMap && !checklistMap.has(checklistId)) {
+          addWarning(
+            context,
+            `${label}.checklists[${checklistIndex}] references checklist ${checklistId} missing from docs/data/checklists.csv`,
+          );
+        }
+      }
+    }
+
+    if (macro.registers != null && !Array.isArray(macro.registers)) {
+      addWarning(context, `${label}.registers should be an array when present`);
+    } else if (Array.isArray(macro.registers)) {
+      for (const [regIndex, reg] of macro.registers.entries()) {
+        const regLabel = `${label}.registers[${regIndex}]`;
+        if (!reg || typeof reg !== 'object') {
+          addWarning(context, `${regLabel} is not an object`);
+          continue;
+        }
+        const regId = normalizeString(reg.id);
+        if (!regId) {
+          addWarning(context, `${regLabel} is missing an id`);
+        }
+        if (reg.label != null && typeof reg.label !== 'string') {
+          addWarning(context, `${regLabel}.label should be a string when present`);
+        }
+        if (reg.units != null && typeof reg.units !== 'string') {
+          addWarning(context, `${regLabel}.units should be a string when present`);
+        }
+      }
+    }
+
+    if (macro.requires != null && !Array.isArray(macro.requires)) {
+      addWarning(context, `${label}.requires should be an array when present`);
+    } else if (Array.isArray(macro.requires)) {
+      for (const [reqIndex, requirement] of macro.requires.entries()) {
+        const reqLabel = `${label}.requires[${reqIndex}]`;
+        if (!requirement || typeof requirement !== 'object') {
+          addWarning(context, `${reqLabel} is not an object`);
+          continue;
+        }
+        const panelId = normalizeString(requirement.panel);
+        if (!panelId) {
+          addWarning(context, `${reqLabel} should specify panel`);
+          continue;
+        }
+        const controlId = normalizeString(requirement.controlId ?? requirement.controlID ?? requirement.control);
+        if (!controlId) {
+          addWarning(context, `${reqLabel} should specify controlId`);
+          continue;
+        }
+        const panel = panelInfo.panels.get(panelId);
+        if (!panel) {
+          addWarning(context, `${reqLabel} references unknown panel ${panelId}`);
+          continue;
+        }
+        const control = panel.controls.get(controlId);
+        if (!control) {
+          addWarning(context, `${reqLabel} references unknown control ${controlId} on panel ${panelId}`);
+          continue;
+        }
+
+        const stateValue = normalizeString(requirement.state);
+        const statesArray = Array.isArray(requirement.states)
+          ? requirement.states.map((value) => normalizeString(value)).filter((value) => value)
+          : null;
+        if (statesArray && statesArray.length > 0) {
+          for (const [stateIndex, stateId] of statesArray.entries()) {
+            if (!control.states.has(stateId)) {
+              addWarning(
+                context,
+                `${reqLabel}.states[${stateIndex}] references unknown state ${stateId} on control ${controlId}`,
+              );
+            }
+          }
+        } else if (stateValue) {
+          if (!control.states.has(stateValue)) {
+            addWarning(
+              context,
+              `${reqLabel}.state references unknown state ${stateValue} on control ${controlId}`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  context.stats.uiDskyMacros = macroIds.size;
+}
+
 function validateUiChecklistsBundle(bundle, { context, checklistMap, panelInfo }) {
   if (!bundle) {
     context.stats.uiChecklists = 0;
@@ -2371,6 +2546,11 @@ function validateUiChecklistsBundle(bundle, { context, checklistMap, panelInfo }
 
       if (step.dskyMacro != null && typeof step.dskyMacro !== 'string') {
         addWarning(context, `${stepLabel}.dskyMacro should be a string when present`);
+      } else if (typeof step.dskyMacro === 'string' && step.dskyMacro.trim().length > 0) {
+        const macroId = normalizeString(step.dskyMacro);
+        if (macroId && context.refs.uiDskyMacros && !context.refs.uiDskyMacros.has(macroId)) {
+          addWarning(context, `${stepLabel}.dskyMacro references unknown macro ${macroId}`);
+        }
       }
 
       if (step.prerequisites != null && !Array.isArray(step.prerequisites)) {

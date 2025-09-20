@@ -7,7 +7,7 @@ packs, and emit provenance tables without duplicating boilerplate.
 """
 
 from . import time
-from .loader import load_docking_gates, load_mission_data
+from .loader import load_docking_gates, load_mission_data, load_ui_dsky_macros
 from .provenance import ProvenanceBuilder
 from .records import (
     AutopilotRecord,
@@ -26,6 +26,10 @@ from .records import (
     UiChecklistControlRequirement,
     UiChecklistPack,
     UiChecklistStep,
+    UiDskyMacro,
+    UiDskyMacroPack,
+    UiDskyMacroRegister,
+    UiDskyMacroRequirement,
     UiPanel,
     UiPanelAlert,
     UiPanelControl,
@@ -41,6 +45,7 @@ __all__ = [
     "time",
     "load_docking_gates",
     "load_mission_data",
+    "load_ui_dsky_macros",
     "ProvenanceBuilder",
     "AutopilotRecord",
     "AudioBus",
@@ -58,6 +63,10 @@ __all__ = [
     "UiChecklistControlRequirement",
     "UiChecklistPack",
     "UiChecklistStep",
+    "UiDskyMacro",
+    "UiDskyMacroPack",
+    "UiDskyMacroRegister",
+    "UiDskyMacroRequirement",
     "UiPanel",
     "UiPanelAlert",
     "UiPanelControl",
