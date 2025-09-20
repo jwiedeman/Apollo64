@@ -21,7 +21,7 @@ This guide documents the repeatable checks that keep the Apollo 11 mission datas
 - **Command:** `npm run parity -- --until <GET> [--output out/parity.json]`
 - **Location:** [`js/src/tools/runParityCheck.js`](../../js/src/tools/runParityCheck.js)
 - **Scope:** Replays a mission slice twice—first with auto-advancing checklists, then with the recorded manual script—and diffs event timelines, resource snapshots, autopilot summaries, mission logs, and score outputs.【F:js/src/tools/runParityCheck.js†L1-L210】
-- **Inputs:** Optional manual queue tuning via `--checklist-step-seconds` or pre-recorded scripts from the CLI (`npm start -- --record-manual-script …`). Manual scripts follow the schema documented in [`docs/data/manual_scripts/README.md`](../data/manual_scripts/README.md).
+- **Inputs:** Optional manual queue tuning via `--checklist-step-seconds` or pre-recorded scripts from the CLI (`npm start -- --record-manual-script …`). Manual scripts follow the schema documented in [`docs/data/manual_scripts/README.md`](../data/manual_scripts/README.md). Provide `--profile <path>` (or `--profile default`) to load a commander profile and assert that auto/manual runs produce identical unlocks, achievements, and persisted stats; use `--mission-id <id>` with `--full-mission` / `--partial-mission` to tag the parity slice appropriately.
 - **When to run:** Whenever checklist logic, manual action handling, or autopilot data changes. Store JSON reports for review when parity fails.
 
 ### Autopilot Burn Analyzer

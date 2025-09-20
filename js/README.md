@@ -41,11 +41,13 @@ Run the automated comparison workflow with:
 npm run parity -- --until 015:00:00 --verbose
 ```
 
-The harness executes an auto-advance baseline run, records the resulting manual action script, replays it with auto-advance disabled, and reports any divergence in event counts, resource snapshots, or autopilot metrics. Useful flags:
+The harness executes an auto-advance baseline run, records the resulting manual action script, replays it with auto-advance disabled, and reports any divergence in event counts, resource snapshots, autopilot metrics, or (when a profile is supplied) progression/unlock state. Useful flags:
 
 - `--output <path>` – Persist a JSON parity report for CI/regression review.
 - `--tolerance <value>` – Override the numeric comparison tolerance (default `1e-6`).
 - `--quiet` / `--verbose` – Control mission log verbosity during the paired runs (quiet by default).
+- `--profile <path>` – Load a commander profile (use `default` for the standard location) so the harness can assert that auto/manual runs produce identical unlocks, achievements, and persisted mission stats.
+- `--mission-id <id>` – Tag the parity slice for progression tracking; combine with `--full-mission` / `--partial-mission` to mirror campaign context.
 
 Parity runs consume the same script format documented under [`docs/data/manual_scripts/README.md`](../docs/data/manual_scripts/README.md).
 

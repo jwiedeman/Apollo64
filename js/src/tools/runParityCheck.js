@@ -3,9 +3,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import { DATA_DIR } from '../config/paths.js';
+import { getDefaultProfilePath, normalizeProfilePath } from '../config/profile.js';
 import { MissionLogger } from '../logging/missionLogger.js';
 import { ManualActionRecorder } from '../logging/manualActionRecorder.js';
 import { createSimulationContext } from '../sim/simulationContext.js';
+import { ProgressionService } from '../sim/progressionService.js';
 import { formatGET, parseGET } from '../utils/time.js';
 
 const SCORE_IGNORE_PATHS = [
@@ -42,6 +44,10 @@ const DEFAULT_OPTIONS = {
   checklistStepSeconds: 15,
   tolerance: 1e-6,
   quiet: true,
+  missionId: 'APOLLO11_PARITY',
+  isFullMission: false,
+  useProfile: false,
+  profilePath: null,
 };
 
 export async function runParityCheck({
@@ -53,9 +59,26 @@ export async function runParityCheck({
   tolerance = DEFAULT_OPTIONS.tolerance,
   quiet = DEFAULT_OPTIONS.quiet,
   manualQueueOptions = null,
+  missionId = DEFAULT_OPTIONS.missionId,
+  isFullMission = DEFAULT_OPTIONS.isFullMission,
+  useProfile = DEFAULT_OPTIONS.useProfile,
+  profilePath = DEFAULT_OPTIONS.profilePath,
+  progressionProfile = null,
 } = {}) {
   if (!Number.isFinite(untilSeconds)) {
     throw new Error('Parity harness requires a valid untilSeconds value');
+  }
+
+  const progressionEnabled =
+    progressionProfile != null || useProfile || (profilePath != null && profilePath !== '');
+  let resolvedProfilePath = null;
+  let baseProfile = null;
+
+  if (progressionProfile != null) {
+    baseProfile = deepClone(progressionProfile);
+  } else if (progressionEnabled) {
+    resolvedProfilePath = profilePath ?? getDefaultProfilePath();
+    baseProfile = await loadProfile(resolvedProfilePath);
   }
 
   const autoLogger = new MissionLogger({ silent: quiet });
@@ -101,6 +124,48 @@ export async function runParityCheck({
     tolerance,
   });
 
+  let progressionComparison = null;
+  if (progressionEnabled) {
+    progressionComparison = compareProgression({
+      autoSummary,
+      manualSummary,
+      baseProfile,
+      context: { missionId, isFullMission },
+      tolerance,
+    });
+    if (progressionComparison) {
+      parity.progression = {
+        passed: progressionComparison.passed,
+        profileDiffs: progressionComparison.diffs.profile,
+        unlockDiffs: progressionComparison.diffs.unlocks,
+        achievementDiffs: progressionComparison.diffs.achievements,
+      };
+      parity.passed = parity.passed && progressionComparison.passed;
+    } else {
+      parity.progression = null;
+    }
+  } else {
+    parity.progression = null;
+  }
+
+  const progressionSummary = progressionComparison
+    ? {
+        enabled: true,
+        missionId,
+        isFullMission,
+        profilePath: resolvedProfilePath,
+        profileSource:
+          progressionProfile != null
+            ? 'inline'
+            : resolvedProfilePath
+              ? 'file'
+              : 'default',
+        auto: progressionComparison.auto,
+        manual: progressionComparison.manual,
+        diffs: progressionComparison.diffs,
+      }
+    : null;
+
   const report = buildReport({
     untilSeconds,
     options: {
@@ -109,6 +174,10 @@ export async function runParityCheck({
       logIntervalSeconds,
       checklistStepSeconds,
       tolerance,
+      missionId,
+      isFullMission,
+      useProfile: progressionEnabled,
+      profilePath: resolvedProfilePath,
     },
     recorder,
     recordedActionsCount: recordedActions.length,
@@ -118,6 +187,7 @@ export async function runParityCheck({
     autoLogs,
     manualLogs,
     parity,
+    progression: progressionSummary,
   });
 
   return { report, parity, recordedActions };
@@ -134,6 +204,10 @@ async function main() {
     checklistStepSeconds: args.checklistStepSeconds,
     tolerance: args.tolerance,
     quiet: args.quiet,
+    missionId: args.missionId,
+    isFullMission: args.isFullMission,
+    useProfile: args.useProfile,
+    profilePath: args.profilePath,
   });
 
   if (args.outputPath) {
@@ -157,6 +231,10 @@ function parseArgs(argv) {
     quiet: DEFAULT_OPTIONS.quiet,
     untilSeconds: null,
     outputPath: null,
+    missionId: DEFAULT_OPTIONS.missionId,
+    isFullMission: DEFAULT_OPTIONS.isFullMission,
+    useProfile: DEFAULT_OPTIONS.useProfile,
+    profilePath: DEFAULT_OPTIONS.profilePath,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -229,6 +307,54 @@ function parseArgs(argv) {
         i += 1;
         break;
       }
+      case '--mission-id': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--mission-id requires an identifier');
+        }
+        args.missionId = next;
+        i += 1;
+        break;
+      }
+      case '--full-mission':
+        args.isFullMission = true;
+        break;
+      case '--mission-segment':
+      case '--partial-mission':
+      case '--no-full-mission':
+        args.isFullMission = false;
+        break;
+      case '--profile': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--profile requires a path or keyword');
+        }
+        if (next === 'default') {
+          args.profilePath = getDefaultProfilePath();
+          args.useProfile = true;
+        } else if (next === 'none') {
+          args.profilePath = null;
+          args.useProfile = false;
+        } else {
+          const resolved = normalizeProfilePath(next);
+          if (!resolved) {
+            throw new Error('--profile requires a valid path');
+          }
+          args.profilePath = resolved;
+          args.useProfile = true;
+        }
+        i += 1;
+        break;
+      }
+      case '--use-profile':
+      case '--default-profile':
+        args.profilePath = getDefaultProfilePath();
+        args.useProfile = true;
+        break;
+      case '--no-profile':
+        args.profilePath = null;
+        args.useProfile = false;
+        break;
       case '--verbose':
         args.quiet = false;
         break;
@@ -254,6 +380,7 @@ function buildReport({
   autoLogs,
   manualLogs,
   parity,
+  progression = null,
 }) {
   const untilGet = formatGET(untilSeconds);
   const recorderStats = recorder.stats();
@@ -272,6 +399,10 @@ function buildReport({
       logIntervalSeconds: options.logIntervalSeconds,
       checklistStepSeconds: options.checklistStepSeconds,
       tolerance: options.tolerance,
+      missionId: options.missionId,
+      isFullMission: options.isFullMission,
+      useProfile: options.useProfile,
+      profilePath: options.profilePath,
     },
     recorder: {
       checklistEntries: recorderStats.checklist.total,
@@ -291,6 +422,7 @@ function buildReport({
       ignoreContextPaths: [...LOG_IGNORE_CONTEXT_PATHS],
     },
     parity,
+    progression,
   };
 }
 
@@ -362,6 +494,90 @@ function compareRuns({
     logDiffs: logResult.diffs,
     logStats: logResult.stats,
   };
+}
+
+async function loadProfile(filePath) {
+  if (!filePath) {
+    return null;
+  }
+  try {
+    const content = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(content);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function compareProgression({
+  autoSummary,
+  manualSummary,
+  baseProfile = null,
+  context = {},
+  tolerance = 1e-6,
+} = {}) {
+  if (!autoSummary || !manualSummary) {
+    return null;
+  }
+
+  const evaluationContext = { ...context };
+  if (evaluationContext.timestamp == null) {
+    evaluationContext.timestamp = '1970-01-01T00:00:00.000Z';
+  }
+
+  const autoService = new ProgressionService({ profile: baseProfile ? deepClone(baseProfile) : null });
+  const manualService = new ProgressionService({ profile: baseProfile ? deepClone(baseProfile) : null });
+
+  const autoResult = autoService.evaluateRun(autoSummary, evaluationContext);
+  const manualResult = manualService.evaluateRun(manualSummary, evaluationContext);
+
+  const profileDiffs = diffObjects(autoResult?.profile, manualResult?.profile, { tolerance });
+  const unlockDiffs = diffObjects(mapArrayById(autoResult?.unlocks), mapArrayById(manualResult?.unlocks), {
+    tolerance,
+  });
+  const achievementDiffs = diffObjects(
+    mapArrayById(autoResult?.achievements),
+    mapArrayById(manualResult?.achievements),
+    { tolerance },
+  );
+
+  const passed =
+    profileDiffs.length === 0 && unlockDiffs.length === 0 && achievementDiffs.length === 0;
+
+  return {
+    auto: autoResult,
+    manual: manualResult,
+    diffs: {
+      profile: profileDiffs,
+      unlocks: unlockDiffs,
+      achievements: achievementDiffs,
+    },
+    passed,
+  };
+}
+
+function mapArrayById(list) {
+  if (!Array.isArray(list)) {
+    return {};
+  }
+  const result = {};
+  for (const entry of list) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
+    const key = entry.id ?? null;
+    if (!key) {
+      continue;
+    }
+    result[key] = entry;
+  }
+  return result;
+}
+
+function deepClone(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
 function diffObjects(autoValue, manualValue, { tolerance = 1e-6, ignorePaths = [] } = {}) {
@@ -556,6 +772,18 @@ function printReport(report, { quiet }) {
     }
   }
 
+  if (report.progression?.enabled) {
+    const progressionStatus = report.parity.progression?.passed === false ? 'FAIL' : 'PASS';
+    console.log(`  Progression parity: ${progressionStatus}`);
+    if (report.progression.profilePath) {
+      console.log(`    Profile path: ${report.progression.profilePath}`);
+    } else if (report.progression.profileSource === 'inline') {
+      console.log('    Profile source: inline');
+    } else {
+      console.log('    Profile source: default');
+    }
+  }
+
   if (!report.parity.passed || !quiet) {
     printDifferences(report.parity);
   }
@@ -571,6 +799,12 @@ function printDifferences(parity) {
     ['Score summary', parity.scoreDiffs],
     ['Log entries', parity.logDiffs],
   ];
+
+  if (parity.progression) {
+    groups.push(['Progression profile', parity.progression.profileDiffs]);
+    groups.push(['Progression unlocks', parity.progression.unlockDiffs]);
+    groups.push(['Progression achievements', parity.progression.achievementDiffs]);
+  }
 
   for (const [label, diffs] of groups) {
     if (!diffs || diffs.length === 0) {
