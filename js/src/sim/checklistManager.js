@@ -7,9 +7,10 @@ const DEFAULT_OPTIONS = {
 
 export class ChecklistManager {
   constructor(checklists, logger, options = {}) {
+    const { audioBinder = null, ...restOptions } = options ?? {};
     this.logger = logger;
     this.checklists = checklists instanceof Map ? checklists : new Map();
-    this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.options = { ...DEFAULT_OPTIONS, ...restOptions };
     this.active = new Map();
     this.metrics = {
       autoSteps: 0,
@@ -19,6 +20,7 @@ export class ChecklistManager {
       aborted: 0,
     };
     this.manualActionRecorder = options.manualActionRecorder ?? null;
+    this.audioBinder = audioBinder ?? null;
   }
 
   hasChecklist(checklistId) {
@@ -47,6 +49,7 @@ export class ChecklistManager {
       action: step.action,
       expectedResponse: step.expectedResponse,
       reference: step.reference,
+      audioCueComplete: step.audioCueComplete ?? null,
       acknowledged: false,
       acknowledgedAt: null,
       actor: null,
@@ -339,5 +342,22 @@ export class ChecklistManager {
       actor,
       note,
     });
+
+    if (this.audioBinder && step.audioCueComplete) {
+      this.audioBinder.recordChecklistStep(
+        {
+          id: state.checklistId,
+          title: state.title,
+          crewRole: state.crewRole,
+          eventId: state.eventId,
+        },
+        step,
+        {
+          getSeconds,
+          eventId: state.eventId,
+          actor,
+        },
+      );
+    }
   }
 }

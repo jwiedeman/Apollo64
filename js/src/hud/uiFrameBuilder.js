@@ -463,6 +463,8 @@ export class UiFrameBuilder {
       nextWindowOpenGet: snapshot?.next_window_open_get ?? null,
       lastPadId: snapshot?.last_pad_id ?? null,
       scheduleCount: Number(snapshot?.schedule_count ?? 0) || 0,
+      nextPassCueOnAcquire: snapshot?.next_pass_cue_on_acquire ?? null,
+      nextPassCueChannel: snapshot?.next_pass_cue_channel ?? null,
     };
 
     if (!snapshot || typeof snapshot !== 'object') {
@@ -497,6 +499,10 @@ export class UiFrameBuilder {
           handoverMinutes: this.#coerceNumber(snapshot.handover_minutes),
           powerMarginDeltaKw: this.#coerceNumber(snapshot.power_margin_delta_kw),
           powerLoadDeltaKw: this.#coerceNumber(snapshot.power_load_delta_kw),
+          audioCueOnAcquire: snapshot.cue_on_acquire ?? null,
+          audioCueOnLoss: snapshot.cue_on_loss ?? null,
+          audioChannelOnAcquire: snapshot.cue_channel_on_acquire ?? null,
+          audioChannelOnLoss: snapshot.cue_channel_on_loss ?? null,
         }
       : null;
 
@@ -510,6 +516,8 @@ export class UiFrameBuilder {
           openSeconds: this.#coerceNumber(snapshot.next_window_open_seconds),
           timeUntilOpenSeconds: timeUntilNext,
           timeUntilOpenLabel: timeUntilNext != null ? this.#formatOffset(timeUntilNext) : null,
+          cueOnAcquire: snapshot.next_pass_cue_on_acquire ?? null,
+          cueChannel: snapshot.next_pass_cue_channel ?? null,
         }
       : null;
 

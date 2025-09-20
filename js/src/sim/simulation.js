@@ -15,6 +15,7 @@ export class Simulation {
     tickRate = 20,
     orbitPropagator = null,
     missionLogAggregator = null,
+    audioBinder = null,
   }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
@@ -29,6 +30,7 @@ export class Simulation {
     this.clock = new SimulationClock({ tickRate });
     this.tickRate = tickRate;
     this.missionLogAggregator = missionLogAggregator;
+    this.audioBinder = audioBinder ?? null;
   }
 
   run({ untilGetSeconds, onTick = null } = {}) {
@@ -65,6 +67,7 @@ export class Simulation {
           scoreSystem: this.scoreSystem,
           orbit: this.orbitPropagator,
           missionLog: this.missionLogAggregator,
+          audioBinder: this.audioBinder,
         });
       }
       if (typeof onTick === 'function') {
@@ -81,6 +84,7 @@ export class Simulation {
           scoreSystem: this.scoreSystem,
           orbit: this.orbitPropagator,
           missionLog: this.missionLogAggregator,
+          audioBinder: this.audioBinder,
         });
         if (shouldContinue === false) {
           break;
@@ -102,6 +106,7 @@ export class Simulation {
     const missionLogSummary = this.missionLogAggregator
       ? this.missionLogAggregator.snapshot({ limit: 10 })
       : null;
+    const audioStats = this.audioBinder ? this.audioBinder.statsSnapshot() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       logSource: 'sim',
@@ -119,6 +124,7 @@ export class Simulation {
       score: scoreSummary,
       orbit: orbitSummary,
       missionLog: missionLogSummary,
+      audio: audioStats,
     });
 
     const finalMissionLogSummary = this.missionLogAggregator
@@ -138,6 +144,7 @@ export class Simulation {
       score: scoreSummary,
       orbit: orbitSummary,
       missionLog: finalMissionLogSummary,
+      audio: audioStats,
     };
   }
 }

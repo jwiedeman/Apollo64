@@ -21,19 +21,25 @@ The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/inge
 
 ## File Inventory
 - `events.csv` – Mission beat definitions with prerequisites, windows, resource effects, and the
-  new optional `pad_id` column that links each burn or PAD review event to the matching entry in
-  `pads.csv` for TIG/delta-v/attitude metadata.
-- `checklists.csv` – Crew procedures broken into atomic steps.
+  optional `pad_id` column that links each burn or PAD review event to the matching entry in
+  `pads.csv` for TIG/delta-v/attitude metadata. Events can now supply optional `audio_cue` and
+  `audio_channel` fields so Stage A of the audio dispatcher blueprint can resolve CapCom callouts
+  and telemetry tones directly from the dataset.
+- `checklists.csv` – Crew procedures broken into atomic steps, with optional `audio_cue_complete`
+  metadata on steps that require bespoke confirmations (e.g., ladder egress, docking latches).
 - `autopilots.csv` – High-level metadata for automation scripts, each pointing to a JSON profile under `autopilots/` and
   defining `propulsion` JSON payloads that capture tank assignments, mass-flow rates, and optional ullage usage for the
   resource model.
 - `autopilot_scripts.md` – Authoring guide for the CSV/JSON autopilot packs, command schema, propulsion metadata, and
   validation workflow.
-- `failures.csv` – Recoverable and hard failure hooks tied to mission logic.
+- `failures.csv` – Recoverable and hard failure hooks tied to mission logic, including optional
+  `audio_cue_warning`/`audio_cue_failure` references for caution and master alarm routing.
 - `pads.csv` – Uplink cards for burns and corrections.
 - `provenance.md` – Source citations for every record range.
 - `consumables.json` – Baseline power, propellant, and life-support budgets with notes and references to the Mission Operations Report and Flight Plan.
-- `communications_trends.json` – DSN pass analytics (signal strength, handover duration, power deltas) for transearth coast support.
+- `communications_trends.json` – DSN pass analytics (signal strength, handover duration, power deltas)
+  for transearth coast support, now annotated with `cue_on_acquire` / `cue_on_loss` and matching
+  channel hints so audio routing can surface station handovers automatically.
 - `audio_cues.json` – Bus/category definitions and cue metadata for alerts, mission callouts, telemetry hints, UI feedback, and ambience routing across web/N64 builds.
 - `thrusters.json` – Reaction-control system geometry for the CSM and LM, including cluster placement, control axes, and baseline thrust/impulse metadata for Milestone M2 tuning.
 

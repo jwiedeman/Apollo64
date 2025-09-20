@@ -70,12 +70,14 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     successEffects: parseOptionalJson(record.success_effects),
     failureEffects: parseOptionalJson(record.failure_effects),
     notes: record.notes ?? '',
+    audioCueId: record.audio_cue ? record.audio_cue.trim() || null : null,
+    audioChannel: record.audio_channel ? record.audio_channel.trim() || null : null,
   }));
   events.sort((a, b) => (a.getOpenSeconds ?? Infinity) - (b.getOpenSeconds ?? Infinity));
 
   const checklistRecords = parseCsv(checklistsContent);
   const checklists = buildChecklists(checklistRecords);
-  const failures = buildLookup(parseCsv(failuresContent), 'failure_id');
+  const failures = buildLookup(parseCsv(failuresContent), 'failure_id', normalizeFailureRecord);
   const pads = parsePads(parseCsv(padsContent), logger);
   const consumables = parseConsumables(consumablesContent, logger);
   const thrusters = parseThrusters(thrustersContent, logger);
@@ -284,6 +286,7 @@ function buildChecklists(records) {
       action: record.action,
       expectedResponse: record.expected_response,
       reference: record.reference,
+      audioCueComplete: record.audio_cue_complete ? record.audio_cue_complete.trim() || null : null,
     });
   }
 
@@ -294,16 +297,32 @@ function buildChecklists(records) {
   return map;
 }
 
-function buildLookup(records, keyField) {
+function buildLookup(records, keyField, transform = (record) => record) {
   const map = new Map();
   for (const record of records) {
     const key = record[keyField];
     if (!key) {
       continue;
     }
-    map.set(key, record);
+    map.set(key, transform(record, key));
   }
   return map;
+}
+
+function normalizeFailureRecord(record) {
+  const normalized = { ...record };
+  if (typeof normalized.failure_id === 'string') {
+    normalized.failure_id = normalized.failure_id.trim();
+  }
+
+  for (const field of ['audio_cue_warning', 'audio_cue_failure']) {
+    if (Object.prototype.hasOwnProperty.call(normalized, field)) {
+      const value = normalized[field];
+      normalized[field] = typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+    }
+  }
+
+  return normalized;
 }
 
 function parseConsumables(content, logger) {

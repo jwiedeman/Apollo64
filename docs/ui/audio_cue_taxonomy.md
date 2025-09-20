@@ -52,16 +52,16 @@ allocation.
 
 ## Dataset Integration
 
-- **Events CSV:** Add optional `audio_cue` (string) and `audio_channel`
+- **Events CSV:** Includes optional `audio_cue` (string) and `audio_channel`
   (enum) columns. Example values:
   - `audio_cue`: `calouts.go_for_tli`
   - `audio_channel`: `dialogue`
-- **Failures CSV:** Introduce `audio_cue_warning` / `audio_cue_failure`
+- **Failures CSV:** Provides `audio_cue_warning` / `audio_cue_failure`
   fields referencing alert IDs (e.g., `alerts.master_alarm`).
-- **Checklists CSV:** Allow `audio_cue_complete` for steps requiring
-  bespoke confirmations (e.g., docking latch).
-- **Communications Trends JSON:** Append `cue_on_acquire` and
-  `cue_on_loss` to trigger DSN tones during handovers.
+- **Checklists CSV:** Carries optional `audio_cue_complete` entries for steps requiring
+  bespoke confirmations (e.g., docking latch, ladder egress).
+- **Communications Trends JSON:** Supplies `cue_on_acquire` and
+  `cue_on_loss` (plus matching channel hints) to trigger DSN tones during handovers.
 
 The ingestion notebooks emit consolidated cue tables under
 `docs/data/audio_cues.json` (planned) listing cue metadata

@@ -20,6 +20,7 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
   - Confirm referenced `checklist_id`, `autopilot_script`, and `failure_id` values resolve to known datasets.
   - Validate that optional `pad_id` references resolve to rows in `pads.csv` so UI bindings can surface PAD metadata.
   - Parse `success_effects`/`failure_effects` JSON payloads to ensure GET-like fields remain well-formed.
+  - Cross-check optional `audio_cue`/`audio_channel` references against `audio_cues.json` so callouts and telemetry tones stay deterministic.
 - **Autopilots:**
   - Confirm each CSV record has a unique `autopilot_id` and a resolvable JSON script.
   - Inspect the JSON sequence for monotonically ordered `time`+`duration` spans and flag invalid step definitions.
@@ -31,15 +32,18 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
 - **Checklists:**
   - Validate `GET_nominal` formatting and sequential step numbering.
   - Catch duplicate `step_number` values that could desync manual/auto parity recordings.
+  - Ensure optional `audio_cue_complete` values resolve to known cue IDs for bespoke confirmation sounds.
 - **PADs:**
   - Parse delivery/expiration GET stamps, parse parameter JSON payloads, sanity-check embedded GET strings (e.g., TIG values), and warn when burn durations, Δv entries, v∞, or range figures are non-numeric or non-positive.
 - **Failures:**
   - Ensure unique IDs, recognized classifications, and the presence of trigger/effect/recovery descriptions for downstream tooling.
+  - Validate `audio_cue_warning` / `audio_cue_failure` entries against the shared cue catalog before wiring alarms.
 - **Consumables:**
   - Parse the JSON payload and warn when numeric baselines (propellant, power, life support) are missing or non-numeric.
   - Validate Deep Space Network support fields (`dsn_shift_hours`, `next_window_open_get`).
 - **Communications trends:**
   - Parse `communications_trends.json`, verify GET windows, ensure signal-strength and handover metrics are numeric, and confirm station handovers reference expected identifiers.
+  - Check `cue_on_acquire` / `cue_on_loss` and channel hints resolve to known audio cues/buses so DSN tones remain routable.
 - **Thrusters:**
   - Parse `thrusters.json`, ensure each craft and RCS cluster defines unique IDs, verify translation/torque axis enums, confirm thrust/Isp/min impulse values resolve (using defaults when needed), and cross-check that referenced propellant tanks exist in `consumables.json`.
 - **Audio cues:**
@@ -56,6 +60,6 @@ The command loads the CSV and JSON packs under `docs/data/`, performs consistenc
 - Future EVA extensions or DSN updates should extend these checks so nested effect payloads (e.g., `communications.next_window_open_get`, `surface_ops.eva2_complete`) stay validated as new fields appear.
 - Planned notebooks under `scripts/ingest/` can re-use the validator’s helper functions for GET parsing and reference verification so manual analyses stay aligned with the automated sweep.
 - When mission scoring hooks mature, incorporate regression checks that assert metric ranges (Δv margins, propellant draw) remain within expected tolerances.
-- Upcoming scheduler hooks (`audio_cue`, `audio_channel`, DSN handover triggers) should reuse these helpers so event/failure records resolve cue IDs against `audio_cues.json` and bus routing stays canonical as playback wiring proceeds.
+- Upcoming scheduler hooks should continue to reuse these helpers so any new cue references or DSN analytics resolve against `audio_cues.json` and keep bus routing canonical as playback wiring expands.
 
 Maintaining these checks keeps the mission data trustworthy for both the JS prototype and the eventual Nintendo 64 build while reducing manual verification overhead as Milestone M0 evolves.
