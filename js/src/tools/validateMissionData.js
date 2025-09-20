@@ -23,6 +23,8 @@ async function main() {
   const autopilotRecords = await readCsvFile('autopilots.csv', context);
   const autopilotMap = await validateAutopilots(autopilotRecords, context);
 
+  await validateAudioCues(context);
+
   const failureRecords = await readCsvFile('failures.csv', context);
   const failureMap = validateFailures(failureRecords, context);
 
@@ -46,7 +48,6 @@ async function main() {
   validateAutopilotPropellantReferences(context);
   await validateCommunicationsTrends(context);
   await validateThrusters(context);
-  await validateAudioCues(context);
   await validateDockingGates({ context, eventMap, checklistMap });
   await validateEntryOverlay({ context, eventMap, padMap });
   await validateUiDefinitions({ context, checklistMap });
@@ -432,6 +433,24 @@ function validateFailures(records, context) {
       addWarning(context, `Failure ${id} is missing recovery_actions guidance`);
     }
 
+    const warningCue = normalizeString(record.audio_cue_warning);
+    if (warningCue) {
+      if (!context.refs.audioCueIds || !context.refs.audioCueIds.has(warningCue)) {
+        addError(context, `Failure ${id} references unknown audio_cue_warning ${warningCue}`);
+      } else {
+        trackReference(context, 'failureAudioCues', warningCue);
+      }
+    }
+
+    const failureCue = normalizeString(record.audio_cue_failure);
+    if (failureCue) {
+      if (!context.refs.audioCueIds || !context.refs.audioCueIds.has(failureCue)) {
+        addError(context, `Failure ${id} references unknown audio_cue_failure ${failureCue}`);
+      } else {
+        trackReference(context, 'failureAudioCues', failureCue);
+      }
+    }
+
     failures.set(id, record);
   }
 
@@ -477,6 +496,15 @@ function validateChecklists(records, context) {
         expectedResponse: record.expected_response?.trim() || '',
         reference: record.reference?.trim() || '',
       });
+
+      const audioCue = normalizeString(record.audio_cue_complete);
+      if (audioCue) {
+        if (!context.refs.audioCueIds || !context.refs.audioCueIds.has(audioCue)) {
+          addError(context, `Checklist ${id} step ${stepNumber} references unknown audio_cue_complete ${audioCue}`);
+        } else {
+          trackReference(context, 'checklistAudioCues', audioCue);
+        }
+      }
     }
   }
 
@@ -731,6 +759,24 @@ function validateEvents(records, { autopilotMap, checklistMap, failureMap, padMa
       }
     }
     validateEffectPayload(failureEffects, context, `Event ${id} failure_effects`);
+
+    const audioCue = normalizeString(record.audio_cue);
+    if (audioCue) {
+      if (!context.refs.audioCueIds || !context.refs.audioCueIds.has(audioCue)) {
+        addError(context, `Event ${id} references unknown audio_cue ${audioCue}`);
+      } else {
+        trackReference(context, 'eventAudioCues', audioCue);
+      }
+    }
+
+    const audioChannel = normalizeString(record.audio_channel);
+    if (audioChannel) {
+      if (!context.refs.audioBuses || !context.refs.audioBuses.has(audioChannel)) {
+        addError(context, `Event ${id} references unknown audio_channel ${audioChannel}`);
+      }
+    } else if (audioCue) {
+      addWarning(context, `Event ${id} defines audio_cue ${audioCue} without an audio_channel`);
+    }
 
     events.set(id, {
       id,
@@ -2714,6 +2760,54 @@ async function validateCommunicationsTrends(context) {
 
       if (entry.next_station != null && typeof entry.next_station !== 'string') {
         addWarning(context, `${label}.next_station should be a string when present`);
+      }
+
+      const acquireCue = normalizeString(entry.cue_on_acquire ?? entry.cueOnAcquire);
+      if (acquireCue) {
+        if (!context.refs.audioCueIds || !context.refs.audioCueIds.has(acquireCue)) {
+          addError(context, `${label} references unknown cue_on_acquire ${acquireCue}`);
+        } else {
+          trackReference(context, 'communicationsAudioCues', acquireCue);
+        }
+      }
+
+      const lossCue = normalizeString(entry.cue_on_loss ?? entry.cueOnLoss);
+      if (lossCue) {
+        if (!context.refs.audioCueIds || !context.refs.audioCueIds.has(lossCue)) {
+          addError(context, `${label} references unknown cue_on_loss ${lossCue}`);
+        } else {
+          trackReference(context, 'communicationsAudioCues', lossCue);
+        }
+      }
+
+      const acquireChannel = normalizeString(
+        entry.cue_channel_on_acquire
+          ?? entry.cueChannelOnAcquire
+          ?? entry.cue_channel
+          ?? entry.cueChannel
+          ?? '',
+      );
+      if (acquireChannel) {
+        if (!context.refs.audioBuses || !context.refs.audioBuses.has(acquireChannel)) {
+          addError(context, `${label} references unknown cue_channel_on_acquire ${acquireChannel}`);
+        }
+      } else if (acquireCue) {
+        addWarning(context, `${label} defines cue_on_acquire ${acquireCue} without cue_channel_on_acquire`);
+      }
+
+      const lossChannel = normalizeString(
+        entry.cue_channel_on_loss
+          ?? entry.cueChannelOnLoss
+          ?? entry.cue_channel
+          ?? entry.cueChannel
+          ?? '',
+      );
+      if (lossChannel) {
+        if (!context.refs.audioBuses || !context.refs.audioBuses.has(lossChannel)) {
+          addError(context, `${label} references unknown cue_channel_on_loss ${lossChannel}`);
+        }
+      } else if (lossCue) {
+        addWarning(context, `${label} defines cue_on_loss ${lossCue} without cue_channel_on_loss`);
       }
     }
 

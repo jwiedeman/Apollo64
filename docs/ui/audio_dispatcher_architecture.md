@@ -140,10 +140,8 @@ setting `event.audio_cue = 'MISSION_GO_TLI'` or by publishing an
 ## Implementation Roadmap
 
 1. **Phase A – Data plumbing**
-   - Extend mission datasets with `audio_cue` references where missing.
-   - Add binder utilities (`audioTriggers.js`) that wrap scheduler/failure
-     emissions and surface `AudioTrigger` messages on the mission event
-     bus.
+   - Mission datasets now expose `audio_cue` references (events, checklists, failures, DSN passes) and the validator locks them to `audio_cues.json`.
+   - Binder utilities in [`js/src/audio/audioCueBinder.js`](../../js/src/audio/audioCueBinder.js) wrap scheduler, checklist, failure, and communications emissions and surface dispatcher-ready trigger logs on the mission event bus.
 2. **Phase B – Web prototype**
    - Implement Web Audio mixer with bus graph, ducking matrix, and
      waveform preloading.

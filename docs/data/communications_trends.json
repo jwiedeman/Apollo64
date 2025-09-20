@@ -10,7 +10,11 @@
     "power_margin_delta_kw": -0.1,
     "next_station": "Goldstone",
     "notes": "Nominal S-band AGC trending; handover to Goldstone matched Mission Operations Report timing.",
-    "source": "Apollo 11 Mission Operations Report Section 3.8"
+    "source": "Apollo 11 Mission Operations Report Section 3.8",
+    "cue_on_acquire": "telemetry.dsn_acquire",
+    "cue_on_loss": "telemetry.dsn_loss",
+    "cue_channel_on_acquire": "telemetry",
+    "cue_channel_on_loss": "telemetry"
   },
   {
     "id": "DSN_PASS_B",
@@ -23,7 +27,11 @@
     "power_margin_delta_kw": -0.05,
     "next_station": "Madrid",
     "notes": "High-gain antenna track maintained 20 dB margin; shorter handover due to high elevation track.",
-    "source": "Apollo 11 Mission Operations Report Section 3.8"
+    "source": "Apollo 11 Mission Operations Report Section 3.8",
+    "cue_on_acquire": "telemetry.dsn_acquire",
+    "cue_on_loss": "telemetry.dsn_loss",
+    "cue_channel_on_acquire": "telemetry",
+    "cue_channel_on_loss": "telemetry"
   },
   {
     "id": "DSN_PASS_C",
@@ -36,6 +44,10 @@
     "power_margin_delta_kw": -0.08,
     "next_station": "Goldstone",
     "notes": "Lunar range increasing; AGC sag flagged for follow-up trending in consumables log.",
-    "source": "Apollo 11 Flight Plan Section 8 DSN schedule"
+    "source": "Apollo 11 Flight Plan Section 8 DSN schedule",
+    "cue_on_acquire": "telemetry.dsn_acquire",
+    "cue_on_loss": "telemetry.dsn_loss",
+    "cue_channel_on_acquire": "telemetry",
+    "cue_channel_on_loss": "telemetry"
   }
 ]

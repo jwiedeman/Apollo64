@@ -60,6 +60,12 @@ const DEFAULT_STATE = {
     time_until_next_window_s: null,
     schedule_count: 0,
     last_pad_id: null,
+    cue_on_acquire: null,
+    cue_on_loss: null,
+    cue_channel_on_acquire: null,
+    cue_channel_on_loss: null,
+    next_pass_cue_on_acquire: null,
+    next_pass_cue_channel: null,
   },
 };
 
@@ -147,7 +153,7 @@ function deepMerge(target, source) {
 export class ResourceSystem {
   constructor(logger, options = {}) {
     this.logger = logger;
-    const { history: historyOptions, initialState, ...restOptions } = options ?? {};
+    const { history: historyOptions, initialState, audioBinder = null, ...restOptions } = options ?? {};
     this.options = { ...DEFAULT_OPTIONS, ...restOptions };
     this.state = deepMerge(deepClone(DEFAULT_STATE), initialState ?? {});
     this.failures = new Map();
@@ -160,6 +166,7 @@ export class ResourceSystem {
         recoveredMps: 0,
       },
     };
+    this.audioBinder = audioBinder ?? null;
     this.budgets = {};
     this.propellantConfig = Object.create(null);
     this.deltaVStageByTank = Object.create(null);
@@ -483,6 +490,28 @@ export class ResourceSystem {
         payload.note = note;
       }
       this.logger.log(logSeconds, message, payload);
+    }
+
+    if (this.audioBinder) {
+      const catalogEntry = this.failureCatalog.get(id) ?? null;
+      this.audioBinder.recordFailure(
+        {
+          id,
+          classification: entry.classification ?? catalogEntry?.classification ?? null,
+          audioCueWarning: catalogEntry?.audio_cue_warning ?? catalogEntry?.audioCueWarning ?? null,
+          audioCueFailure: catalogEntry?.audio_cue_failure ?? catalogEntry?.audioCueFailure ?? null,
+          occurrences: entry.occurrences,
+          note,
+          source: source ?? entry.lastSource ?? null,
+          context,
+          metadata: catalogEntry,
+        },
+        {
+          getSeconds: timestamp ?? getSeconds ?? 0,
+          severity: type === 'failure' ? 'failure' : null,
+          isNew,
+        },
+      );
     }
 
     return entry;
@@ -1471,11 +1500,39 @@ export class ResourceSystem {
         powerMarginDeltaKw: this.#coerceNumber(entry.power_margin_delta_kw ?? entry.powerMarginDeltaKw),
         notes: entry.notes ?? null,
         source: entry.source ?? entry.source_ref ?? null,
+        cueOnAcquire: this.#normalizeCue(entry.cue_on_acquire ?? entry.cueOnAcquire),
+        cueOnLoss: this.#normalizeCue(entry.cue_on_loss ?? entry.cueOnLoss),
+        cueChannelOnAcquire: this.#normalizeCueChannel(
+          entry.cue_channel_on_acquire
+            ?? entry.cue_channel
+            ?? entry.cueChannelOnAcquire
+            ?? entry.cueChannel
+            ?? null,
+        ),
+        cueChannelOnLoss: this.#normalizeCueChannel(
+          entry.cue_channel_on_loss
+            ?? entry.cue_channel
+            ?? entry.cueChannelOnLoss
+            ?? entry.cueChannel
+            ?? null,
+        ),
       });
     }
 
     normalized.sort((a, b) => a.getOpenSeconds - b.getOpenSeconds);
     return normalized;
+  }
+
+  #normalizeCue(value) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    return null;
+  }
+
+  #normalizeCueChannel(value) {
+    return this.#normalizeCue(value);
   }
 
   #parseGetSeconds(value) {
@@ -1561,6 +1618,10 @@ export class ResourceSystem {
     comms.handover_minutes = pass.handoverMinutes ?? null;
     comms.power_margin_delta_kw = pass.powerMarginDeltaKw ?? null;
     comms.power_load_delta_kw = 0;
+    comms.cue_on_acquire = pass.cueOnAcquire ?? null;
+    comms.cue_on_loss = pass.cueOnLoss ?? null;
+    comms.cue_channel_on_acquire = pass.cueChannelOnAcquire ?? null;
+    comms.cue_channel_on_loss = pass.cueChannelOnLoss ?? null;
 
     const loadDelta = this.#resolvePowerLoadDelta(pass);
     if (Number.isFinite(loadDelta) && loadDelta !== 0) {
@@ -1584,6 +1645,13 @@ export class ResourceSystem {
       signalStrengthDb: pass.signalStrengthDb ?? null,
       downlinkRateKbps: pass.downlinkRateKbps ?? null,
     });
+
+    if (this.audioBinder) {
+      this.audioBinder.recordCommunications(pass, {
+        getSeconds,
+        type: 'acquire',
+      });
+    }
 
     if (this.historyOptions.enabled) {
       this.#recordHistorySample(getSeconds, { force: true });
@@ -1622,6 +1690,13 @@ export class ResourceSystem {
       station: this.activeCommunicationsPass.station ?? null,
     });
 
+    if (this.audioBinder) {
+      this.audioBinder.recordCommunications(this.activeCommunicationsPass, {
+        getSeconds,
+        type: 'loss',
+      });
+    }
+
     this.activeCommunicationsPass = null;
     this.activeCommunicationsPowerDeltaKw = 0;
     this.#clearCurrentCommunicationsState();
@@ -1641,12 +1716,16 @@ export class ResourceSystem {
       comms.next_window_open_seconds = nextPass.getOpenSeconds;
       comms.next_window_open_get = nextPass.openLabel ?? formatGET(nextPass.getOpenSeconds);
       comms.time_until_next_window_s = Math.max(0, nextPass.getOpenSeconds - getSeconds);
+      comms.next_pass_cue_on_acquire = nextPass.cueOnAcquire ?? null;
+      comms.next_pass_cue_channel = nextPass.cueChannelOnAcquire ?? null;
     } else {
       comms.next_pass_id = null;
       comms.next_station = null;
       comms.next_window_open_seconds = null;
       comms.next_window_open_get = null;
       comms.time_until_next_window_s = null;
+      comms.next_pass_cue_on_acquire = null;
+      comms.next_pass_cue_channel = null;
     }
   }
 
@@ -1669,6 +1748,12 @@ export class ResourceSystem {
     comms.handover_minutes = null;
     comms.power_margin_delta_kw = null;
     comms.power_load_delta_kw = 0;
+    comms.cue_on_acquire = null;
+    comms.cue_on_loss = null;
+    comms.cue_channel_on_acquire = null;
+    comms.cue_channel_on_loss = null;
+    comms.next_pass_cue_on_acquire = null;
+    comms.next_pass_cue_channel = null;
   }
 
   #resolvePowerLoadDelta(pass) {

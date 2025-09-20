@@ -2,6 +2,24 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ResourceSystem } from '../src/sim/resourceSystem.js';
+import { parseGET } from '../src/utils/time.js';
+import { AudioCueBinder } from '../src/audio/audioCueBinder.js';
+
+const AUDIO_FIXTURE = {
+  version: 1,
+  buses: [
+    { id: 'alerts' },
+    { id: 'telemetry' },
+  ],
+  categories: [
+    { id: 'alert', bus: 'alerts', defaultPriority: 95 },
+    { id: 'telemetry', bus: 'telemetry', defaultPriority: 50 },
+  ],
+  cues: [
+    { id: 'alerts.master_alarm', category: 'alert' },
+    { id: 'telemetry.dsn_acquire', category: 'telemetry' },
+  ],
+};
 
 describe('ResourceSystem delta-v tracking', () => {
   test('maintains per-stage margins, adjustments, and metrics', () => {
@@ -143,5 +161,100 @@ describe('ResourceSystem failures', () => {
     assert.match(failure.breadcrumb.summary, /Autopilot PGM_06_TLI/);
     assert.ok(Array.isArray(failure.breadcrumb.chain));
     assert.ok(failure.breadcrumb.chain.some((item) => item.id === 'stage_margin'));
+  });
+});
+
+describe('ResourceSystem communications cues', () => {
+  test('normalizes schedule audio cues and exposes them in state', () => {
+    const system = new ResourceSystem(null);
+    system.configureCommunicationsSchedule([
+      {
+        id: 'PASS_A',
+        get_open: '100:00:00',
+        get_close: '100:20:00',
+        cue_on_acquire: 'telemetry.dsn_acquire',
+        cue_on_loss: 'telemetry.dsn_loss',
+        cue_channel_on_acquire: 'telemetry',
+        cue_channel_on_loss: 'telemetry',
+      },
+    ]);
+
+    const scheduleSnapshot = system.communicationsSchedule;
+    assert.equal(scheduleSnapshot.length, 1);
+    const [pass] = scheduleSnapshot;
+    assert.equal(pass.cueOnAcquire, 'telemetry.dsn_acquire');
+    assert.equal(pass.cueOnLoss, 'telemetry.dsn_loss');
+    assert.equal(pass.cueChannelOnAcquire, 'telemetry');
+    assert.equal(pass.cueChannelOnLoss, 'telemetry');
+
+    const initialSnapshot = system.snapshot();
+    assert.equal(initialSnapshot.communications.next_pass_cue_on_acquire, 'telemetry.dsn_acquire');
+    assert.equal(initialSnapshot.communications.next_pass_cue_channel, 'telemetry');
+
+    const openSeconds = parseGET('100:00:00');
+    system.update(1, openSeconds);
+    const activeSnapshot = system.snapshot();
+    assert.equal(activeSnapshot.communications.cue_on_acquire, 'telemetry.dsn_acquire');
+    assert.equal(activeSnapshot.communications.cue_channel_on_acquire, 'telemetry');
+    assert.equal(activeSnapshot.communications.cue_on_loss, 'telemetry.dsn_loss');
+    assert.equal(activeSnapshot.communications.cue_channel_on_loss, 'telemetry');
+
+    const closeSeconds = parseGET('100:21:00');
+    system.update(closeSeconds - openSeconds, closeSeconds);
+    const afterSnapshot = system.snapshot();
+    assert.equal(afterSnapshot.communications.cue_on_acquire, null);
+    assert.equal(afterSnapshot.communications.cue_on_loss, null);
+    assert.equal(afterSnapshot.communications.next_pass_cue_on_acquire, null);
+  });
+});
+
+describe('ResourceSystem audio binder integration', () => {
+  test('emits communications acquire and loss triggers', () => {
+    const binder = new AudioCueBinder(AUDIO_FIXTURE);
+    const system = new ResourceSystem(null, { audioBinder: binder });
+    system.configureCommunicationsSchedule([
+      {
+        id: 'PASS_BINDER',
+        get_open: '150:00:00',
+        get_close: '150:05:00',
+        cue_on_acquire: 'telemetry.dsn_acquire',
+        cue_on_loss: 'telemetry.dsn_acquire',
+        cue_channel_on_acquire: 'telemetry',
+        cue_channel_on_loss: 'telemetry',
+      },
+    ]);
+
+    const openSeconds = parseGET('150:00:00');
+    system.update(1, openSeconds);
+    let triggers = binder.drainPending();
+    assert.equal(triggers.length, 1);
+    assert.equal(triggers[0].metadata.type, 'acquire');
+    assert.equal(triggers[0].busId, 'telemetry');
+
+    const closeSeconds = parseGET('150:05:00');
+    system.update(closeSeconds - openSeconds, closeSeconds);
+    triggers = binder.drainPending();
+    assert.equal(triggers.length, 1);
+    assert.equal(triggers[0].metadata.type, 'loss');
+  });
+
+  test('emits failure trigger when catalog specifies a cue', () => {
+    const binder = new AudioCueBinder(AUDIO_FIXTURE);
+    const system = new ResourceSystem(null, { audioBinder: binder });
+    system.configureFailures([
+      { failure_id: 'FAIL_AUDIO', classification: 'Hard', audio_cue_failure: 'alerts.master_alarm' },
+    ]);
+
+    system.applyEffect({ failure_id: 'FAIL_AUDIO' }, {
+      getSeconds: 50,
+      source: 'TEST_EVENT',
+      type: 'failure',
+    });
+
+    const triggers = binder.drainPending();
+    assert.equal(triggers.length, 1);
+    assert.equal(triggers[0].cueId, 'alerts.master_alarm');
+    assert.equal(triggers[0].severity, 'failure');
+    assert.equal(triggers[0].metadata.failureId, 'FAIL_AUDIO');
   });
 });

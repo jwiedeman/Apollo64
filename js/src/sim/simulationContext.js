@@ -14,6 +14,7 @@ import { ScoreSystem } from './scoreSystem.js';
 import { RcsController } from './rcsController.js';
 import { OrbitPropagator } from './orbitPropagator.js';
 import { MissionLogAggregator } from '../logging/missionLogAggregator.js';
+import { AudioCueBinder } from '../audio/audioCueBinder.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -44,10 +45,13 @@ export async function createSimulationContext({
 
   const missionLogAggregator = new MissionLogAggregator(logger);
 
+  const audioBinder = new AudioCueBinder(missionData.audioCues, logger);
+
   const checklistManager = new ChecklistManager(missionData.checklists, logger, {
     autoAdvance: autoAdvanceChecklists,
     defaultStepDurationSeconds: checklistStepSeconds,
     manualActionRecorder,
+    audioBinder,
   });
 
   const resourceSystem = new ResourceSystem(logger, {
@@ -55,6 +59,7 @@ export async function createSimulationContext({
     consumables: missionData.consumables,
     communicationsSchedule: missionData.communications,
     failureCatalog: missionData.failures,
+    audioBinder,
   });
 
   const rcsController = new RcsController(missionData.thrusters, resourceSystem, logger);
@@ -131,6 +136,7 @@ export async function createSimulationContext({
       failures: missionData.failures,
       autopilotRunner,
       autopilotSummaryHandlers,
+      audioBinder,
     },
   );
 
@@ -155,6 +161,7 @@ export async function createSimulationContext({
     tickRate,
     orbitPropagator,
     missionLogAggregator,
+    audioBinder,
   });
 
   return {
@@ -172,6 +179,7 @@ export async function createSimulationContext({
     scoreSystem,
     manualActionRecorder,
     missionLogAggregator,
+    audioBinder,
     audioCues: missionData.audioCues,
     logger,
     options: {

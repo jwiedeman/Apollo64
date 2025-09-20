@@ -118,6 +118,37 @@ describe('UiFrameBuilder', () => {
           },
         },
       ],
+      communications: {
+        active: true,
+        current_pass_id: 'PASS_A',
+        current_station: 'Honeysuckle Creek',
+        current_next_station: 'Goldstone',
+        current_window_open_get: '137:20:00',
+        current_window_close_get: '138:05:00',
+        current_window_open_seconds: 100,
+        current_window_close_seconds: 200,
+        current_window_time_remaining_s: 300,
+        current_pass_duration_s: 2700,
+        current_pass_progress: 0.5,
+        time_since_window_open_s: 1200,
+        signal_strength_db: 22,
+        downlink_rate_kbps: 16,
+        handover_minutes: 12,
+        power_margin_delta_kw: -0.1,
+        power_load_delta_kw: -0.1,
+        cue_on_acquire: 'telemetry.dsn_acquire',
+        cue_on_loss: 'telemetry.dsn_loss',
+        cue_channel_on_acquire: 'telemetry',
+        cue_channel_on_loss: 'telemetry',
+        next_pass_id: 'PASS_B',
+        next_station: 'Goldstone',
+        next_window_open_get: '142:30:00',
+        next_window_open_seconds: 500,
+        time_until_next_window_s: 400,
+        schedule_count: 3,
+        next_pass_cue_on_acquire: 'telemetry.dsn_acquire',
+        next_pass_cue_channel: 'telemetry',
+      },
     };
 
     const resourceHistory = {
@@ -369,6 +400,13 @@ describe('UiFrameBuilder', () => {
     assert.equal(frame.autopilot.activeAutopilots.length, 1);
     assert.equal(frame.autopilot.primary.pad.id, 'PAD_EVT1');
     assert.equal(frame.autopilot.activeAutopilots[0].pad.id, 'PAD_EVT1');
+
+    const communications = frame.resources.communications;
+    assert.equal(communications.active, true);
+    assert.equal(communications.current.audioCueOnAcquire, 'telemetry.dsn_acquire');
+    assert.equal(communications.current.audioChannelOnLoss, 'telemetry');
+    assert.equal(communications.next.cueOnAcquire, 'telemetry.dsn_acquire');
+    assert.equal(communications.nextPassCueOnAcquire, 'telemetry.dsn_acquire');
 
     assert.equal(frame.checklists.active.length, 1);
     assert.equal(frame.checklists.chip.eventId, 'EVT1');

@@ -10,19 +10,28 @@ const STATUS = {
 
 export class EventScheduler {
   constructor(events, autopilotMap, resourceSystem, logger, options = {}) {
+    const {
+      checklistManager = null,
+      autopilotRunner = null,
+      autopilotSummaryHandlers = null,
+      onAutopilotSummary = null,
+      audioBinder = null,
+      ...restOptions
+    } = options ?? {};
     this.logger = logger;
     this.resourceSystem = resourceSystem;
-    this.options = options;
-    this.checklistManager = options.checklistManager ?? null;
-    this.autopilotRunner = options.autopilotRunner ?? null;
+    this.options = restOptions;
+    this.checklistManager = checklistManager;
+    this.autopilotRunner = autopilotRunner;
+    this.audioBinder = audioBinder ?? null;
     this.autopilotSummaryHandlers = [];
-    if (Array.isArray(options.autopilotSummaryHandlers)) {
-      for (const handler of options.autopilotSummaryHandlers) {
+    if (Array.isArray(autopilotSummaryHandlers)) {
+      for (const handler of autopilotSummaryHandlers) {
         this.registerAutopilotSummaryHandler(handler);
       }
     }
-    if (typeof options.onAutopilotSummary === 'function') {
-      this.registerAutopilotSummaryHandler(options.onAutopilotSummary);
+    if (typeof onAutopilotSummary === 'function') {
+      this.registerAutopilotSummaryHandler(onAutopilotSummary);
     }
     this.events = events.map((event) => this.prepareEvent(event, autopilotMap));
     this.eventMap = new Map(this.events.map((event) => [event.id, event]));
@@ -157,6 +166,12 @@ export class EventScheduler {
     }
     if (event.autopilot && this.autopilotRunner) {
       this.autopilotRunner.start(event, currentGetSeconds);
+    }
+    if (this.audioBinder) {
+      this.audioBinder.recordEvent(event, {
+        getSeconds: currentGetSeconds,
+        status: STATUS.ACTIVE,
+      });
     }
   }
 

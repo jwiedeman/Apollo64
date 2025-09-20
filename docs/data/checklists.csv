@@ -1,204 +1,204 @@
-checklist_id,title,GET_nominal,crew_role,step_number,action,expected_response,reference
-FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,1,Monitor ignition sequence,All five S-IC engines show stable chamber pressure,Flight Plan p. 2-5
-FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,2,Call roll program,Rocket rolls to 90° per guidance cue,Flight Plan p. 2-6
-FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,3,Confirm max-Q acknowledgement,Guidance reports GO at max dynamic pressure,Flight Plan p. 2-7
-FP_2-16_ORBIT,Orbit Verification,000:11:39,CMP,1,Read S-IVB orbit solution,Perigee 98 nm ±2 nm,Flight Plan p. 2-16
-FP_2-16_ORBIT,Orbit Verification,000:11:39,CMP,2,Confirm apogee from guidance,Apogee 118 nm ±2 nm,Flight Plan p. 2-16
-FP_2-16_ORBIT,Orbit Verification,000:11:39,CDR,3,Check S-IVB restart config,DCS switch positions match PAD,Flight Plan p. 2-17
-FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,Joint,1,Align IMU per P52,Platform torqued and gimbal angles nulled,Flight Plan p. 3-10
-FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,CMP,2,Load TLI PAD to AGC,Programs 11/12 updated with TIG and Δv,Flight Plan p. 3-11
-FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,CDR,3,Verify S-IVB ullage command,Ullage arm green,Flight Plan p. 3-12
-FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,Joint,1,Initiate Program 11,CSM throttle displays zero prior to ignition,Flight Plan p. 3-12
-FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,CMP,2,Start burn clock,Burn timer running,Flight Plan p. 3-13
-FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,CDR,3,Confirm shutdown cue,Δv achieved within ±0.2 ft/s,Flight Plan p. 3-14
-FP_3-18_TD,Transposition Docking,003:20:00,CMP,1,Separation maneuver completed,S-IVB clearance achieved,Flight Plan p. 3-18
-FP_3-18_TD,Transposition Docking,003:20:00,CDR,2,Perform docking approach,LM capture latches engage,Flight Plan p. 3-19
-FP_3-18_TD,Transposition Docking,003:20:00,Joint,3,Extract LM from SLA,LM hard docked and clear of panels,Flight Plan p. 3-20
-FP_4-04_PTC,Passive Thermal Control,004:45:00,CMP,1,Select roll attitude,PITCH 0° YAW 0° per Flight Plan,Flight Plan p. 4-4
-FP_4-04_PTC,Passive Thermal Control,004:45:00,CDR,2,Initiate roll thruster pulses,Roll rate trending to 0.3°/s,Flight Plan p. 4-5
-FP_4-04_PTC,Passive Thermal Control,004:45:00,Joint,3,Verify thermal trending,Cryo tank boiloff stabilizing,Flight Plan p. 4-6
-FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,1,Verify roll rate trending to 0.3°/s,Rate meter 0.30°/s ±0.05°/s,Flight Plan p. 4-6
-FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,CMP,1,Review cryogenic tank temperatures,Trends within ±2°F,Flight Plan p. 5-18
-FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,CDR,2,Confirm roll rate stability,Rate 0.30°/s ±0.05°/s,Flight Plan p. 5-18
-FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,Joint,3,Log thermal trend to onboard recorder,Entry captured for downlink,Flight Plan p. 5-18
-FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,CMP,1,Read fuel cell currents,Currents balanced within ±5 A,Flight Plan p. 5-20
-FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,CDR,2,Check cryogenic quantity gauges,Quantities within PAD band,Flight Plan p. 5-20
-FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,Joint,3,Record cabin CO₂ level,mmHg trending nominal,Flight Plan p. 5-20
-FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,CMP,1,Read MCC-3 PAD with MCC,Key TIG/Δv elements confirmed,Flight Plan p. 6-2
-FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,CDR,2,Load PAD parameters into AGC,Program 37 updated,Flight Plan p. 6-3
-FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,Joint,3,Copy PAD to DSE log,PAD archived for playback,Flight Journal Day 3 053:20 GET
-FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,CMP,1,Compare tracking residuals to limits,Residuals within decision band,Flight Plan p. 6-4
-FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,CDR,2,Report go/no-go to MCC,MCC acknowledges decision,Flight Journal Day 3 053:50 GET
-FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,Joint,3,Annotate platform drift estimate,Entry recorded in log,Flight Plan p. 6-5
-FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,CMP,1,Set SPS gimbal trim per PAD,Trim values match PAD,Flight Plan p. 6-6
-FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,CDR,2,Monitor SPS burn parameters,Δv within ±0.3 ft/s,Flight Plan p. 6-7
-FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,Joint,3,Log post-burn residuals,Residuals <0.2 ft/s,Flight Journal Day 3 055:05 GET
-FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,CMP,1,Initiate P52 Option 3,Star pair accepted,Flight Plan p. 6-8
-FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,CDR,2,Verify IMU torquing complete,Angles nulled,Flight Plan p. 6-8
-FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,Joint,3,Record coarse alignment delta,Entry transmitted to MCC,Flight Plan p. 6-9
-FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,CMP,1,Read MCC-4 PAD with MCC,TIG/Δv verified,Flight Plan p. 6-10
-FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,CDR,2,Load PAD parameters into AGC,Program 37 updated,Flight Plan p. 6-10
-FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,Joint,3,Record MCC-4 requirement status,Go/skip logged for shift handover,Flight Journal Day 3 070:10 GET
-FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,CMP,1,Align CSM to PAD attitude,Attitude within ±2°,Flight Plan p. 6-12
-FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,CDR,2,Pulse SPS per PAD timing,Δv near 1.5 ft/s,Mission Operations Report Sec. 3.4
-FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,Joint,3,Report burn residual to MCC,Residual <0.2 ft/s,Flight Journal Day 3 071:12 GET
-FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,CMP,1,Read LOI-1 PAD with MCC,TIG/Δv verified,Flight Plan p. 6-14
-FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,CDR,2,Load LOI target into Program 41,AGC target accepted,Flight Plan p. 6-15
-FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,Joint,3,Archive PAD copy to DSE,Entry tagged for playback,Flight Journal Day 3 072:40 GET
-FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,CDR,1,Arm SPS banks and talkback,Indicators bright,Flight Plan p. 6-16
-FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,CMP,2,Configure RCS for ullage,QSMC in AUTO,Flight Plan p. 6-16
-FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,Joint,3,Verify LM tunnel secure,Latching indicators closed,Flight Journal Day 3 073:30 GET
-FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,CMP,1,Start burn clock,Burn timer running,Flight Plan p. 6-18
-FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,CDR,2,Monitor SPS chamber pressure,Chamber pressure nominal,Flight Journal Day 4 075:50 GET
-FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,Joint,3,Call shutdown cue,Δv within ±1 ft/s,Mission Operations Report Sec. 3.4
-FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,CMP,1,Read AGC residuals,Residuals <2 ft/s,Flight Plan p. 6-20
-FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,CDR,2,Update state vector with ground copy,Program 52 updated,Flight Plan p. 6-20
-FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,Joint,3,Report orbit parameters to MCC,MCC copy acknowledged,Flight Journal Day 4 075:58 GET
-FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,CMP,1,Review LOI-2 PAD with MCC,Δv/time confirmed,Flight Plan p. 6-22
-FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,CDR,2,Load LOI-2 target into AGC,Program 41 updated,Flight Plan p. 6-22
-FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,Joint,3,Confirm go for circularization,MCC acknowledges go,Flight Journal Day 4 079:50 GET
-FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,CMP,1,Align to LOI-2 attitude,Attitude within ±1°,Flight Plan p. 6-24
-FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,CDR,2,Initiate SPS for trim burn,Δv on schedule,Flight Journal Day 4 080:11 GET
-FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,Joint,3,Call shutdown cue,Δv within ±0.3 ft/s,Mission Operations Report Sec. 3.4
-FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,CMP,1,Verify orbit period,127 min ±1,Flight Plan p. 6-26
-FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,CDR,2,Update navigation charts,Navigation solution posted,Flight Plan p. 6-26
-FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,Joint,3,Log handover summary for MCC,Entry transmitted to MCC,Flight Journal Day 4 080:22 GET
-FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,2,Check cryo tank temperatures,All cryo tank temps within band,Flight Plan p. 4-7
-FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,3,Record PTC status with MCC,MCC logs confirm PTC nominal,Flight Journal Day 1 005:20 GET
-FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,Joint,1,Load MCC-1 PAD into AGC,Program 41 registers updated,Flight Plan p. 4-12
-FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,CMP,2,Verify TIG and Δv values,TIG 009:44:00 Δv 20 ft/s,Mission Operations Report Sec. 3.3
-FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,CDR,3,Confirm attitude target,Pitch 29° yaw 0° per PAD,Flight Plan p. 4-13
-FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,Joint,1,Initiate Program 41,SPS gimbal trim tracks target,Flight Plan p. 4-14
-FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,CMP,2,Start burn timer,Timer running for 15 s,Flight Journal Day 2 009:44 GET
-FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,CDR,3,Verify shutdown residuals,Δv residual < 0.2 ft/s,Mission Operations Report Sec. 3.3
-FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,Joint,1,Update state vector with P23,Residuals trending toward zero,Flight Plan p. 4-16
-FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,CMP,2,Downlink tracking residuals,MCC receives updated vector,Flight Journal Day 2 010:05 GET
-FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,CDR,3,Assess SPS prop usage,Prop usage within plan,Mission Operations Report Sec. 3.3
-FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,Joint,1,Review fuel cell reactant pressures,O2/H2 pressures within limits,Flight Plan p. 5-2
-FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,CMP,2,Update consumables log,Log entries transmitted to MCC,Flight Plan p. 5-3
-FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,CDR,3,Check cabin CO2 level,CO2 < 3.0 mm Hg,Flight Journal Day 2 012:30 GET
-FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,Joint,1,Select trim attitude,Roll reference 0° relative to sun,Flight Plan p. 5-4
-FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CDR,2,Pulse RCS jets,Roll rate stabilized at 0.3°/s,Flight Plan p. 5-5
-FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CMP,3,Monitor cryo tank boiloff,Boiloff trending nominal,Flight Plan p. 5-5
-FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CMP,1,Initialize Program 52 option 1,IMU torquing routine active,Flight Plan p. 5-6
-FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CMP,2,Mark star pair per PAD,Optics marks accepted by AGC,Flight Plan p. 5-7
-FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CDR,3,Verify platform alignment,Residuals < 0.5°,Flight Journal Day 2 016:10 GET
-FP_5-08_P23_NAV,P23 Optics Update,017:20:00,CMP,1,Call up Program 23,Star table displayed,Flight Plan p. 5-8
-FP_5-08_P23_NAV,P23 Optics Update,017:20:00,CMP,2,Perform sextant marks on designated stars,Marks recorded with acceptable residuals,Flight Plan p. 5-8
-FP_5-08_P23_NAV,P23 Optics Update,017:20:00,Joint,3,Downlink residuals to MCC,MCC confirms data received,Flight Journal Day 2 017:45 GET
-FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,Joint,1,Load MCC-2 PAD into AGC,Program 41 updated with TIG and Δv,Flight Plan p. 5-12
-FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,CMP,2,Verify PAD parameters,TIG/Δv match MCC read-up,Mission Operations Report Sec. 3.3
-FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,CDR,3,Confirm attitude target for burn,PITCH 18° yaw 0° set,Flight Plan p. 5-13
-FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,Joint,1,Review tracking residuals against limits,Residuals within ±0.2°,Mission Operations Report Sec. 3.3
-FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,CDR,2,Record GO/NO GO decision in log,Decision relayed to MCC,Flight Journal Day 3 024:55 GET
-FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,CMP,3,Update mission rule status board,Board reflects MCC-2 disposition,Flight Plan p. 5-14
-FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,Joint,1,Arm Program 41 for SPS burn,SPS gimbals track commanded attitude,Flight Plan p. 5-16
-FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CMP,2,Start burn timer if burn GO,Timer counts for 10 s,Mission Operations Report Sec. 3.3
-FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CDR,3,Verify shutdown residuals or log skip,Residuals < 0.2 ft/s or skip noted,Flight Journal Day 3 026:00 GET
-FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,LMP,1,Close LM activation circuit breakers,LGC buses energized,Flight Plan p. 7-4
-FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,CDR,2,Verify ECS modes set to AUTO,Cabin temperature 70°F ±5,Flight Plan p. 7-5
-FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,Joint,3,Report LM power status to MCC,MCC acknowledges LM powered,Flight Journal Day 5 095:20 GET
-FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,LMP,1,Arm descent engine valves per chart,Prop feed pressures within green band,Flight Plan p. 7-8
-FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,CDR,2,Set DPS thrust control to AUTO,Throttle command tracks inputs,Flight Plan p. 7-9
-FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,Joint,3,Log helium tank temperatures with MCC,Readings within limits,Flight Journal Day 5 096:10 GET
-FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,CMP,1,Load DOI TIG and Δv into AGC,Program 41 updated,Flight Plan p. 7-10
-FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,CDR,2,Confirm SPS attitude targets,FDAI matches PAD angles,Flight Plan p. 7-11
-FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,Joint,3,Acknowledge GO for DOI with MCC,GO recorded in log,Flight Journal Day 5 100:10 GET
-FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,CMP,1,Configure CSM RCS and docking ring,Ring retract talkback gray,Flight Plan p. 7-12
-FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,CDR,2,Set LM guidance to AGS STANDBY,AGS status indicates ready,Flight Plan p. 7-12
-FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,Joint,3,Verify LM and CSM comm link,VHF and S-band crosslink nominal,Flight Journal Day 5 099:50 GET
-FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,CMP,1,Initiate SPS ullage and ignition,Burn timer running,Flight Plan p. 7-14
-FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,CDR,2,Monitor Δv residuals during DOI,Residual < 1 ft/s,Mission Operations Report Sec. 3.5
-FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,Joint,3,Call DOI cutoff and log results,Δv logged with MCC,Flight Journal Day 5 100:39 GET
-FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,CMP,1,Command docking latches open,Talkbacks transition to gray,Flight Plan p. 7-16
-FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,CDR,2,Pulse LM RCS for separation,Range rate 0.2 ft/s receding,Flight Journal Day 5 101:05 GET
-FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,Joint,3,Report separation status to MCC,MCC copies LM free flight,Flight Journal Day 5 101:10 GET
-FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,LMP,1,Load P63 and descent targeting,PDI data displayed on DSKY,Flight Plan p. 7-18
-FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,CDR,2,Align LM to PDI attitude,Attitude within ±2°,Flight Plan p. 7-19
-FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,Joint,3,Confirm landing radar self-test,Radar BIT GO,Flight Journal Day 5 102:15 GET
-FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,LMP,1,Modulate throttle to track descent cues,Vertical velocity on profile,Flight Journal Day 5 102:36 GET
-FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,CDR,2,Call out critical altitude gates,Crew synchronized with AGC cues,Flight Journal Day 5 102:39 GET
-FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,Joint,3,Monitor PGNS and AGS agreement,Δv disagreement < 5 ft/s,Mission Operations Report Sec. 3.5
-FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,CDR,1,Hand fly to targeted landing point,Horizontal velocity < 1 ft/s,Flight Journal Day 5 102:42 GET
-FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,LMP,2,Call altitudes and fuel remaining,Fuel 5% at 60 ft,Flight Journal Day 5 102:44 GET
-FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,Joint,3,Arm engine stop cue,Descent engine off at contact,Flight Plan p. 7-22
-FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,CDR,1,Shut down descent engine and valves,Descent engine valves closed,Flight Plan p. 7-24
-FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,LMP,2,Configure ECS to POST-LAND mode,Cabin pressure stable 4.8 psi,Flight Plan p. 7-24
-FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,Joint,3,Transmit stay or no-stay decision,MCC concurs with stay,Flight Journal Day 5 102:50 GET
-FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,1,Configure LM cabin to PRE-EVA mode,Cabin pressure trending to 3.5 psi with suit circuit breakers set,Flight Plan p. 7-26
-FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,2,Verify PLSS O2 and water quantities,PLSS gauges within EVA launch limits,Flight Plan p. 7-26
-FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,3,Perform suit communications and biomedical checks,Voice/biomed loops GO for EVA,Flight Journal Day 5 109:15 GET
-FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,Joint,1,Depress cabin and open forward hatch,Cabin pressure <0.2 psia and hatch latched open,Flight Plan p. 7-27
-FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,CDR,2,Descend ladder and deploy MESA/TV,TV and MESA deployed; footpads inspected,Flight Journal Day 5 109:45 GET
-FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,LMP,3,Translate to porch and verify tether routing,Tether routed clear; handrail ready for descent,Flight Plan p. 7-27
-FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,1,Plant flag and document site,Flag secured; imagery recorded,Flight Journal Day 5 110:40 GET
-FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,2,Collect contingency and bulk samples,Samples sealed in SRC #1,Flight Plan p. 7-28
-FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,3,Deploy SWC and place seismic/traverse markers,Experiments deployed per checklist,Flight Journal Day 5 111:10 GET
-FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,1,Stow sample boxes and secure TV,MESA closed; SRCs latched,Flight Plan p. 7-30
-FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,2,Brush suits and verify LM cabin configuration,Suits brushed; LM ECS valves set to REPRESS,Flight Journal Day 5 112:30 GET
-FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,3,Initiate repressurization and close hatch,Cabin climbing through 3.5 psia; hatch secure,Flight Plan p. 7-30
-FP_7-31_EVA2_PREP,EVA-2 Prep & Suit Cycling,116:40:00,Joint,1,Configure LM cabin for second EVA per contingency plan,Cabin pressure trending to 3.5 psia with suit loop active,Flight Plan p. 7-31
-FP_7-31_EVA2_PREP,EVA-2 Prep & Suit Cycling,116:40:00,Joint,2,Verify PLSS O2/water reserves and battery status,PLSS gauges within EVA-2 launch limits,Flight Plan p. 7-31
-FP_7-31_EVA2_PREP,EVA-2 Prep & Suit Cycling,116:40:00,Joint,3,Brief CapCom on EVA-2 objectives and timeline,CapCom copies revised traverse plan,Flight Journal Day 6 EVA planning note
-FP_7-32_EVA2_EGRESS,EVA-2 Egress & Ladder Ops,117:25:00,Joint,1,Depress cabin and open forward hatch,Cabin pressure <0.2 psia; hatch secure open,Flight Plan p. 7-32
-FP_7-32_EVA2_EGRESS,EVA-2 Egress & Ladder Ops,117:25:00,CDR,2,Descend ladder and verify surface conditions,Footpads clear; EVA-2 timeline GO,Flight Journal Day 6 EVA briefing
-FP_7-32_EVA2_EGRESS,EVA-2 Egress & Ladder Ops,117:25:00,LMP,3,Deploy supplemental TV/lighting for geology site,Video confirms secondary site coverage,Flight Plan p. 7-32
-FP_7-33_EVA2_TRAVERSE,EVA-2 Traverse Extension,118:10:00,Joint,1,Translate to secondary geology station per traverse map,Team at Station Delta within ±5 m,Surface Traverse Planning Annex
-FP_7-33_EVA2_TRAVERSE,EVA-2 Traverse Extension,118:10:00,Joint,2,Collect trench/core samples and document stratigraphy,Samples sealed and tagged EVA2-A/B,Surface Traverse Planning Annex
-FP_7-33_EVA2_TRAVERSE,EVA-2 Traverse Extension,118:10:00,Joint,3,Photograph sample sites and sun angles,Panorama logged; shadows per plan,Flight Journal Day 6 EVA planning note
-FP_7-33_EVA2_SCIENCE,EVA-2 Science Package Deploy,120:35:00,Joint,1,Deploy magnetometer extension and align per spec,MAG readings within calibration,Flight Plan p. 7-33
-FP_7-33_EVA2_SCIENCE,EVA-2 Science Package Deploy,120:35:00,Joint,2,Position sub-satellite retro-reflector targets,Retro array leveled within 2°,Mission Operations Report App. 3
-FP_7-33_EVA2_SCIENCE,EVA-2 Science Package Deploy,120:35:00,Joint,3,Report science configuration and anomalies to MCC,MCC copies deployment summary,Flight Journal Day 6 EVA planning note
-FP_7-35_EVA2_CLOSEOUT,EVA-2 Closeout & Repress,121:35:00,Joint,1,Stow EVA-2 tools and secure experiment cabling,Tool stowage verified; cables safed,Flight Plan p. 7-35
-FP_7-35_EVA2_CLOSEOUT,EVA-2 Closeout & Repress,121:35:00,Joint,2,Brush suits, reattach umbilicals, and verify ECS,Suit dust removed; umbilicals locked,Surface Traverse Planning Annex
-FP_7-35_EVA2_CLOSEOUT,EVA-2 Closeout & Repress,121:35:00,Joint,3,Repress cabin and confirm hatch/tunnel integrity,Cabin pressure rising; leak check nominal,Flight Plan p. 7-35
-FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,LMP,1,Load ascent PAD into AGC and AGS,P12 displays updated TIG,Flight Plan p. 7-28
-FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CDR,2,Align platform with P52 option 3,IMU residuals < 0.3°,Flight Plan p. 7-29
-FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CMP,3,Verify CSM rendezvous plan,CSM state vector uplinked,Flight Journal Day 5 123:55 GET
-FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,LMP,1,Initiate ascent engine ignition,Thrust confirmed on gauges,Flight Journal Day 5 124:22 GET
-FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,CDR,2,Call staging and attitude cues,Pitch program on schedule,Flight Plan p. 7-30
-FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,Joint,3,Monitor ascent residuals,Δv within ±10 ft/s at cutoff,Mission Operations Report Sec. 3.6
-FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CMP,1,Compute TPI and maneuver burns,CSM maneuver plan updated,Flight Plan p. 7-32
-FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CDR,2,Fly terminal phase and docking,Range rate 0.1 ft/s closing,Flight Journal Day 5 128:00 GET
-FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,Joint,3,Verify hard dock and pressure equalization,Tunnel pressure equalized,Flight Journal Day 5 128:20 GET
-FP_7-34_LM_JETT,LM Jettison,128:50:00,Joint,1,Safeguard LM cabin and close hatches,Hatches latched and vented,Flight Plan p. 7-34
-FP_7-34_LM_JETT,LM Jettison,128:50:00,CMP,2,Configure CSM RCS and tunnel valves for separation,Forward hatch indicators barber pole,Flight Plan p. 7-34
-FP_7-34_LM_JETT,LM Jettison,128:50:00,Joint,3,Command LM jettison and confirm separation,Relative range rate increasing,Flight Journal Day 5 128:55 GET
-FP_8-04_TEI_PAD,TEI PAD Review,131:30:00,CMP,1,Read TEI PAD and confirm TIG/time,Guidance displays TIG 135:23:42,Flight Plan p. 8-4
-FP_8-04_TEI_PAD,TEI PAD Review,131:30:00,Joint,2,Load return trajectory parameters into Program 30,P30 registers updated,Flight Journal Day 6 130:00 GET
-FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,CMP,1,Align SPS gimbals and set engine valves,SPS gimbals track per PAD,Flight Plan p. 8-6
-FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,Joint,2,Configure RCS jets and optics for burn,Optics track stars 40/41,Flight Plan p. 8-6
-FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,CMP,3,Arm EMS and set entry monitoring cues,EMS delta-V set to TEI residual limit,Flight Plan p. 8-8
-FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,CMP,1,Ignite SPS at TIG and hold attitude,Thrust rise within 2 s,Flight Journal Day 6 135:23 GET
-FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,Joint,2,Monitor Δv and throttle to residual under 1 ft/s,Residual velocity < 1 ft/s,Flight Journal Day 6 135:26 GET
-FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,Joint,3,Confirm guidance returns to Passive Thermal Control attitude,P30 residuals within tolerance,Flight Plan p. 8-8
-FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,CMP,1,Update state vector with TEI tracking data,Δv residual logged < 1 ft/s,Flight Journal Day 6 135:40 GET
-FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,Joint,2,Report return trajectory solution to MCC,Return time copy read back,Flight Plan p. 8-10
-FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,CMP,1,Roll to Passive Thermal Control rate 0.3°/s,RCS trim pulses nominal,Flight Plan p. 8-12
-FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,Joint,2,Log cryo boiloff and thermal status,Heat balance trend stabilized,Flight Journal Day 6 137:00 GET
-FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,CMP,1,Slew high-gain antenna to HS station angles,HGA angles within comm limits,Flight Plan p. 8-13
-FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,CDR,2,Review PAD/comm updates with CapCom,Updated PAD parameters copied to DSE log,Flight Journal Day 6 137:45 GET
-FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,Joint,3,Log consumables/thermal trending for downlink,Downlink package transmitted,Flight Plan p. 8-13
-FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,CMP,1,Align high-gain antenna to Goldstone geometry,HGA AGC > 20 dB,Flight Plan p. 8-17
-FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,Joint,2,Record entry update and crew status with CapCom,Entry PAD update acknowledged,Flight Journal Day 6 147:15 GET
-FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,Joint,3,Confirm handover to next DSN shift,Next window logged in comm planner,Flight Plan p. 8-17
-FP_8-19_TRANSCOMM_C,DSN Pass — Madrid,170:15:00,CMP,1,Slew high-gain antenna to Madrid geometry,HGA AGC > 18 dB,Flight Plan p. 8-19
-FP_8-19_TRANSCOMM_C,DSN Pass — Madrid,170:15:00,Joint,2,Review entry corridor update and crew status with CapCom,Entry PAD delta copied to DSE log,Flight Journal Day 7 170:25 GET
-FP_8-19_TRANSCOMM_C,DSN Pass — Madrid,170:15:00,Joint,3,Coordinate handover back to Goldstone and log signal trend,Handover window 14 min; AGC sag noted,Mission Operations Report Sec. 3.8
-FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,CMP,1,Read MCC-5 PAD and confirm TIG,Guidance updates TIG 138:58:00,Flight Plan p. 8-14
-FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,Joint,2,Load burn targets into Program 30,P30 register 1 matches PAD,Flight Journal Day 6 138:30 GET
-FP_8-16_MCC5_EXEC,MCC-5 Execution,138:55:00,CMP,1,Fire SPS per PAD and monitor Δv,Δv achieved within 0.5 ft/s,Flight Journal Day 6 138:59 GET
-FP_8-16_MCC5_EXEC,MCC-5 Execution,138:55:00,Joint,2,Verify residuals and reinitiate Passive Thermal Control,RCS trim < 1 lb,Flight Plan p. 8-16
-FP_8-18_MCC5_EVAL,MCC-5 Evaluation,139:10:00,CMP,1,Update trajectory solution post-burn,Entry corridor centerline regained,Flight Journal Day 6 139:15 GET
-FP_8-18_MCC5_EVAL,MCC-5 Evaluation,139:10:00,Joint,2,Report MCC concurrence to Mission Control,MCC acknowledges no further corrections,Flight Plan p. 8-18
-FP_8-20_ENTRY_PAD,Entry PAD Update,170:30:00,Joint,1,Copy entry PAD and verify corridor angles,Entry angle -6.53° confirmed,Flight Plan p. 8-20
-FP_8-20_ENTRY_PAD,Entry PAD Update,170:30:00,CMP,2,Load EMS and G&N with entry targets,EMS set to 7.35 g,Flight Journal Day 7 170:45 GET
-FP_8-22_ENTRY_ALIGN,Pre-Entry Alignment,188:30:00,CMP,1,Perform P52 option 3 alignment,IMU residuals < 0.3°,Flight Plan p. 8-22
-FP_8-22_ENTRY_ALIGN,Pre-Entry Alignment,188:30:00,Joint,2,Verify star angle difference and optics track,SAD within 0.02°,Flight Journal Day 7 188:45 GET
-FP_9-04_SM_SEP,Service Module Jettison,194:50:00,Joint,1,Configure CM pyros and circuit breakers,PYRO ARM lights on,Flight Plan p. 9-4
-FP_9-04_SM_SEP,Service Module Jettison,194:50:00,CMP,2,Fire SM separation and monitor rates,Delta-V counter zeroed,Flight Journal Day 8 194:55 GET
-FP_9-06_ENTRY_MON,Entry Monitoring,195:05:00,CMP,1,Arm EMS and start event timer,EMS chads set and running,Flight Plan p. 9-6
-FP_9-06_ENTRY_MON,Entry Monitoring,195:05:00,Joint,2,Track horizon and G-meter through entry interface,Peak G 6.7 achieved,Flight Journal Day 8 195:16 GET
-FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,1,Deploy drogues then main chutes,Drogues at 195:21 GET; mains reefed,Flight Journal Day 8 195:22 GET
-FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,2,Switch CM to post-landing powerdown,Main bus ties off,Flight Plan p. 9-8
-FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,3,Activate recovery beacons and confirm sea state,Recovery beacon GO,Flight Journal Day 8 195:24 GET
+checklist_id,title,GET_nominal,crew_role,step_number,action,expected_response,reference,audio_cue_complete
+FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,1,Monitor ignition sequence,All five S-IC engines show stable chamber pressure,Flight Plan p. 2-5,
+FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,2,Call roll program,Rocket rolls to 90° per guidance cue,Flight Plan p. 2-6,
+FP_2-5_LAUNCH,Liftoff Monitoring,000:00:00,Joint,3,Confirm max-Q acknowledgement,Guidance reports GO at max dynamic pressure,Flight Plan p. 2-7,
+FP_2-16_ORBIT,Orbit Verification,000:11:39,CMP,1,Read S-IVB orbit solution,Perigee 98 nm ±2 nm,Flight Plan p. 2-16,
+FP_2-16_ORBIT,Orbit Verification,000:11:39,CMP,2,Confirm apogee from guidance,Apogee 118 nm ±2 nm,Flight Plan p. 2-16,
+FP_2-16_ORBIT,Orbit Verification,000:11:39,CDR,3,Check S-IVB restart config,DCS switch positions match PAD,Flight Plan p. 2-17,
+FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,Joint,1,Align IMU per P52,Platform torqued and gimbal angles nulled,Flight Plan p. 3-10,
+FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,CMP,2,Load TLI PAD to AGC,Programs 11/12 updated with TIG and Δv,Flight Plan p. 3-11,
+FP_3-10_TLI_PREP,Pre-TLI Housekeeping,002:35:00,CDR,3,Verify S-IVB ullage command,Ullage arm green,Flight Plan p. 3-12,
+FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,Joint,1,Initiate Program 11,CSM throttle displays zero prior to ignition,Flight Plan p. 3-12,
+FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,CMP,2,Start burn clock,Burn timer running,Flight Plan p. 3-13,
+FP_3-12_TLI_EXEC,TLI Execution Monitor,002:44:14,CDR,3,Confirm shutdown cue,Δv achieved within ±0.2 ft/s,Flight Plan p. 3-14,
+FP_3-18_TD,Transposition Docking,003:20:00,CMP,1,Separation maneuver completed,S-IVB clearance achieved,Flight Plan p. 3-18,
+FP_3-18_TD,Transposition Docking,003:20:00,CDR,2,Perform docking approach,LM capture latches engage,Flight Plan p. 3-19,
+FP_3-18_TD,Transposition Docking,003:20:00,Joint,3,Extract LM from SLA,LM hard docked and clear of panels,Flight Plan p. 3-20,
+FP_4-04_PTC,Passive Thermal Control,004:45:00,CMP,1,Select roll attitude,PITCH 0° YAW 0° per Flight Plan,Flight Plan p. 4-4,
+FP_4-04_PTC,Passive Thermal Control,004:45:00,CDR,2,Initiate roll thruster pulses,Roll rate trending to 0.3°/s,Flight Plan p. 4-5,
+FP_4-04_PTC,Passive Thermal Control,004:45:00,Joint,3,Verify thermal trending,Cryo tank boiloff stabilizing,Flight Plan p. 4-6,
+FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,1,Verify roll rate trending to 0.3°/s,Rate meter 0.30°/s ±0.05°/s,Flight Plan p. 4-6,
+FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,CMP,1,Review cryogenic tank temperatures,Trends within ±2°F,Flight Plan p. 5-18,
+FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,CDR,2,Confirm roll rate stability,Rate 0.30°/s ±0.05°/s,Flight Plan p. 5-18,
+FP_5-18_PTC_LONG,Extended PTC Trend Check,034:00:00,Joint,3,Log thermal trend to onboard recorder,Entry captured for downlink,Flight Plan p. 5-18,
+FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,CMP,1,Read fuel cell currents,Currents balanced within ±5 A,Flight Plan p. 5-20,
+FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,CDR,2,Check cryogenic quantity gauges,Quantities within PAD band,Flight Plan p. 5-20,
+FP_5-20_CONS_LOG2,Extended Consumables Status,035:00:00,Joint,3,Record cabin CO₂ level,mmHg trending nominal,Flight Plan p. 5-20,
+FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,CMP,1,Read MCC-3 PAD with MCC,Key TIG/Δv elements confirmed,Flight Plan p. 6-2,
+FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,CDR,2,Load PAD parameters into AGC,Program 37 updated,Flight Plan p. 6-3,
+FP_6-02_MCC3_PAD,MCC-3 PAD Review,053:00:00,Joint,3,Copy PAD to DSE log,PAD archived for playback,Flight Journal Day 3 053:20 GET,
+FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,CMP,1,Compare tracking residuals to limits,Residuals within decision band,Flight Plan p. 6-4,
+FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,CDR,2,Report go/no-go to MCC,MCC acknowledges decision,Flight Journal Day 3 053:50 GET,
+FP_6-04_MCC3_EVAL,MCC-3 Evaluation,053:50:00,Joint,3,Annotate platform drift estimate,Entry recorded in log,Flight Plan p. 6-5,
+FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,CMP,1,Set SPS gimbal trim per PAD,Trim values match PAD,Flight Plan p. 6-6,
+FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,CDR,2,Monitor SPS burn parameters,Δv within ±0.3 ft/s,Flight Plan p. 6-7,
+FP_6-06_MCC3_EXEC,MCC-3 Execution,055:00:00,Joint,3,Log post-burn residuals,Residuals <0.2 ft/s,Flight Journal Day 3 055:05 GET,
+FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,CMP,1,Initiate P52 Option 3,Star pair accepted,Flight Plan p. 6-8,
+FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,CDR,2,Verify IMU torquing complete,Angles nulled,Flight Plan p. 6-8,
+FP_6-08_P52_LOI,P52 Realignment for LOI,066:00:00,Joint,3,Record coarse alignment delta,Entry transmitted to MCC,Flight Plan p. 6-9,
+FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,CMP,1,Read MCC-4 PAD with MCC,TIG/Δv verified,Flight Plan p. 6-10,
+FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,CDR,2,Load PAD parameters into AGC,Program 37 updated,Flight Plan p. 6-10,
+FP_6-10_MCC4_PAD,MCC-4 PAD Review,070:00:00,Joint,3,Record MCC-4 requirement status,Go/skip logged for shift handover,Flight Journal Day 3 070:10 GET,
+FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,CMP,1,Align CSM to PAD attitude,Attitude within ±2°,Flight Plan p. 6-12,
+FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,CDR,2,Pulse SPS per PAD timing,Δv near 1.5 ft/s,Mission Operations Report Sec. 3.4,
+FP_6-12_MCC4_EXEC,MCC-4 Execution,071:10:00,Joint,3,Report burn residual to MCC,Residual <0.2 ft/s,Flight Journal Day 3 071:12 GET,
+FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,CMP,1,Read LOI-1 PAD with MCC,TIG/Δv verified,Flight Plan p. 6-14,
+FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,CDR,2,Load LOI target into Program 41,AGC target accepted,Flight Plan p. 6-15,
+FP_6-14_LOI_PAD,LOI-1 PAD Review,072:30:00,Joint,3,Archive PAD copy to DSE,Entry tagged for playback,Flight Journal Day 3 072:40 GET,
+FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,CDR,1,Arm SPS banks and talkback,Indicators bright,Flight Plan p. 6-16,
+FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,CMP,2,Configure RCS for ullage,QSMC in AUTO,Flight Plan p. 6-16,
+FP_6-16_LOI_CONFIG,LOI-1 Configuration,073:30:00,Joint,3,Verify LM tunnel secure,Latching indicators closed,Flight Journal Day 3 073:30 GET,
+FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,CMP,1,Start burn clock,Burn timer running,Flight Plan p. 6-18,
+FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,CDR,2,Monitor SPS chamber pressure,Chamber pressure nominal,Flight Journal Day 4 075:50 GET,
+FP_6-18_LOI1_EXEC,LOI-1 Execution Monitor,075:49:50,Joint,3,Call shutdown cue,Δv within ±1 ft/s,Mission Operations Report Sec. 3.4,
+FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,CMP,1,Read AGC residuals,Residuals <2 ft/s,Flight Plan p. 6-20,
+FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,CDR,2,Update state vector with ground copy,Program 52 updated,Flight Plan p. 6-20,
+FP_6-20_LOI1_EVAL,LOI-1 Evaluation,075:56:00,Joint,3,Report orbit parameters to MCC,MCC copy acknowledged,Flight Journal Day 4 075:58 GET,
+FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,CMP,1,Review LOI-2 PAD with MCC,Δv/time confirmed,Flight Plan p. 6-22,
+FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,CDR,2,Load LOI-2 target into AGC,Program 41 updated,Flight Plan p. 6-22,
+FP_6-22_LOI2_PAD,LOI-2 PAD Review,079:45:00,Joint,3,Confirm go for circularization,MCC acknowledges go,Flight Journal Day 4 079:50 GET,
+FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,CMP,1,Align to LOI-2 attitude,Attitude within ±1°,Flight Plan p. 6-24,
+FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,CDR,2,Initiate SPS for trim burn,Δv on schedule,Flight Journal Day 4 080:11 GET,
+FP_6-24_LOI2_EXEC,LOI-2 Execution Monitor,080:11:20,Joint,3,Call shutdown cue,Δv within ±0.3 ft/s,Mission Operations Report Sec. 3.4,
+FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,CMP,1,Verify orbit period,127 min ±1,Flight Plan p. 6-26,
+FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,CDR,2,Update navigation charts,Navigation solution posted,Flight Plan p. 6-26,
+FP_6-26_LOI2_EVAL,LOI-2 Evaluation,080:20:00,Joint,3,Log handover summary for MCC,Entry transmitted to MCC,Flight Journal Day 4 080:22 GET,
+FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,2,Check cryo tank temperatures,All cryo tank temps within band,Flight Plan p. 4-7,
+FP_4-06_PTC_MON,PTC Roll Monitoring,004:50:00,Joint,3,Record PTC status with MCC,MCC logs confirm PTC nominal,Flight Journal Day 1 005:20 GET,
+FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,Joint,1,Load MCC-1 PAD into AGC,Program 41 registers updated,Flight Plan p. 4-12,
+FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,CMP,2,Verify TIG and Δv values,TIG 009:44:00 Δv 20 ft/s,Mission Operations Report Sec. 3.3,
+FP_4-12_MCC1_PAD,MCC-1 PAD Review,009:00:00,CDR,3,Confirm attitude target,Pitch 29° yaw 0° per PAD,Flight Plan p. 4-13,
+FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,Joint,1,Initiate Program 41,SPS gimbal trim tracks target,Flight Plan p. 4-14,
+FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,CMP,2,Start burn timer,Timer running for 15 s,Flight Journal Day 2 009:44 GET,
+FP_4-14_MCC1_EXEC,MCC-1 Execution Monitor,009:44:00,CDR,3,Verify shutdown residuals,Δv residual < 0.2 ft/s,Mission Operations Report Sec. 3.3,
+FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,Joint,1,Update state vector with P23,Residuals trending toward zero,Flight Plan p. 4-16,
+FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,CMP,2,Downlink tracking residuals,MCC receives updated vector,Flight Journal Day 2 010:05 GET,
+FP_4-16_MCC1_EVAL,MCC-1 Post-Burn Evaluation,010:15:00,CDR,3,Assess SPS prop usage,Prop usage within plan,Mission Operations Report Sec. 3.3,
+FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,Joint,1,Review fuel cell reactant pressures,O2/H2 pressures within limits,Flight Plan p. 5-2,
+FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,CMP,2,Update consumables log,Log entries transmitted to MCC,Flight Plan p. 5-3,
+FP_5-02_CONS_CHECK,Consumables Status Update,012:10:00,CDR,3,Check cabin CO2 level,CO2 < 3.0 mm Hg,Flight Journal Day 2 012:30 GET,
+FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,Joint,1,Select trim attitude,Roll reference 0° relative to sun,Flight Plan p. 5-4,
+FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CDR,2,Pulse RCS jets,Roll rate stabilized at 0.3°/s,Flight Plan p. 5-5,
+FP_5-04_PTC_TRIM,PTC Trim Adjustment,014:40:00,CMP,3,Monitor cryo tank boiloff,Boiloff trending nominal,Flight Plan p. 5-5,
+FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CMP,1,Initialize Program 52 option 1,IMU torquing routine active,Flight Plan p. 5-6,
+FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CMP,2,Mark star pair per PAD,Optics marks accepted by AGC,Flight Plan p. 5-7,
+FP_5-06_P52_REALIGN,P52 IMU Realignment,015:55:00,CDR,3,Verify platform alignment,Residuals < 0.5°,Flight Journal Day 2 016:10 GET,
+FP_5-08_P23_NAV,P23 Optics Update,017:20:00,CMP,1,Call up Program 23,Star table displayed,Flight Plan p. 5-8,
+FP_5-08_P23_NAV,P23 Optics Update,017:20:00,CMP,2,Perform sextant marks on designated stars,Marks recorded with acceptable residuals,Flight Plan p. 5-8,
+FP_5-08_P23_NAV,P23 Optics Update,017:20:00,Joint,3,Downlink residuals to MCC,MCC confirms data received,Flight Journal Day 2 017:45 GET,
+FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,Joint,1,Load MCC-2 PAD into AGC,Program 41 updated with TIG and Δv,Flight Plan p. 5-12,
+FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,CMP,2,Verify PAD parameters,TIG/Δv match MCC read-up,Mission Operations Report Sec. 3.3,
+FP_5-12_MCC2_PAD,MCC-2 PAD Review,023:45:00,CDR,3,Confirm attitude target for burn,PITCH 18° yaw 0° set,Flight Plan p. 5-13,
+FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,Joint,1,Review tracking residuals against limits,Residuals within ±0.2°,Mission Operations Report Sec. 3.3,
+FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,CDR,2,Record GO/NO GO decision in log,Decision relayed to MCC,Flight Journal Day 3 024:55 GET,
+FP_5-14_MCC2_EVAL,MCC-2 Evaluation,024:50:00,CMP,3,Update mission rule status board,Board reflects MCC-2 disposition,Flight Plan p. 5-14,
+FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,Joint,1,Arm Program 41 for SPS burn,SPS gimbals track commanded attitude,Flight Plan p. 5-16,
+FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CMP,2,Start burn timer if burn GO,Timer counts for 10 s,Mission Operations Report Sec. 3.3,
+FP_5-16_MCC2_EXEC,MCC-2 Execution Monitor,025:45:00,CDR,3,Verify shutdown residuals or log skip,Residuals < 0.2 ft/s or skip noted,Flight Journal Day 3 026:00 GET,
+FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,LMP,1,Close LM activation circuit breakers,LGC buses energized,Flight Plan p. 7-4,
+FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,CDR,2,Verify ECS modes set to AUTO,Cabin temperature 70°F ±5,Flight Plan p. 7-5,
+FP_7-04_LM_ACTIVATE,LM Activation Power-Up,095:10:00,Joint,3,Report LM power status to MCC,MCC acknowledges LM powered,Flight Journal Day 5 095:20 GET,
+FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,LMP,1,Arm descent engine valves per chart,Prop feed pressures within green band,Flight Plan p. 7-8,
+FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,CDR,2,Set DPS thrust control to AUTO,Throttle command tracks inputs,Flight Plan p. 7-9,
+FP_7-08_DPS_CONFIG,DPS Configuration and Checkout,096:20:00,Joint,3,Log helium tank temperatures with MCC,Readings within limits,Flight Journal Day 5 096:10 GET,
+FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,CMP,1,Load DOI TIG and Δv into AGC,Program 41 updated,Flight Plan p. 7-10,
+FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,CDR,2,Confirm SPS attitude targets,FDAI matches PAD angles,Flight Plan p. 7-11,
+FP_7-10_DOI_PAD,DOI PAD Review,098:15:00,Joint,3,Acknowledge GO for DOI with MCC,GO recorded in log,Flight Journal Day 5 100:10 GET,
+FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,CMP,1,Configure CSM RCS and docking ring,Ring retract talkback gray,Flight Plan p. 7-12,
+FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,CDR,2,Set LM guidance to AGS STANDBY,AGS status indicates ready,Flight Plan p. 7-12,
+FP_7-12_SEP_CONFIG,LM/CSM Separation Configuration,099:45:00,Joint,3,Verify LM and CSM comm link,VHF and S-band crosslink nominal,Flight Journal Day 5 099:50 GET,
+FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,CMP,1,Initiate SPS ullage and ignition,Burn timer running,Flight Plan p. 7-14,
+FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,CDR,2,Monitor Δv residuals during DOI,Residual < 1 ft/s,Mission Operations Report Sec. 3.5,
+FP_7-14_DOI_EXEC,DOI Execution Monitor,100:38:00,Joint,3,Call DOI cutoff and log results,Δv logged with MCC,Flight Journal Day 5 100:39 GET,
+FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,CMP,1,Command docking latches open,Talkbacks transition to gray,Flight Plan p. 7-16,
+FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,CDR,2,Pulse LM RCS for separation,Range rate 0.2 ft/s receding,Flight Journal Day 5 101:05 GET,
+FP_7-16_LM_SEP,LM Separation and Stationkeeping,100:55:00,Joint,3,Report separation status to MCC,MCC copies LM free flight,Flight Journal Day 5 101:10 GET,
+FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,LMP,1,Load P63 and descent targeting,PDI data displayed on DSKY,Flight Plan p. 7-18,
+FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,CDR,2,Align LM to PDI attitude,Attitude within ±2°,Flight Plan p. 7-19,
+FP_7-18_PDI_PREP,PDI Targeting and Program Load,102:10:00,Joint,3,Confirm landing radar self-test,Radar BIT GO,Flight Journal Day 5 102:15 GET,
+FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,LMP,1,Modulate throttle to track descent cues,Vertical velocity on profile,Flight Journal Day 5 102:36 GET,
+FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,CDR,2,Call out critical altitude gates,Crew synchronized with AGC cues,Flight Journal Day 5 102:39 GET,
+FP_7-20_PDI_EXEC,Powered Descent Execution,102:33:00,Joint,3,Monitor PGNS and AGS agreement,Δv disagreement < 5 ft/s,Mission Operations Report Sec. 3.5,
+FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,CDR,1,Hand fly to targeted landing point,Horizontal velocity < 1 ft/s,Flight Journal Day 5 102:42 GET,
+FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,LMP,2,Call altitudes and fuel remaining,Fuel 5% at 60 ft,Flight Journal Day 5 102:44 GET,
+FP_7-22_FINAL_APPROACH,Final Approach and Landing,102:41:00,Joint,3,Arm engine stop cue,Descent engine off at contact,Flight Plan p. 7-22,
+FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,CDR,1,Shut down descent engine and valves,Descent engine valves closed,Flight Plan p. 7-24,
+FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,LMP,2,Configure ECS to POST-LAND mode,Cabin pressure stable 4.8 psi,Flight Plan p. 7-24,
+FP_7-24_POSTLAND,Post-Landing Safing,102:47:00,Joint,3,Transmit stay or no-stay decision,MCC concurs with stay,Flight Journal Day 5 102:50 GET,
+FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,1,Configure LM cabin to PRE-EVA mode,Cabin pressure trending to 3.5 psi with suit circuit breakers set,Flight Plan p. 7-26,
+FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,2,Verify PLSS O2 and water quantities,PLSS gauges within EVA launch limits,Flight Plan p. 7-26,
+FP_7-26_EVA_PREP,EVA Prep & Suit Donning,109:10:00,Joint,3,Perform suit communications and biomedical checks,Voice/biomed loops GO for EVA,Flight Journal Day 5 109:15 GET,
+FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,Joint,1,Depress cabin and open forward hatch,Cabin pressure <0.2 psia and hatch latched open,Flight Plan p. 7-27,
+FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,CDR,2,Descend ladder and deploy MESA/TV,TV and MESA deployed; footpads inspected,Flight Journal Day 5 109:45 GET,callouts.one_small_step
+FP_7-27_EVA_EGRESS,EVA Egress & Ladder Ops,109:40:00,LMP,3,Translate to porch and verify tether routing,Tether routed clear; handrail ready for descent,Flight Plan p. 7-27,
+FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,1,Plant flag and document site,Flag secured; imagery recorded,Flight Journal Day 5 110:40 GET,
+FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,2,Collect contingency and bulk samples,Samples sealed in SRC #1,Flight Plan p. 7-28,
+FP_7-28_EVA_TRAVERSE,EVA Traverse & Sample Ops,110:30:00,Joint,3,Deploy SWC and place seismic/traverse markers,Experiments deployed per checklist,Flight Journal Day 5 111:10 GET,
+FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,1,Stow sample boxes and secure TV,MESA closed; SRCs latched,Flight Plan p. 7-30,
+FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,2,Brush suits and verify LM cabin configuration,Suits brushed; LM ECS valves set to REPRESS,Flight Journal Day 5 112:30 GET,
+FP_7-30_EVA_CLOSEOUT,EVA Closeout & Repress,112:10:00,Joint,3,Initiate repressurization and close hatch,Cabin climbing through 3.5 psia; hatch secure,Flight Plan p. 7-30,
+FP_7-31_EVA2_PREP,EVA-2 Prep & Suit Cycling,116:40:00,Joint,1,Configure LM cabin for second EVA per contingency plan,Cabin pressure trending to 3.5 psia with suit loop active,Flight Plan p. 7-31,
+FP_7-31_EVA2_PREP,EVA-2 Prep & Suit Cycling,116:40:00,Joint,2,Verify PLSS O2/water reserves and battery status,PLSS gauges within EVA-2 launch limits,Flight Plan p. 7-31,
+FP_7-31_EVA2_PREP,EVA-2 Prep & Suit Cycling,116:40:00,Joint,3,Brief CapCom on EVA-2 objectives and timeline,CapCom copies revised traverse plan,Flight Journal Day 6 EVA planning note,
+FP_7-32_EVA2_EGRESS,EVA-2 Egress & Ladder Ops,117:25:00,Joint,1,Depress cabin and open forward hatch,Cabin pressure <0.2 psia; hatch secure open,Flight Plan p. 7-32,
+FP_7-32_EVA2_EGRESS,EVA-2 Egress & Ladder Ops,117:25:00,CDR,2,Descend ladder and verify surface conditions,Footpads clear; EVA-2 timeline GO,Flight Journal Day 6 EVA briefing,
+FP_7-32_EVA2_EGRESS,EVA-2 Egress & Ladder Ops,117:25:00,LMP,3,Deploy supplemental TV/lighting for geology site,Video confirms secondary site coverage,Flight Plan p. 7-32,
+FP_7-33_EVA2_TRAVERSE,EVA-2 Traverse Extension,118:10:00,Joint,1,Translate to secondary geology station per traverse map,Team at Station Delta within ±5 m,Surface Traverse Planning Annex,
+FP_7-33_EVA2_TRAVERSE,EVA-2 Traverse Extension,118:10:00,Joint,2,Collect trench/core samples and document stratigraphy,Samples sealed and tagged EVA2-A/B,Surface Traverse Planning Annex,
+FP_7-33_EVA2_TRAVERSE,EVA-2 Traverse Extension,118:10:00,Joint,3,Photograph sample sites and sun angles,Panorama logged; shadows per plan,Flight Journal Day 6 EVA planning note,
+FP_7-33_EVA2_SCIENCE,EVA-2 Science Package Deploy,120:35:00,Joint,1,Deploy magnetometer extension and align per spec,MAG readings within calibration,Flight Plan p. 7-33,
+FP_7-33_EVA2_SCIENCE,EVA-2 Science Package Deploy,120:35:00,Joint,2,Position sub-satellite retro-reflector targets,Retro array leveled within 2°,Mission Operations Report App. 3,
+FP_7-33_EVA2_SCIENCE,EVA-2 Science Package Deploy,120:35:00,Joint,3,Report science configuration and anomalies to MCC,MCC copies deployment summary,Flight Journal Day 6 EVA planning note,
+FP_7-35_EVA2_CLOSEOUT,EVA-2 Closeout & Repress,121:35:00,Joint,1,Stow EVA-2 tools and secure experiment cabling,Tool stowage verified; cables safed,Flight Plan p. 7-35,
+FP_7-35_EVA2_CLOSEOUT,EVA-2 Closeout & Repress,121:35:00,Joint,2,Brush suits, reattach umbilicals, and verify ECS,Suit dust removed; umbilicals locked,Surface Traverse Planning Annex,
+FP_7-35_EVA2_CLOSEOUT,EVA-2 Closeout & Repress,121:35:00,Joint,3,Repress cabin and confirm hatch/tunnel integrity,Cabin pressure rising; leak check nominal,Flight Plan p. 7-35,
+FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,LMP,1,Load ascent PAD into AGC and AGS,P12 displays updated TIG,Flight Plan p. 7-28,
+FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CDR,2,Align platform with P52 option 3,IMU residuals < 0.3°,Flight Plan p. 7-29,
+FP_7-28_ASCENT_PREP,LM Ascent Preparation,124:00:00,CMP,3,Verify CSM rendezvous plan,CSM state vector uplinked,Flight Journal Day 5 123:55 GET,
+FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,LMP,1,Initiate ascent engine ignition,Thrust confirmed on gauges,Flight Journal Day 5 124:22 GET,
+FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,CDR,2,Call staging and attitude cues,Pitch program on schedule,Flight Plan p. 7-30,
+FP_7-30_ASCENT_EXEC,LM Ascent Execution,124:22:00,Joint,3,Monitor ascent residuals,Δv within ±10 ft/s at cutoff,Mission Operations Report Sec. 3.6,
+FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CMP,1,Compute TPI and maneuver burns,CSM maneuver plan updated,Flight Plan p. 7-32,
+FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,CDR,2,Fly terminal phase and docking,Range rate 0.1 ft/s closing,Flight Journal Day 5 128:00 GET,
+FP_7-32_RNDZ_DOCK,LM Rendezvous and Docking,125:50:00,Joint,3,Verify hard dock and pressure equalization,Tunnel pressure equalized,Flight Journal Day 5 128:20 GET,
+FP_7-34_LM_JETT,LM Jettison,128:50:00,Joint,1,Safeguard LM cabin and close hatches,Hatches latched and vented,Flight Plan p. 7-34,
+FP_7-34_LM_JETT,LM Jettison,128:50:00,CMP,2,Configure CSM RCS and tunnel valves for separation,Forward hatch indicators barber pole,Flight Plan p. 7-34,
+FP_7-34_LM_JETT,LM Jettison,128:50:00,Joint,3,Command LM jettison and confirm separation,Relative range rate increasing,Flight Journal Day 5 128:55 GET,
+FP_8-04_TEI_PAD,TEI PAD Review,131:30:00,CMP,1,Read TEI PAD and confirm TIG/time,Guidance displays TIG 135:23:42,Flight Plan p. 8-4,
+FP_8-04_TEI_PAD,TEI PAD Review,131:30:00,Joint,2,Load return trajectory parameters into Program 30,P30 registers updated,Flight Journal Day 6 130:00 GET,
+FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,CMP,1,Align SPS gimbals and set engine valves,SPS gimbals track per PAD,Flight Plan p. 8-6,
+FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,Joint,2,Configure RCS jets and optics for burn,Optics track stars 40/41,Flight Plan p. 8-6,
+FP_8-06_TEI_CONFIG,TEI Configuration,134:30:00,CMP,3,Arm EMS and set entry monitoring cues,EMS delta-V set to TEI residual limit,Flight Plan p. 8-8,
+FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,CMP,1,Ignite SPS at TIG and hold attitude,Thrust rise within 2 s,Flight Journal Day 6 135:23 GET,
+FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,Joint,2,Monitor Δv and throttle to residual under 1 ft/s,Residual velocity < 1 ft/s,Flight Journal Day 6 135:26 GET,
+FP_8-08_TEI_EXEC,Trans-Earth Injection Burn,135:23:00,Joint,3,Confirm guidance returns to Passive Thermal Control attitude,P30 residuals within tolerance,Flight Plan p. 8-8,
+FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,CMP,1,Update state vector with TEI tracking data,Δv residual logged < 1 ft/s,Flight Journal Day 6 135:40 GET,
+FP_8-10_TEI_EVAL,TEI Evaluation,135:35:00,Joint,2,Report return trajectory solution to MCC,Return time copy read back,Flight Plan p. 8-10,
+FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,CMP,1,Roll to Passive Thermal Control rate 0.3°/s,RCS trim pulses nominal,Flight Plan p. 8-12,
+FP_8-12_PTC_RETURN,PTC Re-Entry,136:45:00,Joint,2,Log cryo boiloff and thermal status,Heat balance trend stabilized,Flight Journal Day 6 137:00 GET,
+FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,CMP,1,Slew high-gain antenna to HS station angles,HGA angles within comm limits,Flight Plan p. 8-13,
+FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,CDR,2,Review PAD/comm updates with CapCom,Updated PAD parameters copied to DSE log,Flight Journal Day 6 137:45 GET,
+FP_8-13_TRANSCOMM_A,DSN Pass — Honeysuckle,137:35:00,Joint,3,Log consumables/thermal trending for downlink,Downlink package transmitted,Flight Plan p. 8-13,
+FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,CMP,1,Align high-gain antenna to Goldstone geometry,HGA AGC > 20 dB,Flight Plan p. 8-17,
+FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,Joint,2,Record entry update and crew status with CapCom,Entry PAD update acknowledged,Flight Journal Day 6 147:15 GET,
+FP_8-17_TRANSCOMM_B,DSN Pass — Goldstone,147:05:00,Joint,3,Confirm handover to next DSN shift,Next window logged in comm planner,Flight Plan p. 8-17,
+FP_8-19_TRANSCOMM_C,DSN Pass — Madrid,170:15:00,CMP,1,Slew high-gain antenna to Madrid geometry,HGA AGC > 18 dB,Flight Plan p. 8-19,
+FP_8-19_TRANSCOMM_C,DSN Pass — Madrid,170:15:00,Joint,2,Review entry corridor update and crew status with CapCom,Entry PAD delta copied to DSE log,Flight Journal Day 7 170:25 GET,
+FP_8-19_TRANSCOMM_C,DSN Pass — Madrid,170:15:00,Joint,3,Coordinate handover back to Goldstone and log signal trend,Handover window 14 min; AGC sag noted,Mission Operations Report Sec. 3.8,
+FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,CMP,1,Read MCC-5 PAD and confirm TIG,Guidance updates TIG 138:58:00,Flight Plan p. 8-14,
+FP_8-14_MCC5_PAD,MCC-5 PAD Review,138:20:00,Joint,2,Load burn targets into Program 30,P30 register 1 matches PAD,Flight Journal Day 6 138:30 GET,
+FP_8-16_MCC5_EXEC,MCC-5 Execution,138:55:00,CMP,1,Fire SPS per PAD and monitor Δv,Δv achieved within 0.5 ft/s,Flight Journal Day 6 138:59 GET,
+FP_8-16_MCC5_EXEC,MCC-5 Execution,138:55:00,Joint,2,Verify residuals and reinitiate Passive Thermal Control,RCS trim < 1 lb,Flight Plan p. 8-16,
+FP_8-18_MCC5_EVAL,MCC-5 Evaluation,139:10:00,CMP,1,Update trajectory solution post-burn,Entry corridor centerline regained,Flight Journal Day 6 139:15 GET,
+FP_8-18_MCC5_EVAL,MCC-5 Evaluation,139:10:00,Joint,2,Report MCC concurrence to Mission Control,MCC acknowledges no further corrections,Flight Plan p. 8-18,
+FP_8-20_ENTRY_PAD,Entry PAD Update,170:30:00,Joint,1,Copy entry PAD and verify corridor angles,Entry angle -6.53° confirmed,Flight Plan p. 8-20,
+FP_8-20_ENTRY_PAD,Entry PAD Update,170:30:00,CMP,2,Load EMS and G&N with entry targets,EMS set to 7.35 g,Flight Journal Day 7 170:45 GET,
+FP_8-22_ENTRY_ALIGN,Pre-Entry Alignment,188:30:00,CMP,1,Perform P52 option 3 alignment,IMU residuals < 0.3°,Flight Plan p. 8-22,
+FP_8-22_ENTRY_ALIGN,Pre-Entry Alignment,188:30:00,Joint,2,Verify star angle difference and optics track,SAD within 0.02°,Flight Journal Day 7 188:45 GET,
+FP_9-04_SM_SEP,Service Module Jettison,194:50:00,Joint,1,Configure CM pyros and circuit breakers,PYRO ARM lights on,Flight Plan p. 9-4,
+FP_9-04_SM_SEP,Service Module Jettison,194:50:00,CMP,2,Fire SM separation and monitor rates,Delta-V counter zeroed,Flight Journal Day 8 194:55 GET,
+FP_9-06_ENTRY_MON,Entry Monitoring,195:05:00,CMP,1,Arm EMS and start event timer,EMS chads set and running,Flight Plan p. 9-6,
+FP_9-06_ENTRY_MON,Entry Monitoring,195:05:00,Joint,2,Track horizon and G-meter through entry interface,Peak G 6.7 achieved,Flight Journal Day 8 195:16 GET,
+FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,1,Deploy drogues then main chutes,Drogues at 195:21 GET; mains reefed,Flight Journal Day 8 195:22 GET,
+FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,2,Switch CM to post-landing powerdown,Main bus ties off,Flight Plan p. 9-8,
+FP_9-08_RECOVERY,Post-Landing and Recovery,195:22:00,Joint,3,Activate recovery beacons and confirm sea state,Recovery beacon GO,Flight Journal Day 8 195:24 GET,
