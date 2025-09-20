@@ -33,7 +33,7 @@ with mission truth (`ui_frame` snapshots, panel metadata, and the
 | Switch to Controls view | `2` | `LB + Y` | `C-Up` | Keeps active checklist chip highlighted when switching. |
 | Switch to Systems view | `3` | `LB + B` | `C-Right` | Pins most recent warning in Systems trends panel. |
 | Cycle views | `Tab` / `Shift+Tab` | `LB + RB` | `L` / `R` | Wrap-around cycling; logs `ui:view_changed` with previous/next view. |
-| Toggle Tile Mode | `T` | `Select` | `Start` | Loads last workspace preset from `workspaceStore`; Always-On HUD stays pinned. |
+| Toggle Tile Mode | `T` | `Select` | `Start` | Loads last workspace preset from [`workspaceStore`](workspace_store.md); Always-On HUD stays pinned. |
 | Open Checklist overlay | `C` | `X` (tap) | `B` | Scrolls to active checklist; long press (`>0.5 s`) toggles pin mode. |
 | "Do Next" contextual advance | `Space` | `A` | `A` | Dispatches queued manual action (checklist step or DSKY macro) if prerequisites satisfied; otherwise opens related panel. |
 | Focus DSKY | `G` | `Y` (hold) | `Z` (hold) | Locks keyboard/gamepad input to DSKY keypad, shows macro tray. |
@@ -104,7 +104,7 @@ All tile interactions emit `workspace:update` entries with GET, tile IDs,
   3. **Modal** – overlays (macro tray, alert detail) consume navigation
      keys; exit via `Esc`/`B`/`C-Down`.
 - Remapping UI (future milestone) writes overrides to
-  `workspaceStore.inputOverrides`. Defaults fall back to the mappings in
+  the [`workspaceStore`](workspace_store.md) `inputOverrides` map. Defaults fall back to the mappings in
   this document to keep parity harness inputs aligned.
 
 ## Logging & Telemetry Hooks

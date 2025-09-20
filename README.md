@@ -107,6 +107,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/ui/dsky_reference.md`](docs/ui/dsky_reference.md) – DSKY macro catalog covering alignment, burn, docking, and entry Verb/Noun pairs with prerequisite logic.
 - [`docs/ui/json_schemas.md`](docs/ui/json_schemas.md) – JSON schema definitions for upcoming checklist, panel, and workspace data packs consumed by the UI layer.
 - [`docs/ui/workspaces.json`](docs/ui/workspaces.json) – Authoritative Navigation, Docking, Systems, and Entry workspace presets that adhere to the HUD and tile-mode layout specification.
+- [`docs/ui/workspace_store.md`](docs/ui/workspace_store.md) – Workspace store responsibilities, mutation events, and persistence strategy for Tile Mode presets and overrides.
 - [`docs/ui/panels.json`](docs/ui/panels.json) – Structured inventory of CSM/LM panels, control states, dependencies, and alert triggers consumed by the UI layer.
 - [`docs/ui/checklists.json`](docs/ui/checklists.json) – Structured checklist steps referencing panel controls, prerequisites, and DSKY macros for the prototype mission slices.
 - [`docs/ui/docking_gates.json`](docs/ui/docking_gates.json) – Ordered braking gate definitions, closure-rate tolerances, and checklist links for the rendezvous overlay.
