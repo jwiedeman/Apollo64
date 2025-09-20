@@ -86,7 +86,7 @@ Event Scheduler / Autopilot Runner / ManualActionQueue
 
 ## Validation Strategy
 
-- **Unit tests** – cover command parsing, prerequisite enforcement, register updates, annunciator transitions, and error handling using synthetic PAD/checklist payloads.
+- **Unit tests** – cover command parsing, prerequisite enforcement, register updates, annunciator transitions, and error handling using synthetic PAD/checklist payloads (see [`js/test/agcRuntime.test.js`](../../js/test/agcRuntime.test.js)).
 - **Integration tests** – reuse parity harness to replay mission slices with AGC macros and confirm manual vs. automated runs produce identical AGC logs and register traces.
 - **Dataset sweeps** – extend `npm run validate:data` to flag missing macros, undefined prerequisites, or PAD references lacking AGC payloads.
 - **Mission drills** – run representative scenarios (TLI PAD load, MCC-2 update, LOI execution, P63/P64 handoff, entry corridor updates) and review AGC log/annunciator output against historical transcripts.
