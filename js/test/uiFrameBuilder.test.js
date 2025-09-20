@@ -526,6 +526,193 @@ describe('UiFrameBuilder', () => {
     assert.equal(gateContact.checklistId, 'FP_7-32_RNDZ_DOCK');
   });
 
+  test('summarizes entry overlay state', () => {
+    const padEntryId = 'PAD_ENTRY';
+    const entryInterfaceSeconds = parseGET('195:11:00');
+    const padMap = new Map([
+      [
+        padEntryId,
+        {
+          id: padEntryId,
+          purpose: 'Entry PAD review',
+          parameters: {
+            entryInterface: {
+              get: '195:11:00',
+              getSeconds: entryInterfaceSeconds,
+            },
+            flightPathAngleDeg: -6.5,
+          },
+        },
+      ],
+    ]);
+
+    const entryEvents = {
+      padReview: 'RETURN_030',
+      finalAlign: 'RETURN_031',
+      serviceModuleJettison: 'ENTRY_001',
+      entryMonitoring: 'ENTRY_002',
+      recovery: 'ENTRY_003',
+    };
+
+    const entryConfig = {
+      padId: padEntryId,
+      events: entryEvents,
+      corridor: {
+        toleranceDegrees: 0.35,
+        default: {
+          angleOffsetDeg: 0.15,
+          downrangeErrorKm: 40,
+          crossrangeErrorKm: -12,
+        },
+        states: [
+          {
+            event: 'padReview',
+            status: 'complete',
+            angleOffsetDeg: 0.02,
+            downrangeErrorKm: 12,
+            crossrangeErrorKm: -3,
+          },
+          {
+            event: 'entryMonitoring',
+            status: 'active',
+            angleOffsetDeg: -0.01,
+            downrangeErrorKm: 3,
+            crossrangeErrorKm: 1,
+          },
+          {
+            event: 'recovery',
+            status: 'complete',
+            angleOffsetDeg: 0,
+            downrangeErrorKm: 0,
+            crossrangeErrorKm: 0,
+          },
+        ],
+      },
+      blackout: {
+        startGet: '195:16:24',
+        endGet: '195:19:54',
+      },
+      gLoad: {
+        max: 6.7,
+        caution: 5.5,
+        warning: 6.3,
+        states: [
+          { event: 'serviceModuleJettison', status: 'active', value: 1.2 },
+          { event: 'entryMonitoring', status: 'active', value: 3.6 },
+          { event: 'recovery', status: 'complete', value: 1.0 },
+        ],
+      },
+      ems: {
+        targetVelocityFtPerSec: 36000,
+        targetAltitudeFt: 250000,
+        predictedSplashdownSeconds: parseGET('195:23:00'),
+      },
+      recoveryTimeline: [
+        {
+          id: 'DROGUE_DEPLOY',
+          label: 'Drogues Deploy',
+          get: '195:21:10',
+          ackOffsetSeconds: 0,
+          completeOffsetSeconds: 60,
+        },
+        {
+          id: 'HATCH_OPEN',
+          label: 'Hatch Open',
+          get: '195:24:30',
+          ackOffsetSeconds: 0,
+          completeOffsetSeconds: 90,
+        },
+      ],
+    };
+
+    const eventList = [
+      {
+        id: 'RETURN_030',
+        status: 'complete',
+        activationTimeSeconds: parseGET('195:12:00'),
+        completionTimeSeconds: parseGET('195:13:30'),
+        padId: padEntryId,
+      },
+      {
+        id: 'RETURN_031',
+        status: 'complete',
+        activationTimeSeconds: parseGET('195:14:00'),
+        completionTimeSeconds: parseGET('195:15:30'),
+      },
+      {
+        id: 'ENTRY_001',
+        status: 'complete',
+        activationTimeSeconds: parseGET('195:15:40'),
+        completionTimeSeconds: parseGET('195:16:10'),
+      },
+      {
+        id: 'ENTRY_002',
+        status: 'active',
+        activationTimeSeconds: parseGET('195:16:20'),
+      },
+      {
+        id: 'ENTRY_003',
+        status: 'pending',
+      },
+    ];
+
+    const builder = new UiFrameBuilder({ entry: entryConfig, pads: padMap, events: eventList });
+
+    const currentGetSeconds = parseGET('195:17:30');
+    const blackoutEndSeconds = parseGET('195:19:54');
+    const frame = builder.build(currentGetSeconds, {
+      scheduler: {
+        stats: () => ({ counts: { pending: 0, active: 0, complete: 0 }, upcoming: [] }),
+        getEventById: (id) => eventList.find((event) => event.id === id) ?? null,
+      },
+      resourceSystem: { snapshot: () => ({}) },
+    });
+
+    assert.ok(frame.entry);
+    const entry = frame.entry;
+    assert.equal(entry.entryInterfaceSeconds, entryInterfaceSeconds);
+    assert.equal(entry.entryInterfaceGet, formatGET(entryInterfaceSeconds));
+
+    assert.ok(entry.corridor);
+    assert.equal(entry.corridor.targetDegrees, -6.5);
+    assert.equal(entry.corridor.toleranceDegrees, 0.35);
+    assert.equal(entry.corridor.currentDegrees, -6.51);
+    assert.equal(entry.corridor.downrangeErrorKm, 3);
+    assert.equal(entry.corridor.crossrangeErrorKm, 1);
+
+    assert.ok(entry.blackout);
+    assert.equal(entry.blackout.status, 'active');
+    assert.equal(entry.blackout.startsAtSeconds, parseGET('195:16:24'));
+    assert.equal(entry.blackout.startsAtGet, '195:16:24');
+    assert.equal(entry.blackout.endsAtSeconds, blackoutEndSeconds);
+    assert.equal(entry.blackout.endsAtGet, '195:19:54');
+    assert.equal(entry.blackout.remainingSeconds, blackoutEndSeconds - currentGetSeconds);
+
+    assert.ok(entry.ems);
+    assert.equal(entry.ems.velocityFtPerSec, 36000);
+    assert.equal(entry.ems.altitudeFt, 250000);
+    assert.equal(entry.ems.predictedSplashdownSeconds, parseGET('195:23:00'));
+    assert.equal(entry.ems.predictedSplashdownGet, '195:23:00');
+
+    assert.ok(entry.gLoad);
+    assert.equal(entry.gLoad.current, 3.6);
+    assert.equal(entry.gLoad.max, 6.7);
+    assert.equal(entry.gLoad.caution, 5.5);
+    assert.equal(entry.gLoad.warning, 6.3);
+
+    assert.ok(Array.isArray(entry.recovery));
+    assert.equal(entry.recovery.length, 2);
+    const [drogue, hatch] = entry.recovery;
+    assert.equal(drogue.id, 'DROGUE_DEPLOY');
+    assert.equal(drogue.status, 'pending');
+    assert.equal(drogue.get, '195:21:10');
+    assert.equal(drogue.getSeconds, parseGET('195:21:10'));
+    assert.equal(hatch.id, 'HATCH_OPEN');
+    assert.equal(hatch.status, 'pending');
+    assert.equal(hatch.get, '195:24:30');
+    assert.equal(hatch.getSeconds, parseGET('195:24:30'));
+  });
+
   test('flags low periapsis without duplicating alerts', () => {
     function buildFrame(periapsisAltitudeMeters) {
       const builder = new UiFrameBuilder();
