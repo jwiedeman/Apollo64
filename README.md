@@ -110,6 +110,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/sim/orbit_propagator.md`](docs/sim/orbit_propagator.md) – Orbit propagator architecture, Δv impulse tracking, and HUD/telemetry integration.
 - [`docs/sim/agc_guidance_integration.md`](docs/sim/agc_guidance_integration.md) – AGC runtime, DSKY command bus, logging hooks, and validation roadmap for deterministic guidance interactions.
 - [`docs/sim/resource_system.md`](docs/sim/resource_system.md) – Resource system responsibilities, consumables budgets, Δv accounting, communications scheduling, and failure integration.
+- [`docs/sim/rcs_controller.md`](docs/sim/rcs_controller.md) – Thruster ingestion, axis selection, propellant accounting, and metrics for reaction-control pulses.
 - [`docs/logging/mission_log_reference.md`](docs/logging/mission_log_reference.md) – Logger and aggregator architecture reference that keeps CLI, HUD, parity harnesses, and exports aligned on mission log structure.
 - [`docs/ui/manual_actions_reference.md`](docs/ui/manual_actions_reference.md) – Runtime contract for enqueuing manual checklist acknowledgements, resource deltas, propellant burns, and DSKY macros from the UI or parity tooling.
 - [`docs/scoring/commander_rating.md`](docs/scoring/commander_rating.md) – Commander rating model, telemetry inputs, and weighting used by the simulation score system.
