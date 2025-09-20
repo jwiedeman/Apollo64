@@ -1,5 +1,7 @@
 import { formatGET, parseGET } from '../utils/time.js';
 
+const METERS_TO_FEET = 3.28084;
+
 const DEFAULT_OPTIONS = {
   upcomingLimit: 3,
   activeChecklistLimit: 2,
@@ -32,6 +34,7 @@ export class UiFrameBuilder {
     this.eventLookup = this.#buildEventLookup(this.options.events);
     this.eventPadMap = this.#buildEventPadMap(this.options.events);
     this.dockingConfig = this.#normalizeDockingConfig(this.options.docking);
+    this.entryConfig = this.#normalizeEntryConfig(this.options.entry);
   }
 
   build(currentGetSeconds, context = {}) {
@@ -107,6 +110,7 @@ export class UiFrameBuilder {
 
     const missionLog = this.#summarizeMissionLog(context.missionLog ?? context.missionLogAggregator);
     const docking = this.#summarizeDocking(currentGetSeconds, context);
+    const entry = this.#summarizeEntry(currentGetSeconds, context, { orbitSummary });
 
     const frame = {
       generatedAtSeconds: currentGetSeconds,
@@ -141,6 +145,10 @@ export class UiFrameBuilder {
 
     if (docking) {
       frame.docking = docking;
+    }
+
+    if (entry) {
+      frame.entry = entry;
     }
 
     this.lastFrame = frame;
@@ -887,6 +895,307 @@ export class UiFrameBuilder {
     return { get, getSeconds };
   }
 
+  #normalizeEntryConfig(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const padIdRaw = raw.padId ?? raw.pad_id;
+    const padId = typeof padIdRaw === 'string' ? padIdRaw.trim() : null;
+
+    const events = {};
+    if (raw.events && typeof raw.events === 'object') {
+      for (const [key, value] of Object.entries(raw.events)) {
+        if (typeof key !== 'string' || typeof value !== 'string') {
+          continue;
+        }
+        const trimmedKey = key.trim();
+        const trimmedValue = value.trim();
+        if (!trimmedKey || !trimmedValue) {
+          continue;
+        }
+        events[trimmedKey] = trimmedValue;
+      }
+    }
+
+    return {
+      padId,
+      events,
+      corridor: this.#normalizeEntryCorridor(raw.corridor, events),
+      blackout: this.#normalizeEntryBlackoutConfig(raw.blackout),
+      gLoad: this.#normalizeEntryGLoad(raw.gLoad ?? raw.g_load, events),
+      ems: this.#normalizeEntryEms(raw.ems),
+      recovery: this.#normalizeEntryRecovery(raw.recoveryTimeline ?? raw.recovery, events),
+    };
+  }
+
+  #normalizeEntryCorridor(raw, events) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const defaultState = this.#normalizeEntryCorridorState(raw.default ?? raw.defaultState ?? null, events);
+    const states = Array.isArray(raw.states)
+      ? raw.states.map((state) => this.#normalizeEntryCorridorState(state, events)).filter(Boolean)
+      : [];
+
+    return {
+      toleranceDegrees: this.#coerceNumber(raw.toleranceDegrees ?? raw.tolerance_degrees),
+      targetDegrees: this.#coerceNumber(raw.targetDegrees ?? raw.target_degrees),
+      defaultState,
+      states,
+    };
+  }
+
+  #normalizeEntryCorridorState(raw, events) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const { eventKey, eventId } = this.#normalizeEntryEventReference(raw, events);
+
+    return {
+      eventKey,
+      eventId,
+      requiredStatus: typeof raw.status === 'string' && raw.status.trim().length > 0
+        ? raw.status.trim().toLowerCase()
+        : null,
+      afterSeconds: this.#coerceNumber(raw.afterSeconds ?? raw.after_seconds),
+      afterCompletionSeconds: this.#coerceNumber(
+        raw.afterCompletionSeconds ?? raw.after_completion_seconds,
+      ),
+      afterGetSeconds: this.#coerceSeconds(
+        raw.afterGetSeconds ?? raw.after_get_seconds ?? raw.afterGet ?? raw.after_get,
+      ),
+      angleOffsetDeg: this.#coerceNumber(
+        raw.angleOffsetDeg
+          ?? raw.angle_offset_deg
+          ?? raw.offsetDegrees
+          ?? raw.offset_degrees,
+      ),
+      downrangeErrorKm: this.#coerceNumber(raw.downrangeErrorKm ?? raw.downrange_error_km),
+      crossrangeErrorKm: this.#coerceNumber(raw.crossrangeErrorKm ?? raw.crossrange_error_km),
+    };
+  }
+
+  #normalizeEntryBlackoutConfig(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const startsAtSeconds = this.#coerceSeconds(
+      raw.startsAtSeconds
+        ?? raw.startSeconds
+        ?? raw.start_seconds
+        ?? raw.start
+        ?? raw.startGet
+        ?? raw.start_get
+        ?? raw.startGET
+        ?? raw.startAt
+        ?? raw.start_at,
+    );
+
+    const endsAtSeconds = this.#coerceSeconds(
+      raw.endsAtSeconds
+        ?? raw.endSeconds
+        ?? raw.end_seconds
+        ?? raw.end
+        ?? raw.endGet
+        ?? raw.end_get
+        ?? raw.endGET
+        ?? raw.endsAt
+        ?? raw.end_at,
+    );
+
+    return { startsAtSeconds, endsAtSeconds };
+  }
+
+  #normalizeEntryGLoad(raw, events) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const states = Array.isArray(raw.states)
+      ? raw.states.map((state) => this.#normalizeEntryGLoadState(state, events)).filter(Boolean)
+      : [];
+    let defaultState = this.#normalizeEntryGLoadState(raw.default ?? raw.defaultState ?? null, events);
+    if (!defaultState && states.length > 0) {
+      defaultState = states.find((state) => !state.eventKey && !state.eventId) ?? states[0];
+    }
+
+    return {
+      caution: this.#coerceNumber(raw.caution),
+      warning: this.#coerceNumber(raw.warning),
+      max: this.#coerceNumber(raw.max),
+      states,
+      defaultState,
+    };
+  }
+
+  #normalizeEntryGLoadState(raw, events) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const { eventKey, eventId } = this.#normalizeEntryEventReference(raw, events);
+
+    return {
+      eventKey,
+      eventId,
+      requiredStatus: typeof raw.status === 'string' && raw.status.trim().length > 0
+        ? raw.status.trim().toLowerCase()
+        : null,
+      afterSeconds: this.#coerceNumber(raw.afterSeconds ?? raw.after_seconds),
+      afterCompletionSeconds: this.#coerceNumber(
+        raw.afterCompletionSeconds ?? raw.after_completion_seconds,
+      ),
+      afterGetSeconds: this.#coerceSeconds(
+        raw.afterGetSeconds ?? raw.after_get_seconds ?? raw.afterGet ?? raw.after_get,
+      ),
+      value: this.#coerceNumber(raw.value),
+    };
+  }
+
+  #normalizeEntryEms(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    return {
+      targetVelocityFtPerSec: this.#coerceNumber(
+        raw.targetVelocityFtPerSec ?? raw.target_velocity_ft_per_sec,
+      ),
+      targetAltitudeFt: this.#coerceNumber(
+        raw.targetAltitudeFt ?? raw.target_altitude_ft,
+      ),
+      predictedSplashdownSeconds: this.#coerceSeconds(
+        raw.predictedSplashdownSeconds
+          ?? raw.predicted_splashdown_seconds
+          ?? raw.predictedSplashdown
+          ?? raw.predicted_splashdown,
+      ),
+      predictedSplashdownGet: typeof raw.predictedSplashdownGet === 'string'
+        ? raw.predictedSplashdownGet
+        : typeof raw.predicted_splashdown_get === 'string'
+          ? raw.predicted_splashdown_get
+          : null,
+    };
+  }
+
+  #normalizeEntryRecovery(rawList, events) {
+    if (!Array.isArray(rawList)) {
+      return [];
+    }
+
+    const recovery = [];
+    for (const raw of rawList) {
+      if (!raw || typeof raw !== 'object') {
+        continue;
+      }
+      const id = typeof raw.id === 'string' ? raw.id.trim() : null;
+      if (!id) {
+        continue;
+      }
+
+      const getSeconds = this.#coerceSeconds(
+        raw.getSeconds ?? raw.get_seconds ?? raw.get ?? null,
+      );
+      const get = typeof raw.get === 'string' ? raw.get : null;
+      const ackOffset = this.#coerceNumber(raw.ackOffsetSeconds ?? raw.ack_offset_seconds);
+      const completeOffset = this.#coerceNumber(
+        raw.completeOffsetSeconds ?? raw.complete_offset_seconds,
+      );
+
+      const ackRef = this.#normalizeEntryEventReference({
+        event: raw.ackEvent ?? raw.ack_event ?? raw.ackEventKey ?? raw.ack_event_key,
+        eventId: raw.ackEventId ?? raw.ack_event_id,
+      }, events);
+      const completeRef = this.#normalizeEntryEventReference({
+        event: raw.completeEvent ?? raw.complete_event ?? raw.completeEventKey ?? raw.complete_event_key,
+        eventId: raw.completeEventId ?? raw.complete_event_id,
+      }, events);
+
+      recovery.push({
+        id,
+        label: typeof raw.label === 'string' ? raw.label : null,
+        getSeconds: Number.isFinite(getSeconds) ? getSeconds : null,
+        get,
+        ackOffsetSeconds: Number.isFinite(ackOffset) ? ackOffset : 0,
+        completeOffsetSeconds: Number.isFinite(completeOffset)
+          ? completeOffset
+          : Number.isFinite(ackOffset)
+            ? ackOffset
+            : 0,
+        ackEventKey: ackRef.eventKey,
+        ackEventId: ackRef.eventId,
+        completeEventKey: completeRef.eventKey,
+        completeEventId: completeRef.eventId,
+      });
+    }
+
+    return recovery;
+  }
+
+  #normalizeEntryEventReference(raw, events) {
+    if (!raw) {
+      return { eventKey: null, eventId: null };
+    }
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        return { eventKey: null, eventId: null };
+      }
+      if (events && Object.prototype.hasOwnProperty.call(events, trimmed)) {
+        return { eventKey: trimmed, eventId: events[trimmed] ?? null };
+      }
+      return { eventKey: null, eventId: trimmed };
+    }
+    if (typeof raw !== 'object') {
+      return { eventKey: null, eventId: null };
+    }
+
+    let eventKey = null;
+    if (typeof raw.event === 'string' && raw.event.trim().length > 0) {
+      eventKey = raw.event.trim();
+    } else if (typeof raw.eventKey === 'string' && raw.eventKey.trim().length > 0) {
+      eventKey = raw.eventKey.trim();
+    } else if (typeof raw.event_key === 'string' && raw.event_key.trim().length > 0) {
+      eventKey = raw.event_key.trim();
+    }
+
+    let eventId = null;
+    if (typeof raw.eventId === 'string' && raw.eventId.trim().length > 0) {
+      eventId = raw.eventId.trim();
+    } else if (typeof raw.event_id === 'string' && raw.event_id.trim().length > 0) {
+      eventId = raw.event_id.trim();
+    }
+
+    if (eventKey && events && Object.prototype.hasOwnProperty.call(events, eventKey)) {
+      eventId = events[eventKey] ?? eventId;
+    } else if (eventKey && !eventId) {
+      eventId = eventKey;
+      eventKey = this.#resolveEventKeyForId(events, eventId);
+    }
+
+    if (!eventKey && eventId && events) {
+      eventKey = this.#resolveEventKeyForId(events, eventId);
+    }
+
+    return { eventKey: eventKey ?? null, eventId: eventId ?? null };
+  }
+
+  #resolveEventKeyForId(events, eventId) {
+    if (!events || !eventId) {
+      return null;
+    }
+    for (const [key, value] of Object.entries(events)) {
+      if (value === eventId) {
+        return key;
+      }
+    }
+    return null;
+  }
+
   #summarizeChecklists(stats, resolvePad) {
     if (!stats) {
       return null;
@@ -1076,6 +1385,18 @@ export class UiFrameBuilder {
     }
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  #coerceSeconds(value) {
+    const numeric = this.#coerceNumber(value);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+    if (typeof value === 'string') {
+      const parsed = parseGET(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
   }
 
   #roundNumber(value, digits = 1) {
@@ -1296,6 +1617,60 @@ export class UiFrameBuilder {
     return summary;
   }
 
+  #summarizeEntry(currentGetSeconds, context, { orbitSummary } = {}) {
+    if (!this.entryConfig) {
+      return null;
+    }
+
+    const scheduler = context?.scheduler ?? null;
+    const padSummary = this.entryConfig.padId
+      ? this.#summarizePad(this.padMap.get(this.entryConfig.padId) ?? null, this.entryConfig.padId)
+      : null;
+
+    const entryInterfaceSeconds = this.#coerceNumber(
+      padSummary?.parameters?.entryInterface?.getSeconds,
+    );
+    const entryInterfaceGet =
+      padSummary?.parameters?.entryInterface?.get
+      ?? (Number.isFinite(entryInterfaceSeconds)
+        ? formatGET(Math.round(entryInterfaceSeconds))
+        : null);
+
+    const statusBundle = this.#buildEntryStatusBundle(this.entryConfig.events, scheduler);
+
+    const corridor = this.#computeEntryCorridor(currentGetSeconds, statusBundle, padSummary);
+    const blackout = this.#computeEntryBlackout(currentGetSeconds, this.entryConfig.blackout);
+    const ems = this.#computeEntryEms(
+      orbitSummary ?? context?.orbitSummary ?? null,
+      this.entryConfig.ems,
+    );
+    const gLoad = this.#computeEntryGLoad(currentGetSeconds, statusBundle);
+    const recovery = this.#computeEntryRecovery(currentGetSeconds, statusBundle);
+
+    const entry = {
+      entryInterfaceSeconds: Number.isFinite(entryInterfaceSeconds)
+        ? entryInterfaceSeconds
+        : null,
+      entryInterfaceGet,
+      recovery,
+    };
+
+    if (corridor) {
+      entry.corridor = corridor;
+    }
+    if (blackout) {
+      entry.blackout = blackout;
+    }
+    if (ems) {
+      entry.ems = ems;
+    }
+    if (gLoad) {
+      entry.gLoad = gLoad;
+    }
+
+    return entry;
+  }
+
   #normalizeDockingRcsStatus(rcsStatus) {
     if (!rcsStatus || typeof rcsStatus !== 'object') {
       return null;
@@ -1353,6 +1728,322 @@ export class UiFrameBuilder {
       summary.propellantKgBudget = budget;
     }
     return summary;
+  }
+
+  #buildEntryStatusBundle(events, scheduler) {
+    const byKey = new Map();
+    const byId = new Map();
+    if (!events || typeof events !== 'object') {
+      return { byKey, byId };
+    }
+
+    for (const [key, rawId] of Object.entries(events)) {
+      if (typeof rawId !== 'string' || rawId.trim().length === 0) {
+        continue;
+      }
+      const eventId = rawId.trim();
+      const event = this.#resolveEventById(eventId, scheduler);
+      const status = typeof event?.status === 'string'
+        ? event.status.toLowerCase()
+        : null;
+      const record = {
+        key,
+        eventId,
+        status,
+        activationSeconds: this.#coerceNumber(event?.activationTimeSeconds),
+        completionSeconds: this.#coerceNumber(event?.completionTimeSeconds),
+      };
+      byKey.set(key, record);
+      byId.set(eventId, record);
+    }
+
+    return { byKey, byId };
+  }
+
+  #lookupEntryStatus(statusBundle, eventKey, eventId) {
+    if (!statusBundle) {
+      return null;
+    }
+    if (eventKey && statusBundle.byKey?.has(eventKey)) {
+      return statusBundle.byKey.get(eventKey);
+    }
+    if (eventId && statusBundle.byId?.has(eventId)) {
+      return statusBundle.byId.get(eventId);
+    }
+    return null;
+  }
+
+  #computeEntryCorridor(currentGetSeconds, statusBundle, padSummary) {
+    const config = this.entryConfig?.corridor;
+    if (!config) {
+      return null;
+    }
+
+    const target = this.#coerceNumber(
+      padSummary?.parameters?.flightPathAngleDeg ?? config.targetDegrees,
+    );
+    const tolerance = this.#coerceNumber(config.toleranceDegrees);
+
+    const state = this.#selectEntryState(
+      config.states,
+      config.defaultState,
+      statusBundle,
+      currentGetSeconds,
+    );
+
+    const offset = this.#coerceNumber(state?.angleOffsetDeg);
+    const downrange = this.#coerceNumber(state?.downrangeErrorKm);
+    const crossrange = this.#coerceNumber(state?.crossrangeErrorKm);
+
+    const currentDegrees = Number.isFinite(target)
+      ? Number.isFinite(offset)
+        ? this.#roundNumber(target + offset, 2)
+        : this.#roundNumber(target, 2)
+      : null;
+
+    return {
+      targetDegrees: Number.isFinite(target) ? this.#roundNumber(target, 2) : null,
+      toleranceDegrees: Number.isFinite(tolerance) ? this.#roundNumber(tolerance, 2) : null,
+      currentDegrees,
+      downrangeErrorKm: Number.isFinite(downrange) ? this.#roundNumber(downrange, 1) : null,
+      crossrangeErrorKm: Number.isFinite(crossrange) ? this.#roundNumber(crossrange, 1) : null,
+    };
+  }
+
+  #computeEntryBlackout(currentGetSeconds, config) {
+    if (!config) {
+      return null;
+    }
+
+    const startSeconds = this.#coerceNumber(config.startsAtSeconds);
+    const endSeconds = this.#coerceNumber(config.endsAtSeconds);
+
+    if (!Number.isFinite(startSeconds) && !Number.isFinite(endSeconds)) {
+      return null;
+    }
+
+    let status = null;
+    if (Number.isFinite(startSeconds) && Number.isFinite(endSeconds)) {
+      if (currentGetSeconds < startSeconds) {
+        status = 'pending';
+      } else if (currentGetSeconds <= endSeconds) {
+        status = 'active';
+      } else {
+        status = 'complete';
+      }
+    } else if (Number.isFinite(startSeconds)) {
+      status = currentGetSeconds >= startSeconds ? 'active' : 'pending';
+    }
+
+    let remaining = null;
+    if (Number.isFinite(startSeconds) && Number.isFinite(endSeconds)) {
+      if (currentGetSeconds < startSeconds) {
+        remaining = startSeconds - currentGetSeconds;
+      } else if (currentGetSeconds <= endSeconds) {
+        remaining = endSeconds - currentGetSeconds;
+      } else {
+        remaining = 0;
+      }
+    } else if (Number.isFinite(startSeconds)) {
+      remaining = Math.max(0, startSeconds - currentGetSeconds);
+    }
+
+    return {
+      status,
+      startsAtSeconds: Number.isFinite(startSeconds) ? startSeconds : null,
+      startsAtGet: Number.isFinite(startSeconds) ? formatGET(Math.round(startSeconds)) : null,
+      endsAtSeconds: Number.isFinite(endSeconds) ? endSeconds : null,
+      endsAtGet: Number.isFinite(endSeconds) ? formatGET(Math.round(endSeconds)) : null,
+      remainingSeconds: Number.isFinite(remaining) ? Math.max(0, this.#roundNumber(remaining, 1)) : null,
+    };
+  }
+
+  #computeEntryEms(orbitSummary, config = {}) {
+    const summary = orbitSummary && typeof orbitSummary === 'object' ? orbitSummary : null;
+    let velocityFt = null;
+    if (summary?.velocity) {
+      const speed = this.#coerceNumber(summary.velocity.speed);
+      if (Number.isFinite(speed)) {
+        velocityFt = this.#roundNumber(speed * METERS_TO_FEET, 0);
+      }
+    }
+    if (velocityFt == null) {
+      const targetVelocity = this.#coerceNumber(config.targetVelocityFtPerSec);
+      if (Number.isFinite(targetVelocity)) {
+        velocityFt = this.#roundNumber(targetVelocity, 0);
+      }
+    }
+
+    let altitudeFt = null;
+    if (summary?.position) {
+      const altitude = this.#coerceNumber(summary.position.altitude);
+      if (Number.isFinite(altitude)) {
+        altitudeFt = this.#roundNumber(altitude * METERS_TO_FEET, 0);
+      }
+    }
+    if (altitudeFt == null) {
+      const targetAltitude = this.#coerceNumber(config.targetAltitudeFt);
+      if (Number.isFinite(targetAltitude)) {
+        altitudeFt = this.#roundNumber(targetAltitude, 0);
+      }
+    }
+
+    const predictedSeconds = this.#coerceNumber(config.predictedSplashdownSeconds);
+    const predictedGet = config.predictedSplashdownGet
+      ?? (Number.isFinite(predictedSeconds) ? formatGET(Math.round(predictedSeconds)) : null);
+
+    if (velocityFt == null && altitudeFt == null && predictedSeconds == null && !predictedGet) {
+      return null;
+    }
+
+    return {
+      velocityFtPerSec: velocityFt,
+      altitudeFt,
+      predictedSplashdownSeconds: Number.isFinite(predictedSeconds) ? predictedSeconds : null,
+      predictedSplashdownGet: predictedGet,
+    };
+  }
+
+  #computeEntryGLoad(currentGetSeconds, statusBundle) {
+    const config = this.entryConfig?.gLoad;
+    if (!config) {
+      return null;
+    }
+
+    const state = this.#selectEntryState(
+      config.states,
+      config.defaultState,
+      statusBundle,
+      currentGetSeconds,
+    );
+    const currentValue = this.#coerceNumber(state?.value);
+
+    return {
+      current: Number.isFinite(currentValue) ? this.#roundNumber(currentValue, 2) : null,
+      max: Number.isFinite(config.max) ? this.#roundNumber(config.max, 1) : null,
+      caution: Number.isFinite(config.caution) ? this.#roundNumber(config.caution, 1) : null,
+      warning: Number.isFinite(config.warning) ? this.#roundNumber(config.warning, 1) : null,
+    };
+  }
+
+  #computeEntryRecovery(currentGetSeconds, statusBundle) {
+    const entries = Array.isArray(this.entryConfig?.recovery)
+      ? this.entryConfig.recovery
+      : [];
+    if (entries.length === 0) {
+      return [];
+    }
+
+    const results = [];
+    for (const entry of entries) {
+      if (!entry || !entry.id) {
+        continue;
+      }
+
+      const getSeconds = this.#coerceNumber(entry.getSeconds);
+      const getLabel = entry.get
+        ?? (Number.isFinite(getSeconds) ? formatGET(Math.round(getSeconds)) : null);
+
+      let status = 'pending';
+      const completionRecord = this.#lookupEntryStatus(
+        statusBundle,
+        entry.completeEventKey,
+        entry.completeEventId,
+      );
+      if (completionRecord?.status === 'complete') {
+        status = 'complete';
+      } else {
+        const completeThreshold = Number.isFinite(getSeconds)
+          && Number.isFinite(entry.completeOffsetSeconds)
+          ? getSeconds + entry.completeOffsetSeconds
+          : null;
+        if (completeThreshold != null && currentGetSeconds >= completeThreshold) {
+          status = 'complete';
+        } else {
+          let acked = false;
+          const ackRecord = this.#lookupEntryStatus(
+            statusBundle,
+            entry.ackEventKey,
+            entry.ackEventId,
+          );
+          if (ackRecord) {
+            if (ackRecord.status === 'active' || ackRecord.status === 'complete') {
+              acked = true;
+            }
+          } else if (Number.isFinite(getSeconds)) {
+            const ackThreshold = getSeconds + (entry.ackOffsetSeconds ?? 0);
+            acked = currentGetSeconds >= ackThreshold;
+          }
+          status = acked ? 'acknowledged' : 'pending';
+        }
+      }
+
+      results.push({
+        id: entry.id,
+        label: entry.label ?? null,
+        getSeconds: Number.isFinite(getSeconds) ? getSeconds : null,
+        get: getLabel,
+        status,
+      });
+    }
+
+    return results;
+  }
+
+  #selectEntryState(states, defaultState, statusBundle, currentGetSeconds) {
+    let selected = defaultState ?? null;
+    if (!Array.isArray(states)) {
+      return selected;
+    }
+
+    for (const state of states) {
+      if (this.#entryConditionSatisfied(state, statusBundle, currentGetSeconds)) {
+        selected = state;
+      }
+    }
+
+    return selected;
+  }
+
+  #entryConditionSatisfied(state, statusBundle, currentGetSeconds) {
+    if (!state) {
+      return false;
+    }
+
+    const record = this.#lookupEntryStatus(statusBundle, state.eventKey, state.eventId);
+
+    if (!state.eventKey && !state.eventId && !state.requiredStatus && state.afterSeconds == null
+      && state.afterCompletionSeconds == null && state.afterGetSeconds == null) {
+      return true;
+    }
+
+    if (state.requiredStatus) {
+      if (!record || record.status !== state.requiredStatus) {
+        return false;
+      }
+    } else if ((state.eventKey || state.eventId) && !record) {
+      return false;
+    }
+
+    if (Number.isFinite(state.afterSeconds)) {
+      const base = record?.activationSeconds;
+      if (!Number.isFinite(base) || currentGetSeconds < base + state.afterSeconds) {
+        return false;
+      }
+    }
+
+    if (Number.isFinite(state.afterCompletionSeconds)) {
+      const base = record?.completionSeconds ?? record?.activationSeconds;
+      if (!Number.isFinite(base) || currentGetSeconds < base + state.afterCompletionSeconds) {
+        return false;
+      }
+    }
+
+    if (Number.isFinite(state.afterGetSeconds) && currentGetSeconds < state.afterGetSeconds) {
+      return false;
+    }
+
+    return true;
   }
 
   #selectActiveGateId(gates) {

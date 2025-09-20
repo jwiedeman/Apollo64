@@ -16,6 +16,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'communications_trends.json')),
     readFile(path.resolve(dataDir, 'audio_cues.json')),
     readOptionalFile(path.resolve(uiDir, 'docking_gates.json')),
+    readOptionalFile(path.resolve(uiDir, 'entry_overlay.json')),
   ]);
 
   const [
@@ -29,6 +30,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     communicationsContent,
     audioCueContent,
     dockingContent,
+    entryOverlayContent,
   ] = files;
 
   const autopilotRecords = parseCsv(autopilotsContent);
@@ -80,6 +82,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const communications = parseCommunicationsTrends(communicationsContent, logger);
   const audioCues = parseAudioCues(audioCueContent, logger);
   const docking = parseDockingGates(dockingContent, logger);
+  const entryOverlay = parseEntryOverlay(entryOverlayContent, logger);
 
   const thrusterCraftCount = Array.isArray(thrusters?.craft) ? thrusters.craft.length : 0;
   const thrusterCount = Array.isArray(thrusters?.craft)
@@ -134,6 +137,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     communications,
     audioCues,
     docking,
+    entryOverlay,
   };
 }
 
@@ -202,6 +206,28 @@ function parseDockingGates(content, logger) {
       logSource: 'sim',
       logCategory: 'system',
       logSeverity: 'warning',
+      error: error.message,
+    });
+    return null;
+  }
+}
+
+function parseEntryOverlay(content, logger) {
+  if (!content) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    logger?.log(0, 'Failed to parse entry overlay dataset', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'failure',
       error: error.message,
     });
     return null;

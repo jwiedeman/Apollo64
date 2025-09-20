@@ -48,6 +48,7 @@ async function main() {
   await validateThrusters(context);
   await validateAudioCues(context);
   await validateDockingGates({ context, eventMap, checklistMap });
+  await validateEntryOverlay({ context, eventMap, padMap });
   await validateUiDefinitions({ context, checklistMap });
 
   printSummary(context);
@@ -1223,6 +1224,568 @@ async function validateDockingGates({ context, eventMap, checklistMap }) {
 
   context.stats.dockingGates = gateCount;
   context.refs.dockingGateIds = gateIds;
+}
+
+async function validateEntryOverlay({ context, eventMap, padMap }) {
+  const data = await readUiJsonFile('entry_overlay.json', context);
+  if (!data) {
+    context.stats.entryOverlay = 0;
+    return;
+  }
+
+  const label = 'docs/ui/entry_overlay.json';
+  context.stats.entryOverlay = 1;
+
+  if (data.version != null && toFiniteNumber(data.version) == null) {
+    addWarning(context, `${label} version should be numeric when present`);
+  }
+
+  const padId = normalizeString(data.padId ?? data.pad_id);
+  if (!padId) {
+    addError(context, `${label} is missing padId`);
+  } else if (padMap && !padMap.has(padId)) {
+    addError(context, `${label} references unknown padId ${padId}`);
+  }
+
+  const eventKeyMap = new Map();
+  if (data.events == null) {
+    addError(context, `${label} is missing events mapping`);
+  } else if (typeof data.events !== 'object' || Array.isArray(data.events)) {
+    addError(context, `${label}.events should be an object`);
+  } else {
+    for (const [rawKey, rawValue] of Object.entries(data.events)) {
+      const key = normalizeString(rawKey);
+      if (!key) {
+        addWarning(context, `${label}.events contains an empty key`);
+        continue;
+      }
+      if (eventKeyMap.has(key)) {
+        addWarning(context, `${label}.events defines duplicate key ${key}`);
+        continue;
+      }
+      const eventId = normalizeString(rawValue);
+      if (!eventId) {
+        addError(context, `${label}.events.${rawKey} is missing an event id`);
+        continue;
+      }
+      eventKeyMap.set(key, eventId);
+      trackReference(context, 'entryEventIds', eventId);
+      if (eventMap && !eventMap.has(eventId)) {
+        addError(context, `${label}.events.${key} references unknown event ${eventId}`);
+      }
+    }
+    if (eventKeyMap.size === 0) {
+      addWarning(context, `${label}.events defines no event references`);
+    }
+  }
+
+  context.stats.entryOverlayEvents = eventKeyMap.size;
+
+  let corridorStateCount = 0;
+  if (data.corridor == null) {
+    addWarning(context, `${label} is missing corridor configuration`);
+  } else if (typeof data.corridor !== 'object' || Array.isArray(data.corridor)) {
+    addError(context, `${label}.corridor should be an object`);
+  } else {
+    const toleranceRaw =
+      data.corridor.toleranceDegrees ?? data.corridor.tolerance_degrees ?? null;
+    if (toleranceRaw == null) {
+      addWarning(context, `${label}.corridor is missing toleranceDegrees`);
+    } else if (toFiniteNumber(toleranceRaw) == null) {
+      addWarning(context, `${label}.corridor.toleranceDegrees should be numeric`);
+    }
+
+    const targetRaw = data.corridor.targetDegrees ?? data.corridor.target_degrees ?? null;
+    if (targetRaw != null && toFiniteNumber(targetRaw) == null) {
+      addWarning(context, `${label}.corridor.targetDegrees should be numeric when present`);
+    }
+
+    if (data.corridor.default != null || data.corridor.defaultState != null) {
+      validateEntryCorridorState(
+        data.corridor.default ?? data.corridor.defaultState,
+        `${label}.corridor.default`,
+        { context, eventKeyMap, eventMap },
+      );
+    }
+
+    if (data.corridor.states != null && !Array.isArray(data.corridor.states)) {
+      addWarning(context, `${label}.corridor.states should be an array`);
+    } else if (Array.isArray(data.corridor.states)) {
+      corridorStateCount = data.corridor.states.length;
+      data.corridor.states.forEach((state, index) => {
+        validateEntryCorridorState(
+          state,
+          `${label}.corridor.states[${index}]`,
+          { context, eventKeyMap, eventMap },
+        );
+      });
+    }
+  }
+  context.stats.entryCorridorStates = corridorStateCount;
+
+  if (data.blackout == null) {
+    addWarning(context, `${label} is missing blackout configuration`);
+  } else if (typeof data.blackout !== 'object' || Array.isArray(data.blackout)) {
+    addWarning(context, `${label}.blackout should be an object when present`);
+  } else {
+    const startField = getRawFieldValue(data.blackout, [
+      'startsAtSeconds',
+      'startSeconds',
+      'start_seconds',
+      'start',
+      'startGet',
+      'start_get',
+      'startGET',
+      'startAt',
+      'start_at',
+    ]);
+    if (!startField) {
+      addWarning(context, `${label}.blackout is missing a start time`);
+    } else if (parseSecondsOrGet(startField.value) == null) {
+      addWarning(
+        context,
+        `${label}.blackout.${startField.key} should be numeric seconds or GET`,
+      );
+    }
+
+    const endField = getRawFieldValue(data.blackout, [
+      'endsAtSeconds',
+      'endSeconds',
+      'end_seconds',
+      'end',
+      'endGet',
+      'end_get',
+      'endGET',
+      'endsAt',
+      'end_at',
+    ]);
+    if (!endField) {
+      addWarning(context, `${label}.blackout is missing an end time`);
+    } else if (parseSecondsOrGet(endField.value) == null) {
+      addWarning(
+        context,
+        `${label}.blackout.${endField.key} should be numeric seconds or GET`,
+      );
+    }
+  }
+
+  const gLoadRaw = data.gLoad ?? data.g_load ?? null;
+  let gLoadStates = 0;
+  if (gLoadRaw == null) {
+    addWarning(context, `${label} is missing gLoad configuration`);
+  } else if (typeof gLoadRaw !== 'object' || Array.isArray(gLoadRaw)) {
+    addWarning(context, `${label}.gLoad should be an object`);
+  } else {
+    if (gLoadRaw.caution != null && toFiniteNumber(gLoadRaw.caution) == null) {
+      addWarning(context, `${label}.gLoad.caution should be numeric when present`);
+    }
+    if (gLoadRaw.warning != null && toFiniteNumber(gLoadRaw.warning) == null) {
+      addWarning(context, `${label}.gLoad.warning should be numeric when present`);
+    }
+    if (gLoadRaw.max == null) {
+      addWarning(context, `${label}.gLoad is missing max`);
+    } else if (toFiniteNumber(gLoadRaw.max) == null) {
+      addWarning(context, `${label}.gLoad.max should be numeric`);
+    }
+
+    if (gLoadRaw.default != null || gLoadRaw.defaultState != null) {
+      validateEntryGLoadState(
+        gLoadRaw.default ?? gLoadRaw.defaultState,
+        `${label}.gLoad.default`,
+        { context, eventKeyMap, eventMap },
+      );
+    }
+
+    if (gLoadRaw.states != null && !Array.isArray(gLoadRaw.states)) {
+      addWarning(context, `${label}.gLoad.states should be an array`);
+    } else if (Array.isArray(gLoadRaw.states)) {
+      gLoadStates = gLoadRaw.states.length;
+      gLoadRaw.states.forEach((state, index) => {
+        validateEntryGLoadState(
+          state,
+          `${label}.gLoad.states[${index}]`,
+          { context, eventKeyMap, eventMap },
+        );
+      });
+    }
+  }
+  context.stats.entryGLoadStates = gLoadStates;
+
+  if (data.ems != null) {
+    if (typeof data.ems !== 'object' || Array.isArray(data.ems)) {
+      addWarning(context, `${label}.ems should be an object when present`);
+    } else {
+      const velocityRaw =
+        data.ems.targetVelocityFtPerSec ?? data.ems.target_velocity_ft_per_sec ?? null;
+      if (velocityRaw != null && toFiniteNumber(velocityRaw) == null) {
+        addWarning(
+          context,
+          `${label}.ems.targetVelocityFtPerSec should be numeric when present`,
+        );
+      }
+
+      const altitudeRaw = data.ems.targetAltitudeFt ?? data.ems.target_altitude_ft ?? null;
+      if (altitudeRaw != null && toFiniteNumber(altitudeRaw) == null) {
+        addWarning(
+          context,
+          `${label}.ems.targetAltitudeFt should be numeric when present`,
+        );
+      }
+
+      const predictedSecondsRaw =
+        data.ems.predictedSplashdownSeconds
+        ?? data.ems.predicted_splashdown_seconds
+        ?? data.ems.predictedSplashdown
+        ?? data.ems.predicted_splashdown
+        ?? null;
+      if (predictedSecondsRaw != null && parseSecondsOrGet(predictedSecondsRaw) == null) {
+        addWarning(
+          context,
+          `${label}.ems.predictedSplashdownSeconds should be numeric seconds or GET when present`,
+        );
+      }
+
+      const predictedGetRaw =
+        data.ems.predictedSplashdownGet ?? data.ems.predicted_splashdown_get ?? null;
+      if (predictedGetRaw != null && parseGET(predictedGetRaw) == null) {
+        addWarning(
+          context,
+          `${label}.ems.predictedSplashdownGet has invalid GET value ${predictedGetRaw}`,
+        );
+      }
+    }
+  }
+
+  let recoveryCount = 0;
+  const recoveryRaw = Array.isArray(data.recoveryTimeline)
+    ? data.recoveryTimeline
+    : Array.isArray(data.recovery)
+      ? data.recovery
+      : null;
+  if (recoveryRaw == null) {
+    addWarning(context, `${label} is missing recoveryTimeline configuration`);
+  } else {
+    const idSet = new Set();
+    recoveryCount = recoveryRaw.length;
+    recoveryRaw.forEach((item, index) => {
+      validateEntryRecoveryItem(item, `${label}.recoveryTimeline[${index}]`, {
+        context,
+        eventKeyMap,
+        eventMap,
+        idSet,
+      });
+    });
+  }
+  context.stats.entryRecoveryMilestones = recoveryCount;
+}
+
+function validateEntryCorridorState(state, label, { context, eventKeyMap, eventMap }) {
+  if (!state || typeof state !== 'object') {
+    addWarning(context, `${label} should be an object`);
+    return;
+  }
+
+  validateEntryCondition(state, label, { context, eventKeyMap, eventMap });
+
+  const offsetValue =
+    state.angleOffsetDeg
+    ?? state.angle_offset_deg
+    ?? state.offsetDegrees
+    ?? state.offset_degrees
+    ?? null;
+  const offsetKey =
+    state.angleOffsetDeg != null
+      ? 'angleOffsetDeg'
+      : state.angle_offset_deg != null
+        ? 'angle_offset_deg'
+        : state.offsetDegrees != null
+          ? 'offsetDegrees'
+          : state.offset_degrees != null
+            ? 'offset_degrees'
+            : null;
+  if (offsetKey && toFiniteNumber(offsetValue) == null) {
+    addWarning(context, `${label}.${offsetKey} should be numeric`);
+  }
+
+  const downrangeValue = state.downrangeErrorKm ?? state.downrange_error_km ?? null;
+  const downrangeKey =
+    state.downrangeErrorKm != null ? 'downrangeErrorKm'
+    : state.downrange_error_km != null ? 'downrange_error_km'
+    : null;
+  if (downrangeKey && toFiniteNumber(downrangeValue) == null) {
+    addWarning(context, `${label}.${downrangeKey} should be numeric`);
+  }
+
+  const crossrangeValue = state.crossrangeErrorKm ?? state.crossrange_error_km ?? null;
+  const crossrangeKey =
+    state.crossrangeErrorKm != null ? 'crossrangeErrorKm'
+    : state.crossrange_error_km != null ? 'crossrange_error_km'
+    : null;
+  if (crossrangeKey && toFiniteNumber(crossrangeValue) == null) {
+    addWarning(context, `${label}.${crossrangeKey} should be numeric`);
+  }
+}
+
+function validateEntryGLoadState(state, label, { context, eventKeyMap, eventMap }) {
+  if (!state || typeof state !== 'object') {
+    addWarning(context, `${label} should be an object`);
+    return;
+  }
+
+  validateEntryCondition(state, label, { context, eventKeyMap, eventMap });
+
+  const valueKey = 'value';
+  if (state.value == null) {
+    addWarning(context, `${label} is missing value`);
+  } else if (toFiniteNumber(state.value) == null) {
+    addWarning(context, `${label}.${valueKey} should be numeric`);
+  }
+}
+
+function validateEntryRecoveryItem(item, label, { context, eventKeyMap, eventMap, idSet }) {
+  if (!item || typeof item !== 'object') {
+    addWarning(context, `${label} should be an object`);
+    return;
+  }
+
+  const id = normalizeString(item.id);
+  if (!id) {
+    addError(context, `${label} is missing id`);
+  } else if (idSet.has(id)) {
+    addError(context, `${label} duplicates recovery id ${id}`);
+  } else {
+    idSet.add(id);
+  }
+
+  if (item.label != null && typeof item.label !== 'string') {
+    addWarning(context, `${label}.label should be a string when present`);
+  }
+
+  const getValue = item.getSeconds ?? item.get_seconds ?? item.get ?? null;
+  const getKey =
+    item.getSeconds != null
+      ? 'getSeconds'
+      : item.get_seconds != null
+        ? 'get_seconds'
+        : item.get != null
+          ? 'get'
+          : null;
+  if (!getKey) {
+    addWarning(context, `${label} is missing a GET timestamp`);
+  } else if (parseSecondsOrGet(getValue) == null) {
+    addWarning(context, `${label}.${getKey} should be numeric seconds or GET`);
+  }
+
+  const ackOffset = item.ackOffsetSeconds ?? item.ack_offset_seconds ?? null;
+  const ackKey =
+    item.ackOffsetSeconds != null ? 'ackOffsetSeconds'
+    : item.ack_offset_seconds != null ? 'ack_offset_seconds'
+    : null;
+  const ackOffsetNumber = toFiniteNumber(ackOffset);
+  if (ackKey && ackOffsetNumber == null) {
+    addWarning(context, `${label}.${ackKey} should be numeric seconds`);
+  } else if (ackOffsetNumber != null && ackOffsetNumber < 0) {
+    addWarning(context, `${label}.${ackKey} should be ≥ 0`);
+  }
+
+  const completeOffset = item.completeOffsetSeconds ?? item.complete_offset_seconds ?? null;
+  const completeKey =
+    item.completeOffsetSeconds != null ? 'completeOffsetSeconds'
+    : item.complete_offset_seconds != null ? 'complete_offset_seconds'
+    : null;
+  const completeOffsetNumber = toFiniteNumber(completeOffset);
+  if (completeKey && completeOffsetNumber == null) {
+    addWarning(context, `${label}.${completeKey} should be numeric seconds`);
+  } else if (completeOffsetNumber != null && completeOffsetNumber < 0) {
+    addWarning(context, `${label}.${completeKey} should be ≥ 0`);
+  }
+
+  const ackEventRef =
+    item.ackEvent ?? item.ack_event ?? item.ackEventKey ?? item.ack_event_key ?? null;
+  const ackEventId = item.ackEventId ?? item.ack_event_id ?? null;
+  if (ackEventRef != null || ackEventId != null) {
+    resolveEntryEventReferenceForValidation(
+      { event: ackEventRef, eventId: ackEventId },
+      {
+        label: `${label}.ackEvent`,
+        context,
+        eventKeyMap,
+        eventMap,
+      },
+    );
+  }
+
+  const completeEventRef =
+    item.completeEvent
+    ?? item.complete_event
+    ?? item.completeEventKey
+    ?? item.complete_event_key
+    ?? null;
+  const completeEventId = item.completeEventId ?? item.complete_event_id ?? null;
+  if (completeEventRef != null || completeEventId != null) {
+    resolveEntryEventReferenceForValidation(
+      { event: completeEventRef, eventId: completeEventId },
+      {
+        label: `${label}.completeEvent`,
+        context,
+        eventKeyMap,
+        eventMap,
+      },
+    );
+  }
+}
+
+function validateEntryCondition(state, label, { context, eventKeyMap, eventMap }) {
+  resolveEntryEventReferenceForValidation(state, {
+    label,
+    context,
+    eventKeyMap,
+    eventMap,
+  });
+
+  if (state.status != null && typeof state.status !== 'string') {
+    addWarning(context, `${label}.status should be a string when present`);
+  }
+
+  const afterSeconds = state.afterSeconds ?? state.after_seconds ?? null;
+  const afterSecondsKey =
+    state.afterSeconds != null ? 'afterSeconds'
+    : state.after_seconds != null ? 'after_seconds'
+    : null;
+  if (afterSecondsKey && toFiniteNumber(afterSeconds) == null) {
+    addWarning(context, `${label}.${afterSecondsKey} should be numeric seconds`);
+  }
+
+  const afterCompletion = state.afterCompletionSeconds ?? state.after_completion_seconds ?? null;
+  const afterCompletionKey =
+    state.afterCompletionSeconds != null ? 'afterCompletionSeconds'
+    : state.after_completion_seconds != null ? 'after_completion_seconds'
+    : null;
+  if (afterCompletionKey && toFiniteNumber(afterCompletion) == null) {
+    addWarning(context, `${label}.${afterCompletionKey} should be numeric seconds`);
+  }
+
+  const afterGetValue =
+    state.afterGetSeconds
+    ?? state.after_get_seconds
+    ?? state.afterGet
+    ?? state.after_get
+    ?? null;
+  const afterGetKey =
+    state.afterGetSeconds != null
+      ? 'afterGetSeconds'
+      : state.after_get_seconds != null
+        ? 'after_get_seconds'
+        : state.afterGet != null
+          ? 'afterGet'
+          : state.after_get != null
+            ? 'after_get'
+            : null;
+  if (afterGetKey && parseSecondsOrGet(afterGetValue) == null) {
+    addWarning(context, `${label}.${afterGetKey} should be numeric seconds or GET`);
+  }
+}
+
+function resolveEntryEventReferenceForValidation(
+  reference,
+  { label, context, eventKeyMap, eventMap },
+) {
+  if (!reference) {
+    return { eventKey: null, eventId: null };
+  }
+
+  let eventKey = null;
+  let eventId = null;
+
+  if (typeof reference === 'string') {
+    const trimmed = normalizeString(reference);
+    if (!trimmed) {
+      return { eventKey: null, eventId: null };
+    }
+    if (eventKeyMap.has(trimmed)) {
+      eventKey = trimmed;
+      eventId = eventKeyMap.get(trimmed) ?? null;
+    } else {
+      eventId = trimmed;
+      const resolvedKey = findEventKeyForId(eventKeyMap, eventId);
+      if (resolvedKey) {
+        eventKey = resolvedKey;
+      }
+    }
+  } else if (typeof reference === 'object') {
+    if (reference.event != null && typeof reference.event !== 'string') {
+      addWarning(context, `${label}.event should be a string when present`);
+    }
+    if (reference.eventKey != null && typeof reference.eventKey !== 'string') {
+      addWarning(context, `${label}.eventKey should be a string when present`);
+    }
+    if (reference.event_key != null && typeof reference.event_key !== 'string') {
+      addWarning(context, `${label}.event_key should be a string when present`);
+    }
+    if (reference.eventId != null && typeof reference.eventId !== 'string') {
+      addWarning(context, `${label}.eventId should be a string when present`);
+    }
+    if (reference.event_id != null && typeof reference.event_id !== 'string') {
+      addWarning(context, `${label}.event_id should be a string when present`);
+    }
+
+    const candidateKey =
+      normalizeString(reference.event)
+      || normalizeString(reference.eventKey)
+      || normalizeString(reference.event_key);
+    if (candidateKey) {
+      eventKey = candidateKey;
+    }
+
+    const candidateId =
+      normalizeString(reference.eventId) || normalizeString(reference.event_id);
+    if (candidateId) {
+      eventId = candidateId;
+    }
+
+    if (eventKey && eventKeyMap.has(eventKey)) {
+      if (!eventId) {
+        eventId = eventKeyMap.get(eventKey) ?? null;
+      }
+    } else if (eventKey && !eventId) {
+      eventId = eventKey;
+      const resolvedKey = findEventKeyForId(eventKeyMap, eventId);
+      if (resolvedKey) {
+        eventKey = resolvedKey;
+      }
+    }
+
+    if (!eventKey && eventId) {
+      const resolvedKey = findEventKeyForId(eventKeyMap, eventId);
+      if (resolvedKey) {
+        eventKey = resolvedKey;
+      }
+    }
+  } else {
+    return { eventKey: null, eventId: null };
+  }
+
+  if (eventKey && !eventKeyMap.has(eventKey)) {
+    addWarning(context, `${label} references unknown event key ${eventKey}`);
+  }
+
+  if (eventId && eventMap && !eventMap.has(eventId)) {
+    addError(context, `${label} references unknown event id ${eventId}`);
+  }
+
+  return { eventKey: eventKey ?? null, eventId: eventId ?? null };
+}
+
+function findEventKeyForId(eventKeyMap, eventId) {
+  if (!eventKeyMap || !eventId) {
+    return null;
+  }
+  for (const [key, value] of eventKeyMap.entries()) {
+    if (value === eventId) {
+      return key;
+    }
+  }
+  return null;
 }
 
 async function validateUiDefinitions({ context, checklistMap }) {
@@ -2560,6 +3123,21 @@ function toFiniteNumber(value) {
       return null;
     }
     const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function parseSecondsOrGet(value) {
+  if (value == null) {
+    return null;
+  }
+  const numeric = toFiniteNumber(value);
+  if (numeric != null) {
+    return numeric;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseGET(value);
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;

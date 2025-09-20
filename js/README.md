@@ -15,6 +15,7 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 - Emits periodic text HUD snapshots (`src/hud/textHud.js`) summarizing event status, resource margins, propellant usage, checklist activity, and manual action queues so long running simulations remain legible from the CLI.
 - Exports deterministic `ui_frame` sequences for front-end prototyping through the new CLI in [`src/tools/exportUiFrames.js`](src/tools/exportUiFrames.js).
 - Carries the commander rating snapshot (`frame.score`) through both the CLI HUD and UI frame exporter so mission performance data is available to text output, saved frames, and future UI bindings.
+- Entry overlay config in [`docs/ui/entry_overlay.json`](../docs/ui/entry_overlay.json) now feeds `UiFrameBuilder`'s `frame.entry` payload with corridor, blackout, EMS, and recovery telemetry so downstream HUD experiments can render the TEI → splashdown finale without custom data stitching.
 
 ## Running the Prototype
 ```

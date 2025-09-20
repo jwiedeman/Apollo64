@@ -78,6 +78,7 @@ copy rooted in the timelines captured in `docs/data/events.csv`,
 | Source | Fields Used | Notes |
 | --- | --- | --- |
 | `ui_frame.entry` | Derived corridor data, blackout estimates, recovery schedule | New payload populated by `UiFrameBuilder` when entry events arm. |
+| `docs/ui/entry_overlay.json` | Corridor offsets, blackout window, G-load thresholds, recovery milestones | Authoritative config consumed by the frame builder so Navigation/Systems overlays align with PAD timelines. |
 | `ui_frame.resources.communications` | DSN mode, signal strength, blackout timers | Drives comm banner and Always-On HUD lamp sync. |
 | `trajectoryStream` | Velocity, altitude, downrange, crossrange samples | Feeds EMS tape and corridor error calculations. |
 | `resourceHistory.thermal` | Heat-rate trend proxy | Optional sparklines for Systems view toggles. |
@@ -139,7 +140,9 @@ metrics remain discoverable.
 
 1. `UiFrameBuilder` already attaches docking data; extend it to detect
    entry-related events and synthesise the `frame.entry` payload using
-   PAD metadata plus `trajectory` snapshots.
+   PAD metadata, `trajectory` snapshots, and the structured config in
+   `docs/ui/entry_overlay.json` so corridor offsets and G-load profiles
+   stay deterministic.
 2. Mission log aggregator should emit structured entries (`category:
    'entry'`) for blackout start/end, G-load exceedances, and recovery
    confirmations so the overlay and console dock stay in sync.
