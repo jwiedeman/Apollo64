@@ -1,8 +1,15 @@
 #!/usr/bin/env node
+import fs from 'fs/promises';
 import path from 'path';
 import { DATA_DIR } from './config/paths.js';
+import {
+  getDefaultProfilePath,
+  getProfileDirectory,
+  normalizeProfilePath,
+} from './config/profile.js';
 import { MissionLogger } from './logging/missionLogger.js';
 import { ManualActionRecorder } from './logging/manualActionRecorder.js';
+import { ProgressionService } from './sim/progressionService.js';
 import { createSimulationContext } from './sim/simulationContext.js';
 import { formatGET, parseGET } from './utils/time.js';
 
@@ -19,6 +26,30 @@ async function main() {
   });
 
   const manualActionRecorder = args.recordManualScriptPath ? new ManualActionRecorder() : null;
+
+  let progressionService = null;
+  let profilePath = null;
+  if (args.useProfile) {
+    profilePath = normalizeProfilePath(args.profilePath) ?? getDefaultProfilePath();
+    progressionService = new ProgressionService();
+    if (!args.resetProfile) {
+      try {
+        await progressionService.loadFromFile(profilePath);
+        if (!args.quiet) {
+          console.log(`Loaded progression profile from ${profilePath}`);
+        }
+      } catch (error) {
+        if (error && error.code !== 'ENOENT') {
+          throw error;
+        }
+        if (!args.quiet) {
+          console.log(`Starting new progression profile at ${profilePath}`);
+        }
+      }
+    } else if (!args.quiet) {
+      console.log('Resetting progression profile for this run.');
+    }
+  }
 
   const { simulation } = await createSimulationContext({
     dataDir: DATA_DIR,
@@ -43,7 +74,29 @@ async function main() {
   });
 
   const summary = simulation.run({ untilGetSeconds: untilSeconds });
-  printSummary(summary);
+
+  let progressionResult = null;
+  if (progressionService) {
+    progressionResult = progressionService.evaluateRun(summary, {
+      missionId: args.missionId,
+      isFullMission: args.isFullMission,
+    });
+    if (profilePath && args.saveProfile) {
+      const profileDir = getProfileDirectory(profilePath);
+      if (profileDir) {
+        await fs.mkdir(profileDir, { recursive: true });
+      }
+      await progressionService.saveToFile(profilePath);
+      if (!args.quiet) {
+        console.log(`Progression profile saved to ${profilePath}`);
+      }
+    }
+  }
+
+  printSummary(summary, {
+    progression: progressionResult,
+    missionId: args.missionId,
+  });
 
   if (args.logFile) {
     const logPath = path.resolve(args.logFile);
@@ -76,6 +129,12 @@ function parseArgs(argv) {
     recordManualScriptPath: null,
     showHud: true,
     hudIntervalSeconds: 600,
+    useProfile: true,
+    profilePath: null,
+    resetProfile: false,
+    saveProfile: true,
+    missionId: 'APOLLO11',
+    isFullMission: true,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -170,6 +229,45 @@ function parseArgs(argv) {
         i += 1;
         break;
       }
+      case '--profile': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--profile requires a file path');
+        }
+        args.profilePath = next;
+        args.useProfile = true;
+        i += 1;
+        break;
+      }
+      case '--no-profile':
+      case '--disable-profile':
+        args.useProfile = false;
+        break;
+      case '--reset-profile':
+        args.resetProfile = true;
+        args.useProfile = true;
+        break;
+      case '--no-save-profile':
+        args.saveProfile = false;
+        break;
+      case '--mission-id':
+      case '--mission': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--mission-id requires an identifier');
+        }
+        args.missionId = next;
+        i += 1;
+        break;
+      }
+      case '--full-mission':
+        args.isFullMission = true;
+        break;
+      case '--mission-segment':
+      case '--partial-mission':
+      case '--no-full-mission':
+        args.isFullMission = false;
+        break;
       default:
         break;
     }
@@ -178,7 +276,8 @@ function parseArgs(argv) {
   return args;
 }
 
-function printSummary(summary) {
+function printSummary(summary, options = {}) {
+  const { progression = null, missionId = null } = options;
   console.log('--- Simulation Summary ---');
   console.log(`Ticks executed: ${summary.ticks}`);
   console.log(`Final GET: ${formatGET(summary.finalGetSeconds)}`);
@@ -260,6 +359,31 @@ function printSummary(summary) {
       commsHitRatePct: comms?.hitRatePct,
       manualFraction: manual?.manualFraction,
     });
+  }
+  if (progression) {
+    const missionLabel = missionId ?? 'MISSION';
+    if (progression.mission) {
+      const { completions, bestGrade, bestScore } = progression.mission;
+      console.log('Progression mission stats:', {
+        missionId: missionLabel,
+        completions,
+        bestGrade,
+        bestScore,
+      });
+    }
+    if (Array.isArray(progression.unlocks) && progression.unlocks.length > 0) {
+      console.log('New unlocks:');
+      for (const unlock of progression.unlocks) {
+        const label = unlock.name ? `${unlock.id} — ${unlock.name}` : unlock.id;
+        console.log(`  • ${label}`);
+      }
+    }
+    if (Array.isArray(progression.achievements) && progression.achievements.length > 0) {
+      console.log('New achievements:');
+      for (const achievement of progression.achievements) {
+        console.log(`  • ${achievement.id}`);
+      }
+    }
   }
   if (summary.missionLog) {
     const { totalCount, filteredCount, lastTimestampGet } = summary.missionLog;
