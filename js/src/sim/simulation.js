@@ -16,6 +16,7 @@ export class Simulation {
     orbitPropagator = null,
     missionLogAggregator = null,
     audioBinder = null,
+    audioDispatcher = null,
   }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
@@ -31,6 +32,7 @@ export class Simulation {
     this.tickRate = tickRate;
     this.missionLogAggregator = missionLogAggregator;
     this.audioBinder = audioBinder ?? null;
+    this.audioDispatcher = audioDispatcher ?? null;
   }
 
   run({ untilGetSeconds, onTick = null } = {}) {
@@ -56,6 +58,9 @@ export class Simulation {
           manualQueue: this.manualActions,
         });
       }
+      if (this.audioDispatcher) {
+        this.audioDispatcher.update(currentGet, { binder: this.audioBinder });
+      }
       if (this.hud) {
         this.hud.update(currentGet, {
           scheduler: this.scheduler,
@@ -68,6 +73,7 @@ export class Simulation {
           orbit: this.orbitPropagator,
           missionLog: this.missionLogAggregator,
           audioBinder: this.audioBinder,
+          audioDispatcher: this.audioDispatcher,
         });
       }
       if (typeof onTick === 'function') {
@@ -85,6 +91,7 @@ export class Simulation {
           orbit: this.orbitPropagator,
           missionLog: this.missionLogAggregator,
           audioBinder: this.audioBinder,
+          audioDispatcher: this.audioDispatcher,
         });
         if (shouldContinue === false) {
           break;
@@ -106,7 +113,14 @@ export class Simulation {
     const missionLogSummary = this.missionLogAggregator
       ? this.missionLogAggregator.snapshot({ limit: 10 })
       : null;
-    const audioStats = this.audioBinder ? this.audioBinder.statsSnapshot() : null;
+    const audioSummary = {};
+    if (this.audioBinder) {
+      audioSummary.binder = this.audioBinder.statsSnapshot();
+    }
+    if (this.audioDispatcher) {
+      audioSummary.dispatcher = this.audioDispatcher.statsSnapshot();
+    }
+    const audioStats = Object.keys(audioSummary).length > 0 ? audioSummary : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       logSource: 'sim',

@@ -2,11 +2,15 @@
 
 This blueprint documents how the Apollo 11 simulator will translate the
 structured cue catalog (`docs/data/audio_cues.json`) into deterministic
-playback across the web prototype and the future Nintendo 64 build.
-It extends the taxonomy work in [`audio_cue_taxonomy.md`](audio_cue_taxonomy.md)
-by defining runtime pipelines, integration points with the mission
-scheduler, and tooling expectations so audio feedback remains a first-class
-mission signal rather than an afterthought.
+playback across the web prototype and the future Nintendo 64 build. The
+Phase A runtime now lives in [`js/src/audio/audioDispatcher.js`](../../js/src/audio/audioDispatcher.js),
+which drains the cue binder each simulation tick, enforces per-bus
+concurrency/cooldowns, applies ducking, and logs playback metadata for the
+CLI HUD and future UI layers. This document extends the taxonomy work in
+[`audio_cue_taxonomy.md`](audio_cue_taxonomy.md) by defining the remaining
+pipelines, integration points with the mission scheduler, and tooling
+expectations so audio feedback remains a first-class mission signal rather
+than an afterthought.
 
 ## Goals
 
