@@ -96,6 +96,8 @@ the event graph published in `docs/data/events.csv`.
   transitions, audio cue triggers. |
 | `panels.json` (`LM_RNDZ_PANEL`, `CSM_DOCKING_PANEL`) | Control states for
   docking aids; dependencies feed caution lamps. |
+| `docking_gates.json` | Ordered gate definitions, target closure rates,
+  checklist linkage. | Loaded by the HUD builder so the overlay mirrors the Flight Plan braking gates. |
 
 `UiFrameBuilder` must populate a `frame.docking` block when rendezvous events
 are armed:

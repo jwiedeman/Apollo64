@@ -33,13 +33,21 @@ async function main() {
   const padMap = validatePads(padRecords, context);
 
   const eventRecords = await readCsvFile('events.csv', context);
-  validateEvents(eventRecords, { autopilotMap, checklistMap, failureMap, padMap, context });
+  const eventMap = validateEvents(eventRecords, {
+    autopilotMap,
+    checklistMap,
+    failureMap,
+    padMap,
+    context,
+  });
+  context.refs.events = eventMap;
 
   await validateConsumables(context);
   validateAutopilotPropellantReferences(context);
   await validateCommunicationsTrends(context);
   await validateThrusters(context);
   await validateAudioCues(context);
+  await validateDockingGates({ context, eventMap, checklistMap });
   await validateUiDefinitions({ context, checklistMap });
 
   printSummary(context);
@@ -1050,6 +1058,171 @@ async function validateAudioCues(context) {
   context.refs.audioCategories = new Set(categoryIds.keys());
   context.refs.audioCueIds = new Set(cueIds.keys());
   context.refs.audioCueMap = cueIds;
+}
+
+async function validateDockingGates({ context, eventMap, checklistMap }) {
+  const bundle = await readUiJsonFile('docking_gates.json', context);
+  if (!bundle) {
+    context.stats.dockingGates = 0;
+    return;
+  }
+
+  if (bundle.version != null && toFiniteNumber(bundle.version) == null) {
+    addWarning(context, 'docs/ui/docking_gates.json version should be numeric when present');
+  }
+
+  const eventId = normalizeString(bundle.eventId ?? bundle.event_id);
+  if (!eventId) {
+    addError(context, 'docs/ui/docking_gates.json is missing an eventId');
+  } else if (eventMap && !eventMap.has(eventId)) {
+    addError(context, `docs/ui/docking_gates.json references unknown eventId ${eventId}`);
+  }
+
+  const startRange = toFiniteNumber(
+    bundle.startRangeMeters ?? bundle.start_range_meters ?? bundle.startRange ?? null,
+  );
+  if (
+    bundle.startRangeMeters != null
+    || bundle.start_range_meters != null
+    || bundle.startRange != null
+  ) {
+    if (startRange == null) {
+      addWarning(context, 'docs/ui/docking_gates.json startRangeMeters should be numeric');
+    }
+  }
+
+  const endRange = toFiniteNumber(
+    bundle.endRangeMeters ?? bundle.end_range_meters ?? bundle.endRange ?? null,
+  );
+  if (bundle.endRangeMeters != null || bundle.end_range_meters != null || bundle.endRange != null) {
+    if (endRange == null) {
+      addWarning(context, 'docs/ui/docking_gates.json endRangeMeters should be numeric');
+    }
+  }
+
+  if (bundle.notes != null && typeof bundle.notes !== 'string') {
+    addWarning(context, 'docs/ui/docking_gates.json notes should be a string when present');
+  }
+
+  const gatesArray = Array.isArray(bundle.gates) ? bundle.gates : [];
+  if (!Array.isArray(bundle.gates)) {
+    addError(context, 'docs/ui/docking_gates.json gates should be an array');
+  }
+
+  const gateIds = new Set();
+  let gateCount = 0;
+
+  for (const [index, gate] of gatesArray.entries()) {
+    const label = `docs/ui/docking_gates.json gates[${index}]`;
+    if (!gate || typeof gate !== 'object') {
+      addError(context, `${label} is not an object`);
+      continue;
+    }
+
+    const gateId = normalizeString(gate.id);
+    if (!gateId) {
+      addError(context, `${label} is missing an id`);
+      continue;
+    }
+    if (gateIds.has(gateId)) {
+      addError(context, `${label} duplicates gate id ${gateId}`);
+      continue;
+    }
+    gateIds.add(gateId);
+    gateCount += 1;
+
+    if (gate.label != null && typeof gate.label !== 'string') {
+      addWarning(context, `${label}.label should be a string when present`);
+    }
+
+    const rangeMeters = toFiniteNumber(gate.rangeMeters ?? gate.range_meters ?? gate.range);
+    if (
+      gate.rangeMeters != null
+      || gate.range_meters != null
+      || gate.range != null
+    ) {
+      if (rangeMeters == null) {
+        addWarning(context, `${label}.rangeMeters should be numeric`);
+      }
+    } else {
+      addWarning(context, `${label} is missing rangeMeters`);
+    }
+
+    const targetRate = toFiniteNumber(
+      gate.targetRateMps ?? gate.target_rate_mps ?? gate.targetRate ?? gate.target_rate,
+    );
+    if (targetRate == null) {
+      addWarning(context, `${label}.targetRateMps should be numeric`);
+    }
+
+    if (gate.tolerance != null && typeof gate.tolerance !== 'object') {
+      addWarning(context, `${label}.tolerance should be an object when present`);
+    } else if (gate.tolerance) {
+      const plus = toFiniteNumber(gate.tolerance.plus ?? gate.tolerance.max);
+      const minus = toFiniteNumber(gate.tolerance.minus ?? gate.tolerance.min);
+      if (gate.tolerance.plus != null && plus == null) {
+        addWarning(context, `${label}.tolerance.plus should be numeric`);
+      }
+      if (gate.tolerance.minus != null && minus == null) {
+        addWarning(context, `${label}.tolerance.minus should be numeric`);
+      }
+    }
+
+    const activation = toFiniteNumber(
+      gate.activationProgress ?? gate.activation_progress ?? null,
+    );
+    if (activation != null && (activation < 0 || activation > 1)) {
+      addWarning(context, `${label}.activationProgress should be between 0 and 1`);
+    }
+
+    const completion = toFiniteNumber(
+      gate.completionProgress ?? gate.completion_progress ?? null,
+    );
+    if (completion != null) {
+      if (completion < 0 || completion > 1) {
+        addWarning(context, `${label}.completionProgress should be between 0 and 1`);
+      }
+      if (activation != null && completion < activation) {
+        addWarning(context, `${label}.completionProgress should be >= activationProgress`);
+      }
+    }
+
+    const checklistId = normalizeString(gate.checklistId ?? gate.checklist_id);
+    if (checklistId && checklistMap && !checklistMap.has(checklistId)) {
+      addError(context, `${label} references unknown checklistId ${checklistId}`);
+    }
+
+    if (gate.notes != null && typeof gate.notes !== 'string') {
+      addWarning(context, `${label}.notes should be a string when present`);
+    }
+
+    if (gate.sources != null && !Array.isArray(gate.sources)) {
+      addWarning(context, `${label}.sources should be an array when present`);
+    } else if (Array.isArray(gate.sources)) {
+      for (const [sourceIndex, source] of gate.sources.entries()) {
+        if (typeof source !== 'string' || source.trim().length === 0) {
+          addWarning(context, `${label}.sources[${sourceIndex}] should be a non-empty string`);
+        }
+      }
+    }
+
+    if (gate.deadlineGet != null) {
+      if (typeof gate.deadlineGet !== 'string') {
+        addWarning(context, `${label}.deadlineGet should be a string when present`);
+      } else if (parseGET(gate.deadlineGet) == null) {
+        addError(context, `${label}.deadlineGet has invalid GET value ${gate.deadlineGet}`);
+      }
+    }
+
+    if (gate.deadlineOffsetSeconds != null) {
+      if (toFiniteNumber(gate.deadlineOffsetSeconds) == null) {
+        addWarning(context, `${label}.deadlineOffsetSeconds should be numeric when present`);
+      }
+    }
+  }
+
+  context.stats.dockingGates = gateCount;
+  context.refs.dockingGateIds = gateIds;
 }
 
 async function validateUiDefinitions({ context, checklistMap }) {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { UiFrameBuilder } from '../src/hud/uiFrameBuilder.js';
 import { EARTH_BODY } from '../src/config/orbit.js';
+import { formatGET, parseGET } from '../src/utils/time.js';
 
 describe('UiFrameBuilder', () => {
   test('summarizes scheduler, resources, autopilot, and checklist state', () => {
@@ -396,6 +397,133 @@ describe('UiFrameBuilder', () => {
       'FAIL_POWER_LOW',
     ]);
     assert.equal(frame.missionLog, null);
+  });
+
+  test('summarizes docking overlay state', () => {
+    const dockingConfig = {
+      version: 1,
+      eventId: 'LM_ASCENT_030',
+      startRangeMeters: 500,
+      endRangeMeters: 0,
+      notes: 'Apollo 11 braking gates',
+      gates: [
+        {
+          id: 'GATE_500M',
+          label: '500 m braking gate',
+          rangeMeters: 500,
+          targetRateMps: -2.4,
+          tolerance: { plus: 0.8, minus: 0.4 },
+          activationProgress: 0.0,
+          completionProgress: 0.3,
+          checklistId: 'FP_7-32_RNDZ_DOCK',
+          sources: ['Apollo 11 Flight Plan p. 7-32'],
+        },
+        {
+          id: 'GATE_150M',
+          label: '150 m braking gate',
+          rangeMeters: 150,
+          targetRateMps: -0.9,
+          tolerance: { plus: 0.3, minus: 0.2 },
+          activationProgress: 0.3,
+          completionProgress: 0.7,
+          checklistId: 'FP_7-32_RNDZ_DOCK',
+          sources: ['Apollo 11 Flight Plan p. 7-32'],
+        },
+        {
+          id: 'GATE_CONTACT',
+          label: 'Contact gate',
+          rangeMeters: 0,
+          targetRateMps: -0.2,
+          tolerance: { plus: 0.05, minus: 0.05 },
+          activationProgress: 0.9,
+          completionProgress: 1.0,
+          checklistId: 'FP_7-32_RNDZ_DOCK',
+          sources: ['Apollo 11 Flight Plan p. 7-32'],
+        },
+      ],
+    };
+
+    const eventList = [
+      {
+        id: 'LM_ASCENT_030',
+        getOpenSeconds: parseGET('125:40:00'),
+        getCloseSeconds: parseGET('128:30:00'),
+      },
+    ];
+
+    const builder = new UiFrameBuilder({ docking: dockingConfig, events: eventList });
+
+    const dockingState = {
+      eventId: 'LM_ASCENT_030',
+      progress: 0.65,
+      rangeMeters: 120.4,
+      closingRateMps: -0.82,
+      lateralRateMps: 0.05,
+      predictedContactVelocityMps: 0.21,
+      gates: [
+        { id: 'GATE_500M', status: 'complete', completedAtSeconds: parseGET('126:35:00') },
+        { id: 'GATE_150M', status: 'active', progress: 0.62 },
+      ],
+      rcs: {
+        quads: [
+          { id: 'LM_QUAD_A', enabled: true, dutyCyclePct: 12.5 },
+          { id: 'LM_QUAD_B', enabled: false, dutyCyclePct: 9.8 },
+        ],
+        propellantKgRemaining: { lm_rcs: 110.2 },
+        propellantKgBudget: { lm_rcs: 138.0 },
+      },
+    };
+
+    const currentGetSeconds = parseGET('126:45:00');
+    const frame = builder.build(currentGetSeconds, {
+      scheduler: {
+        getEventById: (id) => eventList.find((event) => event.id === id) ?? null,
+      },
+      docking: dockingState,
+      resourceSystem: { snapshot: () => ({}) },
+    });
+
+    assert.ok(frame.docking);
+    const docking = frame.docking;
+    assert.equal(docking.eventId, 'LM_ASCENT_030');
+    assert.equal(docking.activeGateId, 'GATE_150M');
+    assert.equal(docking.activeGate, 'GATE_150M');
+    assert.equal(docking.startRangeMeters, 500);
+    assert.equal(docking.endRangeMeters, 0);
+    assert.equal(docking.notes, 'Apollo 11 braking gates');
+    assert.equal(docking.rangeMeters, 120.4);
+    assert.equal(docking.closingRateMps, -0.82);
+    assert.equal(docking.lateralRateMps, 0.05);
+    assert.equal(docking.predictedContactVelocityMps, 0.21);
+    assert.equal(docking.progress, 0.65);
+    assert.ok(docking.rcs);
+    assert.deepEqual(docking.rcs.quads, [
+      { id: 'LM_QUAD_A', enabled: true, dutyCyclePct: 12.5 },
+      { id: 'LM_QUAD_B', enabled: false, dutyCyclePct: 9.8 },
+    ]);
+    assert.deepEqual(docking.rcs.propellantKgRemaining, { lm_rcs: 110.2 });
+    assert.deepEqual(docking.rcs.propellantKgBudget, { lm_rcs: 138.0 });
+
+    assert.equal(docking.gates.length, dockingConfig.gates.length);
+    assert.deepEqual(
+      docking.gates.map((gate) => gate.id),
+      ['GATE_500M', 'GATE_150M', 'GATE_CONTACT'],
+    );
+
+    const gate500 = docking.gates.find((gate) => gate.id === 'GATE_500M');
+    assert.equal(gate500.status, 'complete');
+    assert.equal(gate500.deadlineGet, formatGET(parseGET('126:31:00')));
+    assert.equal(gate500.deadlineSeconds, parseGET('126:31:00'));
+    assert.deepEqual(gate500.sources, ['Apollo 11 Flight Plan p. 7-32']);
+
+    const gate150 = docking.gates.find((gate) => gate.id === 'GATE_150M');
+    assert.equal(gate150.status, 'active');
+    assert.equal(gate150.progress, 0.62);
+    assert.equal(gate150.deadlineSeconds, parseGET('127:39:00'));
+
+    const gateContact = docking.gates.find((gate) => gate.id === 'GATE_CONTACT');
+    assert.equal(gateContact.status, 'pending');
+    assert.equal(gateContact.checklistId, 'FP_7-32_RNDZ_DOCK');
   });
 
   test('flags low periapsis without duplicating alerts', () => {

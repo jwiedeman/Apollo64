@@ -173,6 +173,11 @@ export class TextHud {
       }
     }
 
+    const docking = this.#formatDocking(snapshot);
+    if (docking) {
+      parts.push(docking);
+    }
+
     const trajectory = snapshot.trajectory;
     if (trajectory) {
       const altLabel = this.#formatNumber(trajectory.altitude?.kilometers, 0);
@@ -215,5 +220,104 @@ export class TextHud {
       return 'n/a';
     }
     return value.toFixed(digits);
+  }
+
+  #formatDocking(snapshot) {
+    const docking = snapshot?.docking;
+    if (!docking) {
+      return null;
+    }
+
+    const gates = Array.isArray(docking.gates) ? docking.gates : [];
+    const activeGateId = docking.activeGateId ?? docking.activeGate ?? null;
+    const activeGate = activeGateId
+      ? gates.find((gate) => gate?.id === activeGateId)
+      : null;
+
+    const segments = [];
+    const gateLabel = activeGate?.label ?? activeGate?.id ?? activeGateId;
+    segments.push(gateLabel ? `Dock ${gateLabel}` : 'Dock');
+
+    const rangeLabel = this.#formatNumber(docking.rangeMeters, 0);
+    if (rangeLabel !== 'n/a') {
+      segments.push(`${rangeLabel}m`);
+    }
+
+    const closingLabel = this.#formatNumber(docking.closingRateMps, 2);
+    if (closingLabel !== 'n/a') {
+      segments.push(`${closingLabel}m/s`);
+    }
+
+    const deadlineSeconds = activeGate?.timeRemainingSeconds;
+    const offset = this.#formatOffset(deadlineSeconds);
+    if (offset) {
+      segments.push(offset);
+    }
+
+    if (activeGate?.overdue) {
+      segments.push('late');
+    }
+
+    const rcsLabel = this.#formatDockingRcs(docking.rcs);
+    if (rcsLabel) {
+      segments.push(rcsLabel);
+    }
+
+    return segments.filter(Boolean).join(' ').trim();
+  }
+
+  #formatDockingRcs(rcs) {
+    if (!rcs || typeof rcs !== 'object') {
+      return null;
+    }
+
+    const segments = [];
+
+    const remaining = rcs.propellantKgRemaining ?? null;
+    if (remaining && typeof remaining === 'object') {
+      let total = 0;
+      let count = 0;
+      for (const value of Object.values(remaining)) {
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) {
+          total += numeric;
+          count += 1;
+        }
+      }
+      if (count > 0) {
+        segments.push(`${Math.round(total)}kg`);
+      }
+    }
+
+    const quads = Array.isArray(rcs.quads) ? rcs.quads : [];
+    const disabled = quads
+      .filter((quad) => quad && quad.enabled === false && quad.id)
+      .map((quad) => quad.id);
+    if (disabled.length > 0) {
+      segments.push(`off:${disabled.join(',')}`);
+    }
+
+    const dutyCycles = quads
+      .map((quad) => (Number.isFinite(quad?.dutyCyclePct) ? quad.dutyCyclePct : null))
+      .filter((value) => value != null);
+    if (segments.length === 0 && dutyCycles.length > 0) {
+      const average = dutyCycles.reduce((total, value) => total + value, 0) / dutyCycles.length;
+      segments.push(`${this.#formatNumber(average, 1)}%`);
+    }
+
+    if (segments.length === 0) {
+      return null;
+    }
+
+    return `RCS ${segments.join(' ')}`;
+  }
+
+  #formatOffset(seconds) {
+    if (!Number.isFinite(seconds)) {
+      return null;
+    }
+    const prefix = seconds >= 0 ? 'T-' : 'T+';
+    const absolute = Math.max(0, Math.round(Math.abs(seconds)));
+    return `${prefix}${formatGET(absolute)}`;
   }
 }

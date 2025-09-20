@@ -205,6 +205,47 @@ Workspace packs define preset tile arrangements for the three primary views and 
   - `grid` defines a default column/row template for quick layout resets.
   - `focus` determines whether the HUD remains pinned during full-screen focus and the transition animation timing.
 
+## 4. `docking_gates.json`
+
+The rendezvous overlay consumes [`docking_gates.json`](docking_gates.json) to keep the braking gates, target rates, and checklist references aligned with Apollo 11 procedure data.
+
+```json
+{
+  "eventId": "LM_ASCENT_030",
+  "startRangeMeters": 500,
+  "endRangeMeters": 0,
+  "gates": [
+    {
+      "id": "GATE_500M",
+      "label": "500 m braking gate",
+      "rangeMeters": 500,
+      "targetRateMps": -2.4,
+      "tolerance": { "plus": 0.8, "minus": 0.4 },
+      "activationProgress": 0.0,
+      "completionProgress": 0.3,
+      "checklistId": "FP_7-32_RNDZ_DOCK",
+      "sources": ["Apollo 11 Flight Plan p. 7-32"]
+    }
+  ]
+}
+```
+
+### Field Reference
+
+- `eventId` (string): Scheduler event governing docking (currently `LM_ASCENT_030`).
+- `startRangeMeters` / `endRangeMeters` (number): High-level envelope used for interpolation when detailed telemetry is unavailable.
+- `gates[]` (array): Ordered braking gates.
+  - `id` (string): Stable gate identifier.
+  - `label` (string): Human-friendly label for the overlay rail.
+  - `rangeMeters` (number): Nominal range when the gate activates.
+  - `targetRateMps` (number): Desired closing rate (negative for closing) sourced from Flight Plan guidance.
+  - `tolerance.plus` / `tolerance.minus` (number): Allowed deviation in m/s.
+  - `activationProgress` / `completionProgress` (0–1): Fraction of the event duration when the gate should activate/complete. Defaults to equal spacing if omitted.
+  - `checklistId` (string): Checklist linkage so the overlay can highlight the relevant steps.
+  - `deadlineGet` (string, optional): Absolute GET target for the gate, if one exists.
+  - `deadlineOffsetSeconds` (number, optional): Offset from event activation when the gate expires.
+  - `notes` (string) / `sources[]` (array): Documentation helpers for designers.
+
 ## Integration Workflow
 
 1. **Source of Truth:** The ingestion pipeline converts annotated CSV notebooks into the JSON structures above, preserving provenance and checklist ordering while enriching records with UI-specific metadata.

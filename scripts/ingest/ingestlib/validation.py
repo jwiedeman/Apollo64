@@ -46,6 +46,7 @@ def validate_mission_data(mission_data: MissionData) -> List[ValidationIssue]:
     checklist_index = mission_data.checklist_index()
     autopilot_map = mission_data.autopilot_map()
     failure_ids = {failure.id for failure in mission_data.failures}
+    docking_config = mission_data.docking_gates
 
     # Events
     for event in mission_data.events:
@@ -173,6 +174,90 @@ def validate_mission_data(mission_data: MissionData) -> List[ValidationIssue]:
                     )
                     break
                 previous = numeric
+
+    if docking_config:
+        if docking_config.event_id and docking_config.event_id not in event_map:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="docking_gates",
+                    message="Docking gates reference unknown event",
+                    context={"event_id": docking_config.event_id},
+                )
+            )
+
+        for gate in docking_config.gates:
+            if gate.range_meters is None:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="docking_gates",
+                        message="Docking gate missing rangeMeters",
+                        context={"gate_id": gate.id},
+                    )
+                )
+            if gate.target_rate_mps is None:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="docking_gates",
+                        message="Docking gate missing targetRateMps",
+                        context={"gate_id": gate.id},
+                    )
+                )
+
+            if gate.activation_progress is not None:
+                if gate.activation_progress < 0 or gate.activation_progress > 1:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="docking_gates",
+                            message="Docking gate activationProgress outside 0–1",
+                            context={"gate_id": gate.id, "value": gate.activation_progress},
+                        )
+                    )
+            if gate.completion_progress is not None:
+                if gate.completion_progress < 0 or gate.completion_progress > 1:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="docking_gates",
+                            message="Docking gate completionProgress outside 0–1",
+                            context={"gate_id": gate.id, "value": gate.completion_progress},
+                        )
+                    )
+                if (
+                    gate.activation_progress is not None
+                    and gate.completion_progress < gate.activation_progress
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="docking_gates",
+                            message="Docking gate completionProgress precedes activationProgress",
+                            context={"gate_id": gate.id},
+                        )
+                    )
+
+            if gate.checklist_id and gate.checklist_id not in checklist_index:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="docking_gates",
+                        message="Docking gate references unknown checklist",
+                        context={"gate_id": gate.id, "checklist_id": gate.checklist_id},
+                    )
+                )
+
+            if gate.deadline_get and gate.deadline_seconds is None:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="docking_gates",
+                        message="Docking gate deadlineGet could not be parsed",
+                        context={"gate_id": gate.id, "deadline_get": gate.deadline_get},
+                    )
+                )
 
     # PADs
     for pad in mission_data.pads:

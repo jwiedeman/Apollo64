@@ -71,6 +71,7 @@ export async function createSimulationContext({
     audioCues: missionData.audioCues,
     pads: missionData.pads,
     events: missionData.events,
+    docking: missionData.docking,
     ...(hudOptions ?? {}),
   };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);

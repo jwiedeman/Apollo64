@@ -725,6 +725,129 @@ class UiWorkspacePack:
 
 
 @dataclass
+class DockingGate:
+    """Single braking gate definition from ``docking_gates.json``."""
+
+    id: str
+    label: Optional[str]
+    range_meters: Optional[float]
+    target_rate_mps: Optional[float]
+    tolerance_plus: Optional[float]
+    tolerance_minus: Optional[float]
+    activation_progress: Optional[float]
+    completion_progress: Optional[float]
+    checklist_id: Optional[str]
+    deadline_get: Optional[str]
+    deadline_seconds: Optional[float]
+    deadline_offset_seconds: Optional[float]
+    notes: Optional[str]
+    sources: List[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "DockingGate":
+        tolerance_payload = payload.get("tolerance") or {}
+        tolerance_plus = safe_float(tolerance_payload.get("plus") or tolerance_payload.get("max"))
+        tolerance_minus = safe_float(tolerance_payload.get("minus") or tolerance_payload.get("min"))
+
+        activation = safe_float(
+            payload.get("activationProgress") or payload.get("activation_progress")
+        )
+        completion = safe_float(
+            payload.get("completionProgress") or payload.get("completion_progress")
+        )
+
+        deadline_get = clean_string(payload.get("deadlineGet") or payload.get("deadline_get"))
+        deadline_seconds = safe_float(
+            payload.get("deadlineSeconds") or payload.get("deadline_seconds")
+        )
+        if deadline_seconds is None and deadline_get:
+            deadline_seconds = parse_get(deadline_get)
+
+        deadline_offset = safe_float(
+            payload.get("deadlineOffsetSeconds") or payload.get("deadline_offset_seconds")
+        )
+
+        sources: List[str] = []
+        raw_sources = payload.get("sources")
+        if isinstance(raw_sources, list):
+            for entry in raw_sources:
+                source_value = clean_string(entry)
+                if source_value:
+                    sources.append(source_value)
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            label=clean_string(payload.get("label")),
+            range_meters=safe_float(
+                payload.get("rangeMeters")
+                or payload.get("range_meters")
+                or payload.get("range")
+            ),
+            target_rate_mps=safe_float(
+                payload.get("targetRateMps")
+                or payload.get("target_rate_mps")
+                or payload.get("targetRate")
+                or payload.get("target_rate")
+            ),
+            tolerance_plus=tolerance_plus,
+            tolerance_minus=tolerance_minus,
+            activation_progress=activation,
+            completion_progress=completion,
+            checklist_id=clean_string(payload.get("checklistId") or payload.get("checklist_id")),
+            deadline_get=deadline_get,
+            deadline_seconds=deadline_seconds,
+            deadline_offset_seconds=deadline_offset,
+            notes=clean_string(payload.get("notes")),
+            sources=sources,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class DockingGateConfig:
+    """Normalized docking overlay configuration."""
+
+    version: Optional[int]
+    event_id: Optional[str]
+    start_range_meters: Optional[float]
+    end_range_meters: Optional[float]
+    notes: Optional[str]
+    gates: List[DockingGate]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "DockingGateConfig":
+        gates_payload = payload.get("gates")
+        gates: List[DockingGate] = []
+        if isinstance(gates_payload, list):
+            for entry in gates_payload:
+                if isinstance(entry, dict):
+                    gates.append(DockingGate.from_dict(entry))
+
+        return cls(
+            version=safe_int(payload.get("version")),
+            event_id=clean_string(payload.get("eventId") or payload.get("event_id")),
+            start_range_meters=safe_float(
+                payload.get("startRangeMeters")
+                or payload.get("start_range_meters")
+                or payload.get("startRange")
+            ),
+            end_range_meters=safe_float(
+                payload.get("endRangeMeters")
+                or payload.get("end_range_meters")
+                or payload.get("endRange")
+            ),
+            notes=clean_string(payload.get("notes")),
+            gates=gates,
+            raw=dict(payload),
+        )
+
+    def gate_map(self) -> Dict[str, DockingGate]:
+        return {gate.id: gate for gate in self.gates}
+
+
+@dataclass
 class MissionData:
     """Container aggregating the parsed mission datasets."""
 
@@ -740,6 +863,7 @@ class MissionData:
     ui_checklists: Optional[UiChecklistPack] = None
     ui_panels: Optional[UiPanelPack] = None
     ui_workspaces: Optional[UiWorkspacePack] = None
+    docking_gates: Optional[DockingGateConfig] = None
 
     def event_map(self) -> Dict[str, EventRecord]:
         return {event.id: event for event in self.events}
