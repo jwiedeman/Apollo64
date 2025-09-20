@@ -174,7 +174,7 @@ tags at the source, keeping downstream filtering deterministic.
 | Phase | Scope | Key Tasks |
 | --- | --- | --- |
 | **P1 – Logging Foundation** | Extend CLI & JS prototype | Wire UI actions into mission log & recorder, add accessibility toggles, export augmented `ui_frames`. |
-| **P2 – Browser HUD** | Interactive prototype | Implement logging overlay, caption renderer, input remap UI, high-contrast & reduced-motion toggles, replay viewer. |
+| **P2 – Browser HUD** | Interactive prototype | Implement logging overlay, caption renderer, input remap UI, high-contrast & reduced-motion toggles, replay viewer (see [`replay_viewer.md`](replay_viewer.md)). |
 | **P3 – N64 Port Alignment** | libdragon build | Serialize UI logs/captions into compact ring buffers, map accessibility toggles to Controller Pak saves, and confirm HUD legibility at 320×240. |
 | **P4 – Regression Harness** | Automation | Integrate replay payloads into CI, diff log categories, and compare caption sequences/audio order for deterministic parity. |
 
