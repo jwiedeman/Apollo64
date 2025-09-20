@@ -67,6 +67,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - **Attitude & RCS loops:** PD controllers with pulse quantization and PTC maintenance.
 - **Resources:** Fuel cell power tied to cryogenic states, CO₂ accumulation, and comms windows governing PAD delivery.
 - **Manual input loop:** `ManualActionQueue` mediates checklist acknowledgements, resource deltas, propellant burns, and DSKY macros for parity with automated runs; the UI contract lives in [`docs/ui/manual_actions_reference.md`](ui/manual_actions_reference.md) so future front-ends dispatch deterministic actions against the same schema.
+- **Guidance computer bridge:** The AGC runtime and DSKY command bus defined in [`docs/sim/agc_guidance_integration.md`](sim/agc_guidance_integration.md) synchronize PAD-driven macros, autopilot programs, annunciator alarms, and manual entries so guidance state remains deterministic across CLI runs, the upcoming UI, and the N64 build.
 
 ## 7. N64 Implementation Plan
 - **Tech stack:** libdragon, 320×240 at 30 fps, wireframe rendering, ADPCM audio.

@@ -18,6 +18,7 @@ port.
 - Committed Apollo 11 cue catalog at [`docs/data/audio_cues.json`](../data/audio_cues.json) with buses, categories, metadata, and sources wired into the loader/validator so UI and dispatcher work can reference a single dataset.
 - Logging, replay, and accessibility guidelines covering color use, captioning, and control remapping hooks documented in [`docs/ui/logging_accessibility_guidelines.md`](../ui/logging_accessibility_guidelines.md).
 - Panel hierarchy, DSKY macro catalog, and JSON data schema references in [`docs/ui/`](../ui) to guide panel highlighting, DSKY macros, and tile-mode presets.
+- AGC runtime blueprint in [`docs/sim/agc_guidance_integration.md`](../sim/agc_guidance_integration.md) aligning UI DSKY widgets, annunciator lamps, and AGC logging with the simulator’s command bus so Milestone M3 surfaces guidance state consistently.
 
 ## UI Architecture & Data Flow
 1. **State aggregation:**
