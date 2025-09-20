@@ -212,6 +212,11 @@ export class TextHud {
       parts.push(`Alerts W:${warningCount} C:${cautionCount} F:${failureCount}`);
     }
 
+    const audioSummary = this.#formatAudio(snapshot.audio);
+    if (audioSummary) {
+      parts.push(audioSummary);
+    }
+
     return `HUD → ${parts.filter(Boolean).join(' | ')}`;
   }
 
@@ -220,6 +225,56 @@ export class TextHud {
       return 'n/a';
     }
     return value.toFixed(digits);
+  }
+
+  #formatAudio(audio) {
+    if (!audio || typeof audio !== 'object') {
+      return null;
+    }
+
+    const segments = [];
+    const lastCueId = audio.dispatcher?.lastCueId ?? audio.binder?.lastCueId ?? null;
+    if (lastCueId) {
+      segments.push(`last ${lastCueId}`);
+    }
+
+    const active = this.#formatAudioBusCounts(audio.dispatcher?.activeBuses);
+    if (active) {
+      segments.push(`active ${active}`);
+    }
+
+    const queued = this.#formatAudioBusCounts(audio.dispatcher?.queuedBuses);
+    if (queued) {
+      segments.push(`queue ${queued}`);
+    }
+
+    const pendingCount = audio.binder?.pendingCount ?? (Array.isArray(audio.pending) ? audio.pending.length : null);
+    if (Number.isFinite(pendingCount) && pendingCount > 0) {
+      segments.push(`pending ${pendingCount}`);
+    }
+
+    if (segments.length === 0) {
+      return null;
+    }
+
+    return `Audio ${segments.join(' ')}`.trim();
+  }
+
+  #formatAudioBusCounts(counts) {
+    if (!counts || typeof counts !== 'object') {
+      return null;
+    }
+    const entries = [];
+    for (const [busId, value] of Object.entries(counts)) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        entries.push(`${busId}:${numeric}`);
+      }
+    }
+    if (entries.length === 0) {
+      return null;
+    }
+    return entries.join(',');
   }
 
   #formatDocking(snapshot) {

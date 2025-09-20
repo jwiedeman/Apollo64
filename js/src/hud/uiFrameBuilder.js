@@ -23,6 +23,9 @@ const DEFAULT_OPTIONS = {
   cautionPeriapsisKm: 120,
   warningPeriapsisKm: 85,
   includeResourceHistory: false,
+  audioPendingLimit: 8,
+  audioActiveLimit: 4,
+  audioQueueLimit: 4,
   missionLogLimit: 50,
 };
 
@@ -149,6 +152,17 @@ export class UiFrameBuilder {
 
     if (entry) {
       frame.entry = entry;
+    }
+
+    const audio = this.#summarizeAudio({
+      audio: context.audio ?? null,
+      binder: context.audioBinder ?? null,
+      binderStats: context.audioBinderStats ?? null,
+      dispatcher: context.audioDispatcher ?? null,
+      dispatcherStats: context.audioDispatcherStats ?? null,
+    });
+    if (audio) {
+      frame.audio = audio;
     }
 
     this.lastFrame = frame;
@@ -455,6 +469,244 @@ export class UiFrameBuilder {
       result[key] = numeric;
     }
     return result;
+  }
+
+  #summarizeAudio({ audio = null, binder = null, binderStats = null, dispatcher = null, dispatcherStats = null } = {}) {
+    if (audio && typeof audio === 'object') {
+      try {
+        return JSON.parse(JSON.stringify(audio));
+      } catch (error) {
+        return { ...audio };
+      }
+    }
+
+    const resolvedBinderStats = binderStats
+      ?? (binder && typeof binder.statsSnapshot === 'function' ? binder.statsSnapshot() : null);
+    const resolvedDispatcherStats = dispatcherStats
+      ?? (dispatcher && typeof dispatcher.statsSnapshot === 'function' ? dispatcher.statsSnapshot() : null);
+
+    const summary = {};
+    const binderSummary = this.#summarizeAudioBinder(resolvedBinderStats);
+    const dispatcherSummary = this.#summarizeAudioDispatcher(resolvedDispatcherStats);
+    if (binderSummary) {
+      summary.binder = binderSummary;
+    }
+    if (dispatcherSummary) {
+      summary.dispatcher = dispatcherSummary;
+    }
+
+    const pending = this.#summarizeAudioPending(binder);
+    if (pending) {
+      summary.pending = pending;
+    }
+
+    const active = this.#summarizeAudioActive(dispatcher, dispatcherSummary);
+    if (active) {
+      summary.active = active;
+    }
+
+    const queued = this.#summarizeAudioQueued(dispatcher, dispatcherSummary);
+    if (queued) {
+      summary.queued = queued;
+    }
+
+    return Object.keys(summary).length > 0 ? summary : null;
+  }
+
+  #summarizeAudioBinder(stats) {
+    if (!stats || typeof stats !== 'object') {
+      return null;
+    }
+    const totalTriggers = this.#coerceNumber(stats.totalTriggers);
+    const pendingCount = this.#coerceNumber(stats.pendingCount);
+    const lastSeconds = this.#coerceNumber(stats.lastTriggeredAtSeconds);
+    return {
+      totalTriggers: Number.isFinite(totalTriggers) ? totalTriggers : null,
+      pendingCount: Number.isFinite(pendingCount) ? pendingCount : null,
+      lastCueId: stats.lastCueId ?? null,
+      lastTriggeredAtSeconds: Number.isFinite(lastSeconds) ? lastSeconds : null,
+      lastTriggeredAt: stats.lastTriggeredAt
+        ?? (Number.isFinite(lastSeconds) ? this.#formatGetSeconds(lastSeconds) : null),
+    };
+  }
+
+  #summarizeAudioDispatcher(stats) {
+    if (!stats || typeof stats !== 'object') {
+      return null;
+    }
+    const played = this.#coerceNumber(stats.played);
+    const stopped = this.#coerceNumber(stats.stopped);
+    const suppressed = this.#coerceNumber(stats.suppressed);
+    const dropped = this.#coerceNumber(stats.dropped);
+    const lastSeconds = this.#coerceNumber(stats.lastStartedAtSeconds ?? stats.lastStartedAt);
+    return {
+      played: Number.isFinite(played) ? played : null,
+      stopped: Number.isFinite(stopped) ? stopped : null,
+      suppressed: Number.isFinite(suppressed) ? suppressed : null,
+      dropped: Number.isFinite(dropped) ? dropped : null,
+      lastCueId: stats.lastCueId ?? null,
+      lastStartedAtSeconds: Number.isFinite(lastSeconds) ? lastSeconds : null,
+      lastStartedAt: stats.lastStartedAt
+        ?? (Number.isFinite(lastSeconds) ? this.#formatGetSeconds(lastSeconds) : null),
+      activeBuses: this.#normalizeCountMap(stats.activeBuses),
+      queuedBuses: this.#normalizeCountMap(stats.queuedBuses),
+    };
+  }
+
+  #summarizeAudioPending(binder) {
+    if (!binder || typeof binder.peekPending !== 'function') {
+      return null;
+    }
+    const limit = Math.max(0, Number(this.options.audioPendingLimit) || 0);
+    if (limit === 0) {
+      return null;
+    }
+    const pending = binder.peekPending?.();
+    if (!Array.isArray(pending) || pending.length === 0) {
+      return null;
+    }
+    const selected = pending.slice(-limit);
+    const results = [];
+    for (const entry of selected) {
+      const summarized = this.#summarizeAudioTrigger(entry);
+      if (summarized) {
+        results.push(summarized);
+      }
+    }
+    return results.length > 0 ? results : null;
+  }
+
+  #summarizeAudioActive(dispatcher, dispatcherSummary) {
+    if (!dispatcher || typeof dispatcher.getBusState !== 'function') {
+      return null;
+    }
+    const limit = Math.max(0, Number(this.options.audioActiveLimit) || 0);
+    if (limit === 0) {
+      return null;
+    }
+    const busIds = new Set();
+    const activeBuses = dispatcherSummary?.activeBuses ?? {};
+    for (const id of Object.keys(activeBuses)) {
+      busIds.add(id);
+    }
+    if (busIds.size === 0) {
+      return null;
+    }
+    const collected = [];
+    for (const busId of busIds) {
+      const state = dispatcher.getBusState(busId);
+      if (!state || !Array.isArray(state.active)) {
+        continue;
+      }
+      for (const record of state.active) {
+        const summary = this.#summarizeActivePlayback(busId, record);
+        if (summary) {
+          collected.push(summary);
+        }
+      }
+    }
+    if (collected.length === 0) {
+      return null;
+    }
+    collected.sort((a, b) => {
+      const timeA = Number.isFinite(a.startedAtSeconds) ? a.startedAtSeconds : Number.POSITIVE_INFINITY;
+      const timeB = Number.isFinite(b.startedAtSeconds) ? b.startedAtSeconds : Number.POSITIVE_INFINITY;
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return (a.cueId ?? '').localeCompare(b.cueId ?? '');
+    });
+    return collected.slice(0, limit);
+  }
+
+  #summarizeAudioQueued(dispatcher, dispatcherSummary) {
+    if (!dispatcher || typeof dispatcher.getBusState !== 'function') {
+      return null;
+    }
+    const limit = Math.max(0, Number(this.options.audioQueueLimit) || 0);
+    if (limit === 0) {
+      return null;
+    }
+    const busIds = new Set();
+    const queuedBuses = dispatcherSummary?.queuedBuses ?? {};
+    for (const id of Object.keys(queuedBuses)) {
+      busIds.add(id);
+    }
+    if (busIds.size === 0) {
+      return null;
+    }
+    const collected = [];
+    for (const busId of busIds) {
+      const state = dispatcher.getBusState(busId);
+      if (!state || !Array.isArray(state.queue)) {
+        continue;
+      }
+      for (const entry of state.queue) {
+        const summary = this.#summarizeAudioTrigger({ ...entry, busId });
+        if (summary) {
+          summary.priority = Number.isFinite(entry?.priority) ? Number(entry.priority) : null;
+          collected.push(summary);
+        }
+      }
+    }
+    if (collected.length === 0) {
+      return null;
+    }
+    collected.sort((a, b) => {
+      const priA = Number.isFinite(a.priority) ? a.priority : Number.NEGATIVE_INFINITY;
+      const priB = Number.isFinite(b.priority) ? b.priority : Number.NEGATIVE_INFINITY;
+      if (priA !== priB) {
+        return priB - priA;
+      }
+      const timeA = Number.isFinite(a.triggeredAtSeconds) ? a.triggeredAtSeconds : Number.POSITIVE_INFINITY;
+      const timeB = Number.isFinite(b.triggeredAtSeconds) ? b.triggeredAtSeconds : Number.POSITIVE_INFINITY;
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return (a.cueId ?? '').localeCompare(b.cueId ?? '');
+    });
+    return collected.slice(0, limit);
+  }
+
+  #summarizeAudioTrigger(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    const cueId = entry.cueId ?? entry.cue_id ?? entry.id ?? null;
+    const triggeredSeconds = this.#coerceSeconds(entry.triggeredAtSeconds ?? entry.getSeconds ?? null);
+    const metadata = entry.metadata ? JSON.parse(JSON.stringify(entry.metadata)) : null;
+    return {
+      cueId,
+      severity: entry.severity ?? null,
+      busId: entry.busId ?? entry.requestedBusId ?? null,
+      sourceType: entry.sourceType ?? null,
+      sourceId: entry.sourceId ?? null,
+      categoryId: entry.categoryId ?? null,
+      triggeredAtSeconds: Number.isFinite(triggeredSeconds) ? triggeredSeconds : null,
+      triggeredAt: entry.triggeredAt ?? (Number.isFinite(triggeredSeconds) ? this.#formatGetSeconds(triggeredSeconds) : null),
+      metadata,
+    };
+  }
+
+  #summarizeActivePlayback(busId, record) {
+    if (!record || typeof record !== 'object') {
+      return null;
+    }
+    const triggered = this.#coerceSeconds(
+      record.startedAtSeconds ?? record.trigger?.triggeredAtSeconds ?? record.trigger?.getSeconds ?? null,
+    );
+    const metadata = record.trigger?.metadata ? JSON.parse(JSON.stringify(record.trigger.metadata)) : null;
+    return {
+      busId: busId ?? null,
+      cueId: record.cueId ?? null,
+      categoryId: record.categoryId ?? record.trigger?.categoryId ?? null,
+      severity: record.trigger?.severity ?? null,
+      priority: Number.isFinite(record.priority) ? Number(record.priority) : null,
+      loop: record.loop === true,
+      startedAtSeconds: Number.isFinite(triggered) ? triggered : null,
+      startedAt: Number.isFinite(triggered) ? this.#formatGetSeconds(triggered) : null,
+      metadata,
+    };
   }
 
   #summarizeCommunications(snapshot) {
@@ -1413,6 +1665,14 @@ export class UiFrameBuilder {
     }
     const factor = 10 ** digits;
     return Math.round(value * factor) / factor;
+  }
+
+  #formatGetSeconds(value) {
+    const seconds = this.#coerceNumber(value);
+    if (!Number.isFinite(seconds)) {
+      return null;
+    }
+    return formatGET(Math.max(0, Math.round(seconds)));
   }
 
   #formatOffset(seconds) {
