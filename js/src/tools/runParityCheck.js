@@ -12,10 +12,12 @@ import { formatGET, parseGET } from '../utils/time.js';
 
 const SCORE_IGNORE_PATHS = [
   'manual',
+  'history',
   'rating.manualBonus',
   'rating.commanderScore',
   'rating.grade',
   'rating.breakdown.manual',
+  'rating.delta',
 ];
 
 const LOG_IGNORE_MESSAGES = new Set([
@@ -35,8 +37,12 @@ const LOG_IGNORE_CONTEXT_PATHS = [
   'score.rating.commanderScore',
   'score.rating.grade',
   'score.rating.breakdown.manual',
+  'score.rating.delta',
+  'score.history',
   'missionLog',
 ];
+
+const LOG_IGNORE_CATEGORIES = new Set(['score']);
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -420,6 +426,7 @@ function buildReport({
       manualCompared: logStats.manualCompared,
       ignoreMessages: Array.from(LOG_IGNORE_MESSAGES),
       ignoreContextPaths: [...LOG_IGNORE_CONTEXT_PATHS],
+      ignoreCategories: Array.from(LOG_IGNORE_CATEGORIES),
     },
     parity,
     progression,
@@ -472,6 +479,7 @@ function compareRuns({
     tolerance,
     ignoreMessages: logIgnoreMessages,
     ignoreContextPaths: logIgnoreContextPaths,
+    ignoreCategories: LOG_IGNORE_CATEGORIES,
   });
 
   const passed =
@@ -633,14 +641,21 @@ function diffObjects(autoValue, manualValue, { tolerance = 1e-6, ignorePaths = [
 function diffLogs(
   autoEntries,
   manualEntries,
-  { tolerance = 1e-6, ignoreMessages = [], ignoreContextPaths = [] } = {},
+  {
+    tolerance = 1e-6,
+    ignoreMessages = [],
+    ignoreContextPaths = [],
+    ignoreCategories = [],
+  } = {},
 ) {
   const autoLogs = Array.isArray(autoEntries) ? autoEntries : [];
   const manualLogs = Array.isArray(manualEntries) ? manualEntries : [];
   const ignoreSet = ignoreMessages instanceof Set ? ignoreMessages : new Set(ignoreMessages ?? []);
+  const ignoreCategorySet =
+    ignoreCategories instanceof Set ? ignoreCategories : new Set(ignoreCategories ?? []);
 
-  const filteredAuto = filterLogsForComparison(autoLogs, ignoreSet);
-  const filteredManual = filterLogsForComparison(manualLogs, ignoreSet);
+  const filteredAuto = filterLogsForComparison(autoLogs, ignoreSet, ignoreCategorySet);
+  const filteredManual = filterLogsForComparison(manualLogs, ignoreSet, ignoreCategorySet);
   const diffs = [];
 
   if (filteredAuto.length !== filteredManual.length) {
@@ -715,11 +730,23 @@ function diffLogs(
   };
 }
 
-function filterLogsForComparison(entries, ignoreSet) {
+function filterLogsForComparison(entries, ignoreSet, ignoreCategorySet) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return [];
   }
-  return entries.filter((entry) => entry && !ignoreSet.has(entry.message));
+  return entries.filter((entry) => {
+    if (!entry) {
+      return false;
+    }
+    if (ignoreSet.has(entry.message)) {
+      return false;
+    }
+    const category = entry.context?.logCategory ?? entry.context?.category ?? null;
+    if (category && ignoreCategorySet.has(category)) {
+      return false;
+    }
+    return true;
+  });
 }
 
 function normalizeGetSeconds(entry) {
@@ -769,6 +796,9 @@ function printReport(report, { quiet }) {
     }
     if (Array.isArray(report.logs.ignoreContextPaths) && report.logs.ignoreContextPaths.length > 0) {
       console.log(`  Ignored context fields: ${report.logs.ignoreContextPaths.join(', ')}`);
+    }
+    if (Array.isArray(report.logs.ignoreCategories) && report.logs.ignoreCategories.length > 0) {
+      console.log(`  Ignored log categories: ${report.logs.ignoreCategories.join(', ')}`);
     }
   }
 

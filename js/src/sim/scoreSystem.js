@@ -20,6 +20,9 @@ const DEFAULT_OPTIONS = {
   thermalCriticalSeconds: 3600,
   faultBaseline: 6,
   minTrackingEpsilon: 1e-6,
+  historyLimit: 64,
+  historyStepSeconds: 60,
+  deltaLogThreshold: 0.5,
 };
 
 export class ScoreSystem {
@@ -30,10 +33,18 @@ export class ScoreSystem {
       autopilotRunner = null,
       checklistManager = null,
       manualQueue = null,
+      logger = null,
     } = {},
     options = {},
   ) {
-    const { weights, resourceWeights, ...restOptions } = options ?? {};
+    const {
+      weights,
+      resourceWeights,
+      historyLimit = DEFAULT_OPTIONS.historyLimit,
+      historyStepSeconds = DEFAULT_OPTIONS.historyStepSeconds,
+      deltaLogThreshold = DEFAULT_OPTIONS.deltaLogThreshold,
+      ...restOptions
+    } = options ?? {};
 
     this.options = { ...DEFAULT_OPTIONS, ...restOptions };
     this.weights = this.#normalizeWeightMap(weights ?? DEFAULT_WEIGHTS, DEFAULT_WEIGHTS);
@@ -47,6 +58,15 @@ export class ScoreSystem {
     this.autopilotRunner = autopilotRunner;
     this.checklistManager = checklistManager;
     this.manualQueue = manualQueue;
+    this.logger = logger ?? null;
+
+    this.historyLimit = Math.max(0, Number(historyLimit) || 0);
+    this.historyStepSeconds = Number.isFinite(historyStepSeconds)
+      ? Math.max(0, Number(historyStepSeconds))
+      : DEFAULT_OPTIONS.historyStepSeconds;
+    this.deltaLogThreshold = Number.isFinite(deltaLogThreshold)
+      ? Math.max(0, Math.abs(Number(deltaLogThreshold)))
+      : DEFAULT_OPTIONS.deltaLogThreshold;
 
     this.eventStatus = new Map();
     this.initializedEvents = false;
@@ -65,6 +85,13 @@ export class ScoreSystem {
 
     this.missionDurationSeconds = 0;
     this.lastUpdateGetSeconds = null;
+
+    this.scoreHistory = [];
+    this.lastHistorySampleSeconds = null;
+    this.lastRating = null;
+    this.lastDelta = null;
+    this.cachedSummary = null;
+    this.cachedSummarySeconds = null;
   }
 
   attachManualQueue(manualQueue) {
@@ -122,9 +149,26 @@ export class ScoreSystem {
     this.#ensureInitialized();
     this.#updateResourceMetrics(dtSeconds);
     this.#updateEventStatus();
+    this.#captureScoreTelemetry(currentGetSeconds);
   }
 
   summary() {
+    let baseSummary = null;
+    if (
+      this.cachedSummary
+      && (this.cachedSummarySeconds ?? null) === (this.lastUpdateGetSeconds ?? null)
+    ) {
+      baseSummary = this.cachedSummary;
+    } else {
+      baseSummary = this.#computeBaseSummary();
+      this.cachedSummary = baseSummary;
+      this.cachedSummarySeconds = this.lastUpdateGetSeconds ?? null;
+    }
+
+    return this.#enrichSummary(baseSummary);
+  }
+
+  #computeBaseSummary() {
     const resourceSnapshot = this.resourceSystem?.snapshot?.() ?? null;
     const metrics = resourceSnapshot?.metrics ?? null;
     const propellantDelta = metrics?.propellantDeltaKg ?? {};
@@ -175,7 +219,7 @@ export class ScoreSystem {
 
     const manualFractionRounded = totalSteps > 0 ? this.#round(manualFraction, 3) : null;
 
-    return {
+    const summary = {
       missionDurationSeconds: this.#round(this.missionDurationSeconds, 3),
       events: {
         total: this.totalEvents,
@@ -234,6 +278,209 @@ export class ScoreSystem {
       },
       autopilot: autopilotStats,
     };
+
+    return summary;
+  }
+
+  #enrichSummary(baseSummary) {
+    if (!baseSummary || typeof baseSummary !== 'object') {
+      return null;
+    }
+
+    const summary = {
+      missionDurationSeconds: baseSummary.missionDurationSeconds ?? null,
+      events: { ...baseSummary.events },
+      comms: { ...baseSummary.comms },
+      resources: {
+        ...baseSummary.resources,
+        propellantUsedKg: baseSummary.resources?.propellantUsedKg
+          ? { ...baseSummary.resources.propellantUsedKg }
+          : {},
+        powerDeltaKw: baseSummary.resources?.powerDeltaKw
+          ? { ...baseSummary.resources.powerDeltaKw }
+          : {},
+      },
+      faults: {
+        ...baseSummary.faults,
+        resourceFailureIds: Array.isArray(baseSummary.faults?.resourceFailureIds)
+          ? [...baseSummary.faults.resourceFailureIds]
+          : [],
+      },
+      manual: { ...baseSummary.manual },
+      rating: {
+        ...baseSummary.rating,
+        breakdown: {
+          events: baseSummary.rating?.breakdown?.events
+            ? { ...baseSummary.rating.breakdown.events }
+            : null,
+          resources: baseSummary.rating?.breakdown?.resources
+            ? { ...baseSummary.rating.breakdown.resources }
+            : null,
+          faults: baseSummary.rating?.breakdown?.faults
+            ? { ...baseSummary.rating.breakdown.faults }
+            : null,
+          manual: baseSummary.rating?.breakdown?.manual
+            ? { ...baseSummary.rating.breakdown.manual }
+            : null,
+        },
+      },
+      autopilot: baseSummary.autopilot ?? null,
+    };
+
+    const history = this.#cloneScoreHistory();
+    if (history.length > 0) {
+      summary.history = history;
+    }
+
+    const delta = this.#cloneScoreDelta(this.lastDelta);
+    if (delta) {
+      if (!summary.rating) {
+        summary.rating = {};
+      }
+      summary.rating.delta = delta;
+    }
+
+    return summary;
+  }
+
+  #captureScoreTelemetry(currentGetSeconds) {
+    if (!Number.isFinite(currentGetSeconds)) {
+      return;
+    }
+
+    const summary = this.#computeBaseSummary();
+    this.cachedSummary = summary;
+    this.cachedSummarySeconds = currentGetSeconds;
+
+    this.#updateScoreTrend(summary, currentGetSeconds);
+  }
+
+  #updateScoreTrend(summary, currentGetSeconds) {
+    if (!summary || typeof summary !== 'object') {
+      return;
+    }
+
+    const rating = summary.rating ?? {};
+    const commanderScore = this.#coerceNumber(rating.commanderScore);
+    const baseScore = this.#coerceNumber(rating.baseScore);
+    const manualBonus = this.#coerceNumber(rating.manualBonus);
+    const breakdown = rating.breakdown ?? {};
+
+    const previous = this.lastRating ?? null;
+    const previousBreakdown = previous?.breakdown ?? null;
+
+    let commanderDelta = null;
+    if (Number.isFinite(commanderScore) && Number.isFinite(previous?.commanderScore)) {
+      commanderDelta = commanderScore - previous.commanderScore;
+    }
+
+    let baseDelta = null;
+    if (Number.isFinite(baseScore) && Number.isFinite(previous?.baseScore)) {
+      baseDelta = baseScore - previous.baseScore;
+    }
+
+    let manualDelta = null;
+    if (Number.isFinite(manualBonus) && Number.isFinite(previous?.manualBonus)) {
+      manualDelta = manualBonus - previous.manualBonus;
+    }
+
+    const breakdownScores = this.#extractBreakdownScores(breakdown);
+    const breakdownDelta = previous
+      ? this.#computeBreakdownDelta(breakdownScores, previousBreakdown)
+      : null;
+
+    const grade = typeof rating.grade === 'string' ? rating.grade : null;
+    const previousGrade = typeof previous?.grade === 'string' ? previous.grade : null;
+    const gradeChanged = Boolean(grade) && Boolean(previousGrade) && grade !== previousGrade;
+
+    const shouldLogDelta = this.logger
+      && previous
+      && commanderDelta != null
+      && Math.abs(commanderDelta) >= this.deltaLogThreshold;
+
+    if (shouldLogDelta) {
+      const severity = commanderDelta >= 0 ? 'notice' : 'warning';
+      this.logger.log(currentGetSeconds, this.#formatScoreDeltaMessage(commanderDelta, commanderScore), {
+        logSource: 'sim',
+        logCategory: 'score',
+        logSeverity: severity,
+        event: 'score_delta',
+        delta: this.#round(commanderDelta, 1),
+        baseDelta: this.#round(baseDelta, 1),
+        manualBonusDelta: this.#round(manualDelta, 1),
+        commanderScore: this.#round(commanderScore, 1),
+        baseScore: this.#round(baseScore, 1),
+        manualBonus: this.#round(manualBonus, 1),
+        grade,
+        breakdownDelta: this.#roundBreakdownDelta(breakdownDelta),
+      });
+    }
+
+    if (this.logger && gradeChanged && previousGrade) {
+      const severity = this.#gradeRank(grade) >= this.#gradeRank(previousGrade) ? 'notice' : 'warning';
+      this.logger.log(currentGetSeconds, `Commander grade ${previousGrade} → ${grade}`, {
+        logSource: 'sim',
+        logCategory: 'score',
+        logSeverity: severity,
+        event: 'grade_change',
+        previousGrade,
+        grade,
+        previousCommanderScore: Number.isFinite(previous?.commanderScore)
+          ? this.#round(previous.commanderScore, 1)
+          : null,
+        commanderScore: this.#round(commanderScore, 1),
+      });
+    }
+
+    const shouldSampleHistory =
+      this.scoreHistory.length === 0
+      || (
+        this.historyStepSeconds > 0
+        && (!Number.isFinite(this.lastHistorySampleSeconds)
+          || currentGetSeconds - this.lastHistorySampleSeconds >= this.historyStepSeconds - 1e-6)
+      )
+      || gradeChanged
+      || shouldLogDelta;
+
+    const breakdownClone = this.#cloneBreakdown(breakdown);
+    const deltaEntry = this.#buildScoreDelta({
+      commanderDelta,
+      baseDelta,
+      manualDelta,
+      breakdownDelta,
+      gradeChanged,
+      grade,
+      previousGrade,
+    });
+
+    if (shouldSampleHistory) {
+      const historyEntry = {
+        getSeconds: Number.isFinite(currentGetSeconds) ? currentGetSeconds : null,
+        commanderScore: Number.isFinite(commanderScore) ? this.#round(commanderScore, 1) : null,
+        baseScore: Number.isFinite(baseScore) ? this.#round(baseScore, 1) : null,
+        manualBonus: Number.isFinite(manualBonus) ? this.#round(manualBonus, 1) : null,
+        grade,
+        breakdown: breakdownClone,
+        delta: deltaEntry,
+      };
+
+      this.scoreHistory.push(historyEntry);
+      if (this.scoreHistory.length > this.historyLimit && this.historyLimit > 0) {
+        const excess = this.scoreHistory.length - this.historyLimit;
+        this.scoreHistory.splice(0, excess);
+      }
+      this.lastHistorySampleSeconds = currentGetSeconds;
+    }
+
+    this.lastRating = {
+      commanderScore: Number.isFinite(commanderScore) ? commanderScore : null,
+      baseScore: Number.isFinite(baseScore) ? baseScore : null,
+      manualBonus: Number.isFinite(manualBonus) ? manualBonus : null,
+      grade,
+      breakdown: breakdownScores,
+    };
+
+    this.lastDelta = deltaEntry;
   }
 
   #ensureInitialized() {
@@ -361,6 +608,165 @@ export class ScoreSystem {
       deltaVScore * weights.deltaV +
       thermalScore * weights.thermal
     );
+  }
+
+  #formatScoreDeltaMessage(delta, commanderScore) {
+    if (!Number.isFinite(delta) || !Number.isFinite(commanderScore)) {
+      return 'Commander score updated';
+    }
+    const sign = delta >= 0 ? '+' : '';
+    return `Commander score ${sign}${this.#round(delta, 1)} → ${this.#round(commanderScore, 1)}`;
+  }
+
+  #extractBreakdownScores(breakdown) {
+    const result = {};
+    if (!breakdown || typeof breakdown !== 'object') {
+      return result;
+    }
+    for (const key of ['events', 'resources', 'faults', 'manual']) {
+      const entry = breakdown[key];
+      result[key] = this.#coerceNumber(entry?.score);
+    }
+    return result;
+  }
+
+  #computeBreakdownDelta(current = {}, previous = {}) {
+    const delta = {};
+    for (const key of ['events', 'resources', 'faults', 'manual']) {
+      const currentValue = this.#coerceNumber(current?.[key]);
+      const previousValue = this.#coerceNumber(previous?.[key]);
+      if (Number.isFinite(currentValue) && Number.isFinite(previousValue)) {
+        delta[key] = currentValue - previousValue;
+      } else {
+        delta[key] = Number.isFinite(currentValue) ? currentValue : null;
+      }
+    }
+    return delta;
+  }
+
+  #cloneBreakdown(breakdown) {
+    const clone = {};
+    if (!breakdown || typeof breakdown !== 'object') {
+      for (const key of ['events', 'resources', 'faults', 'manual']) {
+        clone[key] = null;
+      }
+      return clone;
+    }
+    for (const key of ['events', 'resources', 'faults', 'manual']) {
+      const entry = breakdown[key];
+      if (!entry || typeof entry !== 'object') {
+        clone[key] = null;
+        continue;
+      }
+      clone[key] = {
+        score: this.#coerceNumber(entry.score) != null ? this.#round(entry.score, 3) : null,
+        weight: this.#coerceNumber(entry.weight) != null ? this.#round(entry.weight, 3) : null,
+      };
+    }
+    return clone;
+  }
+
+  #roundBreakdownDelta(delta) {
+    if (!delta || typeof delta !== 'object') {
+      return null;
+    }
+    const result = {};
+    let hasValue = false;
+    for (const key of ['events', 'resources', 'faults', 'manual']) {
+      const value = this.#coerceNumber(delta[key]);
+      if (Number.isFinite(value)) {
+        result[key] = this.#round(value, 3);
+        hasValue = true;
+      } else {
+        result[key] = null;
+      }
+    }
+    return hasValue ? result : null;
+  }
+
+  #buildScoreDelta({
+    commanderDelta = null,
+    baseDelta = null,
+    manualDelta = null,
+    breakdownDelta = null,
+    gradeChanged = false,
+    grade = null,
+    previousGrade = null,
+  } = {}) {
+    const delta = {
+      commanderScore: Number.isFinite(commanderDelta) ? this.#round(commanderDelta, 1) : null,
+      baseScore: Number.isFinite(baseDelta) ? this.#round(baseDelta, 1) : null,
+      manualBonus: Number.isFinite(manualDelta) ? this.#round(manualDelta, 1) : null,
+      breakdown: this.#roundBreakdownDelta(breakdownDelta),
+      gradeChanged: Boolean(gradeChanged),
+      grade: grade ?? null,
+      previousGrade: previousGrade ?? null,
+    };
+
+    const meaningful =
+      delta.commanderScore != null
+      || delta.baseScore != null
+      || delta.manualBonus != null
+      || (delta.breakdown && Object.values(delta.breakdown).some((value) => value != null))
+      || delta.gradeChanged;
+
+    return meaningful ? delta : null;
+  }
+
+  #cloneScoreHistory() {
+    if (!Array.isArray(this.scoreHistory)) {
+      return [];
+    }
+    return this.scoreHistory.map((entry) => ({
+      getSeconds: entry.getSeconds ?? null,
+      commanderScore: entry.commanderScore ?? null,
+      baseScore: entry.baseScore ?? null,
+      manualBonus: entry.manualBonus ?? null,
+      grade: entry.grade ?? null,
+      breakdown: this.#cloneBreakdown(entry.breakdown),
+      delta: this.#cloneScoreDelta(entry.delta),
+    }));
+  }
+
+  #cloneScoreDelta(delta) {
+    if (!delta || typeof delta !== 'object') {
+      return null;
+    }
+    const clone = {
+      commanderScore: delta.commanderScore ?? null,
+      baseScore: delta.baseScore ?? null,
+      manualBonus: delta.manualBonus ?? null,
+      breakdown: delta.breakdown ? { ...delta.breakdown } : null,
+      gradeChanged: Boolean(delta.gradeChanged),
+      grade: delta.grade ?? null,
+      previousGrade: delta.previousGrade ?? null,
+    };
+
+    const hasValue =
+      clone.commanderScore != null
+      || clone.baseScore != null
+      || clone.manualBonus != null
+      || (clone.breakdown && Object.values(clone.breakdown).some((value) => value != null))
+      || clone.gradeChanged;
+
+    return hasValue ? clone : null;
+  }
+
+  #gradeRank(grade) {
+    switch (grade) {
+      case 'A':
+        return 5;
+      case 'B':
+        return 4;
+      case 'C':
+        return 3;
+      case 'D':
+        return 2;
+      case 'F':
+        return 1;
+      default:
+        return 0;
+    }
   }
 
   #computeFaultScore(faultCount) {

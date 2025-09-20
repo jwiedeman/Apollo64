@@ -161,6 +161,7 @@ export async function createSimulationContext({
     autopilotRunner,
     checklistManager,
     manualQueue: manualActionQueue,
+    logger,
   });
 
   const simulation = new Simulation({

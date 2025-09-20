@@ -421,6 +421,8 @@ recomputing from raw telemetry.
 | `rating.baseScore` | number&#124;null | Base score before manual bonus. |
 | `rating.manualBonus` | number&#124;null | Bonus applied for manual participation. |
 | `rating.breakdown.*` | object&#124;null | Weight/score pairs for events, resources, faults, and manual contribution. |
+| `rating.delta` | object&#124;null | Most recent score delta (`commanderScore`, `baseScore`, `manualBonus`, optional `breakdown` map, `gradeChanged`, `grade`, `previousGrade`). |
+| `history[]` | array&#124;null | Rolling commander score timeline entries. Each element includes `getSeconds`, formatted `get`, `commanderScore`, `baseScore`, `manualBonus`, `grade`, `breakdown` (events/resources/faults/manual), and optional `delta` matching the structure above. |
 
 ### `missionLog`
 

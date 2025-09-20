@@ -72,6 +72,12 @@ describe('ScoreSystem', () => {
 
     scoreSystem.update(1000, 60);
 
+    const summary1 = scoreSystem.summary();
+    assert.ok(summary1);
+    assert.ok(Array.isArray(summary1.history));
+    assert.equal(summary1.history.length, 1);
+    assert.equal(summary1.history[0].delta, null);
+
     scheduler.events[2].status = 'complete';
     scheduler.events[3].status = 'failed';
     resourceState.power_margin_pct = 32;
@@ -123,5 +129,30 @@ describe('ScoreSystem', () => {
     assert.ok(Math.abs(breakdown.manual.weight - 0.1) < 1e-9);
 
     assert.deepEqual(summary.autopilot, autopilotStats);
+
+    assert.ok(Array.isArray(summary.history));
+    assert.equal(summary.history.length, 2);
+    const latestHistory = summary.history[summary.history.length - 1];
+    assert.equal(latestHistory.commanderScore, summary.rating.commanderScore);
+    assert.equal(latestHistory.baseScore, summary.rating.baseScore);
+    assert.equal(latestHistory.manualBonus, summary.rating.manualBonus);
+    assert.equal(latestHistory.grade, summary.rating.grade);
+
+    assert.ok(latestHistory.delta);
+    const commanderDelta = Math.round(
+      (summary.rating.commanderScore - summary1.rating.commanderScore) * 10,
+    ) / 10;
+    const baseDelta = Math.round(
+      (summary.rating.baseScore - summary1.rating.baseScore) * 10,
+    ) / 10;
+    const manualDelta = Math.round(
+      (summary.rating.manualBonus - summary1.rating.manualBonus) * 10,
+    ) / 10;
+
+    assert.equal(summary.rating.delta.commanderScore, commanderDelta);
+    assert.equal(summary.rating.delta.baseScore, baseDelta);
+    assert.equal(summary.rating.delta.manualBonus, manualDelta);
+    assert.equal(summary.rating.delta.gradeChanged, false);
+    assert.equal(latestHistory.delta.commanderScore, commanderDelta);
   });
 });
