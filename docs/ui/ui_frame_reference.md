@@ -38,6 +38,7 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "docking": { ... },
   "entry": { ... },
   "alerts": { "warnings": [], "cautions": [], "failures": [] },
+  "audio": { ... },
   "score": { ... },
   "missionLog": { ... },
   "resourceHistory": { ... }
@@ -330,6 +331,38 @@ Navigation/System panes without the overlay.
 | `notes[]` | array | Additional notes captured by the resource system when the failure latched. |
 | `breadcrumb` | object&#124;null | Optional breadcrumb summary with `summary` text and `chain[]` entries describing cause/effect nodes for HUD displays. |
 | `metadata` | object&#124;null | Raw metadata object recorded with the failure (e.g., manual override details). |
+
+### `audio`
+
+Summarizes the audio cue pipeline so the HUD, caption layer, and future UI
+widgets can react to binder triggers and dispatcher playback state. Lists are
+bounded by the builder options `audioPendingLimit`, `audioActiveLimit`, and
+`audioQueueLimit` (defaults: 8/4/4).
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `binder.totalTriggers` | number&#124;null | Total cue triggers recorded by the binder during the run. |
+| `binder.pendingCount` | number&#124;null | Number of unresolved triggers still queued in the binder. |
+| `binder.lastCueId` | string&#124;null | Last cue ID published to the binder. |
+| `binder.lastTriggeredAtSeconds` | number&#124;null | GET seconds for the last binder trigger. |
+| `binder.lastTriggeredAt` | string&#124;null | Human-readable GET label for the last trigger. |
+| `dispatcher.played` | number&#124;null | Total cue playbacks started by the dispatcher. |
+| `dispatcher.stopped` | number&#124;null | Total playbacks stopped (complete, pre-empted, or cancelled). |
+| `dispatcher.suppressed` | number&#124;null | Cues dropped due to cooldown or concurrency rules. |
+| `dispatcher.dropped` | number&#124;null | Cues dropped because queues exceeded configured limits. |
+| `dispatcher.lastCueId` | string&#124;null | Last cue started by the dispatcher. |
+| `dispatcher.lastStartedAtSeconds` | number&#124;null | GET seconds when the last cue started playback. |
+| `dispatcher.lastStartedAt` | string&#124;null | Human-readable GET label for the last playback start. |
+| `dispatcher.activeBuses` | object | Map of bus IDs to counts of currently active playbacks. |
+| `dispatcher.queuedBuses` | object | Map of bus IDs to queued trigger counts. |
+| `pending[]` | array&#124;null | Recent binder triggers awaiting dispatcher processing (fields include `cueId`, `severity`, `busId`, `sourceType`, `sourceId`, `triggeredAtSeconds`, `triggeredAt`, `metadata`). |
+| `active[]` | array&#124;null | Current dispatcher playbacks (`cueId`, `busId`, `categoryId`, `severity`, `priority`, `loop`, `startedAtSeconds`, `startedAt`, `metadata`). |
+| `queued[]` | array&#124;null | Normalized dispatcher queue entries ordered by priority and GET (`cueId`, `busId`, `severity`, `priority`, `triggeredAtSeconds`, `triggeredAt`, `metadata`). |
+
+Each entry in `pending[]`, `active[]`, and `queued[]` includes
+`triggeredAtSeconds`/`triggeredAt` (or `startedAtSeconds`/`startedAt` for
+active playback) so caption overlays and automation tooling can align audio
+cues with HUD updates without re-querying the dispatcher.
 
 ### `score`
 

@@ -53,6 +53,8 @@ async function main() {
     scoreSystem: contextScoreSystem,
     orbitPropagator,
     missionLogAggregator,
+    audioBinder,
+    audioDispatcher,
   } = context;
   const startSeconds = Math.max(0, args.startSeconds);
   const intervalSeconds = args.intervalSeconds;
@@ -86,6 +88,8 @@ async function main() {
         scoreSystem: tickScoreSystem,
         orbit: orbitPropagator,
         missionLog: missionLogAggregator,
+        audioBinder,
+        audioDispatcher,
       });
       frames.push(frame);
       captured = true;
@@ -110,6 +114,8 @@ async function main() {
         scoreSystem: tickScoreSystem,
         orbit: orbitPropagator,
         missionLog: missionLogAggregator,
+        audioBinder,
+        audioDispatcher,
       });
       frames.push(frame);
       if (frames.length >= args.maxFrames) {
@@ -137,6 +143,8 @@ async function main() {
       scoreSummary: summary.score ?? null,
       orbit: orbitPropagator,
       missionLog: missionLogAggregator,
+      audioBinder,
+      audioDispatcher,
     });
     frames.push(finalFrame);
   }

@@ -249,6 +249,75 @@ describe('UiFrameBuilder', () => {
       },
     };
 
+    const audioBinder = {
+      statsSnapshot: () => ({
+        totalTriggers: 5,
+        pendingCount: 2,
+        lastCueId: 'alerts.master_alarm',
+        lastTriggeredAtSeconds: 85,
+      }),
+      peekPending: () => [
+        {
+          cueId: 'telemetry.dsn_acquire',
+          severity: 'notice',
+          triggeredAtSeconds: 80,
+          busId: 'telemetry',
+          sourceType: 'communications',
+          sourceId: 'PASS_B',
+          metadata: { passId: 'PASS_B' },
+        },
+        {
+          cueId: 'alerts.master_alarm',
+          severity: 'failure',
+          triggeredAtSeconds: 85,
+          busId: 'alerts',
+          sourceType: 'failure',
+          sourceId: 'FAIL_POWER_LOW',
+          metadata: { failureId: 'FAIL_POWER_LOW' },
+        },
+      ],
+    };
+
+    const audioDispatcher = {
+      statsSnapshot: () => ({
+        played: 3,
+        stopped: 1,
+        suppressed: 0,
+        dropped: 0,
+        lastCueId: 'alerts.master_alarm',
+        lastStartedAtSeconds: 86,
+        activeBuses: { alerts: 1 },
+        queuedBuses: { alerts: 1 },
+      }),
+      getBusState: (busId) => {
+        if (busId === 'alerts') {
+          return {
+            active: [
+              {
+                cueId: 'alerts.master_alarm',
+                categoryId: 'alerts',
+                priority: 60,
+                startedAtSeconds: 86,
+                loop: false,
+                trigger: { severity: 'failure', metadata: { failureId: 'FAIL_POWER_LOW' } },
+              },
+            ],
+            queue: [
+              {
+                cueId: 'dialogue.go_for_tli',
+                categoryId: 'dialogue',
+                priority: 10,
+                triggeredAtSeconds: 87,
+                severity: 'notice',
+                metadata: { eventId: 'EVT1' },
+              },
+            ],
+          };
+        }
+        return { active: [], queue: [] };
+      },
+    };
+
     const frame = builder.build(90, {
       scheduler: {
         stats: () => ({
@@ -357,6 +426,8 @@ describe('UiFrameBuilder', () => {
       scoreSystem: {
         summary: () => scoreSummary,
       },
+      audioBinder,
+      audioDispatcher,
     });
 
     assert.equal(frame.time.getSeconds, 90);
@@ -400,6 +471,17 @@ describe('UiFrameBuilder', () => {
     assert.equal(frame.autopilot.activeAutopilots.length, 1);
     assert.equal(frame.autopilot.primary.pad.id, 'PAD_EVT1');
     assert.equal(frame.autopilot.activeAutopilots[0].pad.id, 'PAD_EVT1');
+
+    assert.ok(frame.audio);
+    assert.equal(frame.audio.binder.lastCueId, 'alerts.master_alarm');
+    assert.equal(frame.audio.binder.pendingCount, 2);
+    assert.ok(Array.isArray(frame.audio.pending));
+    assert.equal(frame.audio.pending[1].cueId, 'alerts.master_alarm');
+    assert.equal(frame.audio.dispatcher.activeBuses.alerts, 1);
+    assert.ok(Array.isArray(frame.audio.active));
+    assert.equal(frame.audio.active[0].cueId, 'alerts.master_alarm');
+    assert.ok(Array.isArray(frame.audio.queued));
+    assert.equal(frame.audio.queued[0].cueId, 'dialogue.go_for_tli');
 
     const communications = frame.resources.communications;
     assert.equal(communications.active, true);
