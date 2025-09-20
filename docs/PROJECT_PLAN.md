@@ -66,7 +66,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - **Physics:** Patched-conic two-body model, 20 Hz fixed simulation, RK2/RK4 integration, analytic drag during entry; the current orbit propagator, impulse logging, and HUD bindings are detailed in [`docs/sim/orbit_propagator.md`](sim/orbit_propagator.md).
 - **Attitude & RCS loops:** PD controllers with pulse quantization and PTC maintenance.
 - **Resources:** Fuel cell power tied to cryogenic states, CO₂ accumulation, and comms windows governing PAD delivery.
-- **Manual input loop:** `ManualActionQueue` mediates checklist acknowledgements, resource deltas, propellant burns, and DSKY macros for parity with automated runs; the UI contract lives in [`docs/ui/manual_actions_reference.md`](ui/manual_actions_reference.md) so future front-ends dispatch deterministic actions against the same schema.
+- **Manual input loop:** `ManualActionQueue` mediates checklist acknowledgements, resource deltas, propellant burns, and DSKY macros for parity with automated runs (see [`docs/sim/manual_action_queue.md`](sim/manual_action_queue.md)); the UI contract lives in [`docs/ui/manual_actions_reference.md`](ui/manual_actions_reference.md) so future front-ends dispatch deterministic actions against the same schema.
 - **Guidance computer bridge:** The AGC runtime and DSKY command bus defined in [`docs/sim/agc_guidance_integration.md`](sim/agc_guidance_integration.md) synchronize PAD-driven macros, autopilot programs, annunciator alarms, and manual entries against the shared `docs/ui/dsky_macros.json` catalog so guidance state remains deterministic across CLI runs, the upcoming UI, and the N64 build.
 
 ## 7. N64 Implementation Plan
