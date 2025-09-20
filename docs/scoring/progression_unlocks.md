@@ -88,8 +88,11 @@ mission content.
   }
   ```
 - **JS prototype:** Persist profile JSON under `~/.apollo64/profile.json` (configurable
-  via environment variable). Expose CLI flags (`--profile`, `--reset-profile`) to
-  load/reset progression during regression runs.
+  via environment variable). The CLI now honours `--profile`, `--reset-profile`,
+  `--no-profile`, and `--mission-id` flags (with defaults defined in
+  [`js/src/config/profile.js`](../../js/src/config/profile.js)) so regression runs can
+  load/reset progression and tag mission segments deterministically. Example:
+  `npm start -- --profile ~/.apollo64/profile.json --mission-id APOLLO11_FULL`.
 - **N64 build:** Mirror the schema using EEPROM (primary) with Controller Pak
   export/import for backups. Store unlock bitfields + checksum for quick boot
   validation. Include developer override flag for milestone demos.
