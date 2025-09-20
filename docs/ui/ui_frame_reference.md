@@ -35,6 +35,8 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "checklists": { ... },
   "manualQueue": { ... },
   "trajectory": { ... },
+  "docking": { ... },
+  "entry": { ... },
   "alerts": { "warnings": [], "cautions": [], "failures": [] },
   "score": { ... },
   "missionLog": { ... },
@@ -212,9 +214,74 @@ Summarizes the current orbit state as reported by the patched-conic propagator.
 | `metrics.totalDeltaVMps` | number&#124;null | Cumulative Δv applied via recorded impulses (m/s). |
 | `metrics.lastImpulse` | object&#124;null | Metadata for the latest applied Δv impulse (`magnitude`, `frame`, `appliedAtSeconds`). |
 | `alerts` | object | Orbit-specific cautions/warnings (`orbit_periapsis_low`) and failures (`orbit_periapsis_below_surface`). These entries are merged into the top-level `alerts` buckets. |
-| `history` | object&#124;null | Optional history sample payload (meta + samples) mirroring `OrbitPropagator.historySnapshot()`. |
+| `history` | object&#124;null | Optional history sample payload (meta + samples) mirroring `OrbitPropagator.historySnapshot()`.
+
+### `docking`
+
+Optional rendezvous summary emitted when docking events are armed. The
+structure mirrors [`docking_gates.json`](docking_gates.json) and the
+runtime status consumed by the rendezvous overlay in
+[`rendezvous_overlay.md`](rendezvous_overlay.md).
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `eventId` | string&#124;null | Event identifier associated with the docking sequence (`LM_ASCENT_030`, etc.). |
+| `activeGateId` | string&#124;null | Identifier of the gate currently highlighted by the HUD (`GATE_150M`, etc.). |
+| `startRangeMeters` / `endRangeMeters` | number&#124;null | Configured approach range endpoints pulled from `docking_gates.json`. |
+| `notes` | string&#124;null | Reference notes or provenance copied from the gate definition pack. |
+| `progress` | number&#124;null | Overall 0–1 fraction of the rendezvous timeline (derived from event windows or supplied status). |
+| `rangeMeters` | number&#124;null | Current range between vehicles. |
+| `closingRateMps` | number&#124;null | Relative closing rate (m/s). |
+| `lateralRateMps` | number&#124;null | Cross-range rate (m/s). |
+| `predictedContactVelocityMps` | number&#124;null | Forecast contact velocity based on current closure profile. |
+| `gates[]` | array | Ordered braking gate definitions with live status metadata. |
+| `rcs` | object&#124;null | Aggregated RCS quad enable states, duty cycles, and propellant budgets. |
+| `version` | number&#124;null | Version marker propagated from `docking_gates.json` when present. |
+
+Each entry in `gates[]` exposes:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` / `label` | string | Identifier and human-readable label. |
+| `rangeMeters` | number | Target range for the braking gate. |
+| `targetRateMps` | number | Desired closing rate. |
+| `tolerance` | object | `{ plus, minus }` tolerance bands (m/s). |
+| `activationProgress` / `completionProgress` | number&#124;null | 0–1 fractions describing where the gate activates/completes within the sequence. |
+| `checklistId` | string&#124;null | Linked checklist for highlighting in Controls view. |
+| `deadlineSeconds` / `deadlineGet` | number&#124;string&#124;null | Calculated deadline for satisfying the gate. |
+| `status` | string&#124;null | `pending`, `active`, `complete`, or `overdue`. |
+| `progress` | number&#124;null | Live completion fraction. |
+| `timeRemainingSeconds` | number&#124;null | Seconds remaining before the gate deadline elapses. |
+| `completedAtSeconds` | number&#124;null | GET seconds when the gate completed. |
+| `overdue` | boolean&#124;null | Indicates the deadline has passed without completion. |
+
+The `rcs` object (when present) contains:
+
+- `quads[]` – entries with `id`, `enabled`, and `dutyCyclePct`.
+- `propellantKgRemaining` – map of tank → kilograms remaining.
+- `propellantKgBudget` – map of tank → baseline docking budget (kg).
+
+### `entry`
+
+Future frames expose deterministic entry telemetry for the TEI → recovery
+sequence, enabling the corridor overlay documented in
+[`entry_overlay.md`](entry_overlay.md).
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `entryInterfaceSeconds` | number&#124;null | GET seconds for the predicted entry interface. |
+| `corridor` | object&#124;null | Corridor geometry with `targetDegrees`, `toleranceDegrees`, `currentDegrees`, `downrangeErrorKm`, `crossrangeErrorKm`. |
+| `blackout` | object&#124;null | Blackout window with `startsAtSeconds`, `endsAtSeconds`, and `remainingSeconds`. |
+| `ems` | object&#124;null | Entry Monitoring System snapshot (`velocityFtPerSec`, `altitudeFt`, `predictedSplashdownSeconds`). |
+| `gLoad` | object&#124;null | Current/max/caution/warning G-load metrics. |
+| `recovery[]` | array | Ordered recovery milestones with `id`, `getSeconds`, and `status` (`pending`, `acknowledged`, `complete`). |
+
+Consumers should treat `entry` as optional until the simulator surfaces
+the corresponding payload. When absent, UI layers continue rendering the
+standard Navigation/System panes without the overlay.
 
 ### `alerts`
+
 
 - `warnings[]`: Resource or failure conditions in warning state (e.g., low SPS propellant, cryo boil-off exceeding thresholds).
 - `cautions[]`: Advisory conditions approaching warning levels.
