@@ -131,6 +131,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/sim/progression_service.md`](docs/sim/progression_service.md) – Commander profile normalisation, unlock/achievement evaluation, and persistence hooks.
 - [`docs/sim/manual_action_queue.md`](docs/sim/manual_action_queue.md) – Manual queue scheduling, action types, retry semantics, and integration with the checklist, resource, and AGC subsystems.
 - [`docs/logging/mission_log_reference.md`](docs/logging/mission_log_reference.md) – Logger and aggregator architecture reference that keeps CLI, HUD, parity harnesses, and exports aligned on mission log structure.
+- [`docs/logging/manual_action_recorder.md`](docs/logging/manual_action_recorder.md) – Recorder and replay workflow linking auto crew transcripts, manual overrides, and parity harness scripts into shared JSON artefacts.
 - [`docs/ui/manual_actions_reference.md`](docs/ui/manual_actions_reference.md) – Runtime contract for enqueuing manual checklist acknowledgements, resource deltas, propellant burns, and DSKY macros from the UI or parity tooling.
 - [`docs/scoring/commander_rating.md`](docs/scoring/commander_rating.md) – Commander rating model, telemetry inputs, and weighting used by the simulation score system.
 - [`docs/scoring/progression_unlocks.md`](docs/scoring/progression_unlocks.md) – Progression/unlock plan translating score summaries into campaign, challenge, and cosmetic rewards across platforms.
