@@ -24,7 +24,7 @@ proper truth sources without guesswork.
 | `missionLog` | Event/console feed | Combines scheduler, autopilot, manual queue, audio dispatcher, and failure breadcrumbs. Console dock filters by category. |
 | `panelState` | Switch positions, breaker states | Derived from checklist manager + manual queue actions. Controls view schematics highlight active vs. required positions. |
 | `agcRuntime` (`frame.agc`) | AGC display state, annunciators, macro history | Emitted by `AgcRuntime` when the macro pack is loaded. Powers the DSKY display, annunciator lamps, register tray, and macro execution history across HUD and Controls view. |
-| `workspaceStore` | Tile/workspace presets (`workspaces.json`) | Provides layout metadata and user overrides. |
+| [`workspaceStore`](workspace_store.md) | Tile/workspace presets (`workspaces.json`) | Provides layout metadata and user overrides. |
 
 All widgets consume `ui_frame` first. Supplemental feeds fill gaps that
 the frame intentionally omits for bandwidth (e.g., full trajectory
@@ -79,8 +79,8 @@ vectors, high-frequency attitude data).
 
 | Element | Data Inputs | Notes |
 | --- | --- | --- |
-| Tile Presets | `workspaces.json`, `workspaceStore` | Presets validated against component availability; loader warns if widget missing (e.g., N64 entry overlay disabled until implemented). |
-| Drag/Resize Manager | `workspaceStore` | Emits layout updates serialized back to JSON. Snap grid and focus behavior follow `hud_layout.md`. |
+| Tile Presets | `workspaces.json`, [`workspaceStore`](workspace_store.md) | Presets validated against component availability; loader warns if widget missing (e.g., N64 entry overlay disabled until implemented). |
+| Drag/Resize Manager | [`workspaceStore`](workspace_store.md) | Emits layout updates serialized back to JSON. Snap grid and focus behavior follow `hud_layout.md`. |
 | Focus Mode | Any widget | In focus, widgets still consume same data slices but request higher-frequency updates where available (e.g., navball subscribes to 10 Hz attitude). |
 
 ## Implementation Checklist
