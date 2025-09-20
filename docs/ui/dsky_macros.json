@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "description": "Verb/Noun macro catalog for priority Apollo 11 guidance procedures used by the Controls view and AGC runtime.",
+  "macros": [
+    {
+      "id": "V06N33_DELTA_V_RESIDUAL",
+      "verb": 6,
+      "noun": 33,
+      "mode": "monitor",
+      "label": "ΔV Residuals",
+      "description": "Displays remaining Δv components after burns to confirm guidance residuals are within tolerance.",
+      "hudBindings": ["navigation.maneuver.deltaVResidual"],
+      "checklists": ["FP_3-12_TLI_EXEC", "FP_6-24_LOI2_EXEC", "FP_8-16_MCC5_EXEC"],
+      "registers": [
+        { "id": "R1", "label": "ΔV X", "units": "ft/s" },
+        { "id": "R2", "label": "ΔV Y", "units": "ft/s" },
+        { "id": "R3", "label": "ΔV Z", "units": "ft/s" }
+      ]
+    },
+    {
+      "id": "V06N36_ATT_ERROR",
+      "verb": 6,
+      "noun": 36,
+      "mode": "monitor",
+      "label": "Attitude Error",
+      "description": "Attitude error needles (roll/pitch/yaw) used prior to major burns and during docking approach trims.",
+      "hudBindings": ["navigation.attitudeError"],
+      "checklists": ["FP_3-10_TLI_PREP", "FP_6-16_LOI_CONFIG", "FP_7-16_LM_SEP"],
+      "requires": [
+        { "panel": "CSM_FLIGHT_CONTROL", "controlId": "CMC_MODE", "state": "AUTO" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "Roll Err", "units": "deg" },
+        { "id": "R2", "label": "Pitch Err", "units": "deg" },
+        { "id": "R3", "label": "Yaw Err", "units": "deg" }
+      ]
+    },
+    {
+      "id": "V06N37_ATT_RATE",
+      "verb": 6,
+      "noun": 37,
+      "mode": "monitor",
+      "label": "Body Rates",
+      "description": "Body-rate readouts (deg/s) used for PTC trim and docking damping checks.",
+      "hudBindings": ["navigation.bodyRates"],
+      "checklists": ["FP_4-04_PTC", "FP_7-22_FINAL_APPROACH"],
+      "registers": [
+        { "id": "R1", "label": "Roll Rate", "units": "deg/s" },
+        { "id": "R2", "label": "Pitch Rate", "units": "deg/s" },
+        { "id": "R3", "label": "Yaw Rate", "units": "deg/s" }
+      ]
+    },
+    {
+      "id": "V06N38_TIG_TIMER",
+      "verb": 6,
+      "noun": 38,
+      "mode": "monitor",
+      "label": "TIG Countdown",
+      "description": "Displays TIG countdown, ΔT, and planned burn duration sourced from the active PAD.",
+      "hudBindings": ["navigation.planBurn.tig"],
+      "checklists": ["FP_3-10_TLI_PREP", "FP_4-14_MCC1_EXEC", "FP_8-06_TEI_CONFIG"],
+      "requires": [
+        { "panel": "CSM_FLIGHT_CONTROL", "controlId": "CMC_MODE", "state": "AUTO" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "TIG", "units": "HHMMSS" },
+        { "id": "R2", "label": "ΔT", "units": "s" },
+        { "id": "R3", "label": "Burn Time", "units": "s" }
+      ]
+    },
+    {
+      "id": "V16N36_ATTITUDE",
+      "verb": 16,
+      "noun": 36,
+      "mode": "monitor",
+      "label": "IMU Attitude",
+      "description": "Present inertial attitude from the IMU, used when cross-checking FDAI and AGC references.",
+      "hudBindings": ["navigation.attitudeAbsolute"],
+      "checklists": ["FP_3-10_TLI_PREP", "FP_6-16_LOI_CONFIG", "FP_7-12_SEP_CONFIG"],
+      "requires": [
+        { "panel": "CSM_FLIGHT_CONTROL", "controlId": "CMC_MODE", "state": "AUTO" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "Roll", "units": "deg" },
+        { "id": "R2", "label": "Pitch", "units": "deg" },
+        { "id": "R3", "label": "Yaw", "units": "deg" }
+      ]
+    },
+    {
+      "id": "V16N37_RATES",
+      "verb": 16,
+      "noun": 37,
+      "mode": "monitor",
+      "label": "IMU Rates",
+      "description": "Raw IMU body rates for DAP gain checks and post-maneuver settling.",
+      "hudBindings": ["navigation.bodyRates"],
+      "checklists": ["FP_4-04_PTC", "FP_8-12_PTC_RETURN"],
+      "registers": [
+        { "id": "R1", "label": "Roll Rate", "units": "deg/s" },
+        { "id": "R2", "label": "Pitch Rate", "units": "deg/s" },
+        { "id": "R3", "label": "Yaw Rate", "units": "deg/s" }
+      ]
+    },
+    {
+      "id": "V21N33_LOAD_DV",
+      "verb": 21,
+      "noun": 33,
+      "mode": "entry",
+      "label": "Load ΔV Target",
+      "program": "P30",
+      "description": "Queues PAD ΔV vectors into Program 30/41 registers prior to SPS or LM burns.",
+      "hudBindings": ["navigation.planBurn.deltaV"],
+      "checklists": ["FP_3-10_TLI_PREP", "FP_4-14_MCC1_EXEC", "FP_6-16_LOI_CONFIG"],
+      "requires": [
+        { "panel": "CSM_SPS_PROPULSION", "controlId": "SPS_BANK_A_ARM", "state": "ARM" },
+        { "panel": "CSM_SPS_PROPULSION", "controlId": "SPS_BANK_B_ARM", "state": "ARM" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "ΔV X", "units": "ft/s" },
+        { "id": "R2", "label": "ΔV Y", "units": "ft/s" },
+        { "id": "R3", "label": "ΔV Z", "units": "ft/s" }
+      ]
+    },
+    {
+      "id": "V21N38_LOAD_TIG",
+      "verb": 21,
+      "noun": 38,
+      "mode": "entry",
+      "label": "Load TIG & Duration",
+      "program": "P30",
+      "description": "Queues ignition time and burn duration from the active PAD before entering Program 40-series execution.",
+      "hudBindings": ["navigation.planBurn.tig"],
+      "checklists": ["FP_3-10_TLI_PREP", "FP_6-16_LOI_CONFIG", "FP_8-06_TEI_CONFIG"],
+      "requires": [
+        { "panel": "CSM_FLIGHT_CONTROL", "controlId": "CMC_MODE", "state": "AUTO" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "TIG", "units": "HHMMSS" },
+        { "id": "R2", "label": "ΔT", "units": "s" },
+        { "id": "R3", "label": "Burn Time", "units": "s" }
+      ]
+    },
+    {
+      "id": "V25N07_ENTRY_UPDATE",
+      "verb": 25,
+      "noun": 7,
+      "mode": "entry",
+      "label": "Entry Interface Update",
+      "program": "P70",
+      "description": "Loads entry corridor altitude and angle targets supporting the EMS and Program 70 series guidance loops.",
+      "hudBindings": ["systems.entry.predicted"],
+      "checklists": ["FP_8-06_TEI_CONFIG", "FP_8-16_MCC5_EXEC"],
+      "requires": [
+        { "panel": "CSM_CB_RIGHT", "controlId": "CB_ENTRY_MON", "state": "CLOSED" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "Entry Alt", "units": "nmi" },
+        { "id": "R2", "label": "γ", "units": "deg" },
+        { "id": "R3", "label": "Range", "units": "nmi" }
+      ]
+    },
+    {
+      "id": "V49N20_STAR_CHECK",
+      "verb": 49,
+      "noun": 20,
+      "mode": "entry",
+      "label": "P52 Star Check",
+      "program": "P52",
+      "description": "Queues star catalog IDs and optics angles for Program 52 coarse align routines.",
+      "hudBindings": ["navigation.alignment.starCheck"],
+      "checklists": ["FP_3-10_TLI_PREP", "FP_6-16_LOI_CONFIG"],
+      "requires": [
+        { "panel": "CSM_CB_LEFT", "controlId": "CB_CMC", "state": "CLOSED" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "Star ID", "units": "id" },
+        { "id": "R2", "label": "Shaft", "units": "deg" },
+        { "id": "R3", "label": "Trunnion", "units": "deg" }
+      ]
+    },
+    {
+      "id": "V50N18_RNDZ_RANGE",
+      "verb": 50,
+      "noun": 18,
+      "mode": "entry",
+      "label": "Rendezvous Range/Rate",
+      "program": "P20",
+      "description": "Captures docking radar range and rate measurements used during LM/CSM rendezvous.",
+      "hudBindings": ["navigation.docking.rangeRate"],
+      "checklists": ["FP_7-12_SEP_CONFIG", "FP_7-16_LM_SEP"],
+      "requires": [
+        { "panel": "CSM_COMMUNICATIONS", "controlId": "VHF_XMTR", "states": ["A", "B"] }
+      ],
+      "registers": [
+        { "id": "R1", "label": "Range", "units": "nmi" },
+        { "id": "R2", "label": "Range Rate", "units": "ft/s" },
+        { "id": "R3", "label": "ΔAltitude", "units": "ft" }
+      ]
+    },
+    {
+      "id": "V63N63_LANDING_RADAR",
+      "verb": 63,
+      "noun": 63,
+      "mode": "monitor",
+      "label": "Landing Radar",
+      "description": "Landing radar altitude and velocity solution used during P63/P64 guidance phases.",
+      "hudBindings": ["navigation.landingRadar"],
+      "checklists": ["FP_7-22_FINAL_APPROACH"],
+      "requires": [
+        { "panel": "LM_DESCENT_PANELS", "controlId": "DPS_ENGINE_ARM", "state": "ARM" },
+        { "panel": "LM_DESCENT_PANELS", "controlId": "LANDING_RADAR", "state": "AUTO" }
+      ],
+      "registers": [
+        { "id": "R1", "label": "Altitude", "units": "ft" },
+        { "id": "R2", "label": "Vertical Vel", "units": "ft/s" },
+        { "id": "R3", "label": "Horizontal Vel", "units": "ft/s" }
+      ]
+    }
+  ]
+}

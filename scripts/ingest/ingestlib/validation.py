@@ -10,6 +10,7 @@ from .records import (
     MissionData,
     UiChecklist,
     UiChecklistPack,
+    UiDskyMacroPack,
     UiPanel,
     UiPanelControl,
     UiPanelPack,
@@ -22,6 +23,7 @@ _ALLOWED_FAILURE_CLASSES = {"Recoverable", "Hard", "Technical"}
 _UI_PHASES = {"Launch", "Translunar", "LunarOrbit", "Surface", "Transearth", "Entry"}
 _UI_ROLES = {"CDR", "CMP", "LMP", "Joint"}
 _UI_CONTROL_TYPES = {"toggle", "enum", "rotary", "momentary", "analog"}
+_UI_MACRO_MODES = {"monitor", "entry", "utility"}
 
 
 @dataclass
@@ -796,6 +798,162 @@ def _validate_ui_packs(mission_data: MissionData) -> List[ValidationIssue]:
 
             control_maps[panel.id] = panel.control_map()
 
+    checklist_ids: Set[str] = set(mission_data.checklist_index().keys())
+
+    macro_pack: Optional[UiDskyMacroPack] = mission_data.ui_dsky_macros
+    macro_ids: Set[str] = set()
+    if macro_pack:
+        seen_macros: Set[str] = set()
+        for macro in macro_pack.macros:
+            if not macro.id:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_dsky_macros",
+                        message="DSKY macro entry missing id",
+                        context={"macro": macro.raw},
+                    )
+                )
+                continue
+            if macro.id in seen_macros:
+                issues.append(
+                    ValidationIssue(
+                        level="error",
+                        category="ui_dsky_macros",
+                        message="Duplicate DSKY macro id",
+                        context={"macro_id": macro.id},
+                    )
+                )
+                continue
+            seen_macros.add(macro.id)
+            macro_ids.add(macro.id)
+
+            if macro.mode and macro.mode.lower() not in _UI_MACRO_MODES:
+                issues.append(
+                    ValidationIssue(
+                        level="warning",
+                        category="ui_dsky_macros",
+                        message="DSKY macro uses unexpected mode",
+                        context={"macro_id": macro.id, "mode": macro.mode},
+                    )
+                )
+
+            seen_registers: Set[str] = set()
+            for register in macro.registers:
+                if not register.id:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_dsky_macros",
+                            message="DSKY macro register missing id",
+                            context={"macro_id": macro.id, "register": register.raw},
+                        )
+                    )
+                    continue
+                if register.id in seen_registers:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_dsky_macros",
+                            message="Duplicate register id within DSKY macro",
+                            context={"macro_id": macro.id, "register_id": register.id},
+                        )
+                    )
+                seen_registers.add(register.id)
+
+            for checklist_id in macro.checklists:
+                if checklist_id not in checklist_ids:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_dsky_macros",
+                            message="DSKY macro references unknown checklist",
+                            context={"macro_id": macro.id, "checklist_id": checklist_id},
+                        )
+                    )
+
+            for requirement in macro.requires:
+                if not requirement.panel_id:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_dsky_macros",
+                            message="DSKY macro requirement missing panel reference",
+                            context={"macro_id": macro.id, "requirement": requirement.raw},
+                        )
+                    )
+                    continue
+                if requirement.panel_id not in panel_map:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_dsky_macros",
+                            message="DSKY macro requirement references unknown panel",
+                            context={"macro_id": macro.id, "panel_id": requirement.panel_id},
+                        )
+                    )
+                    continue
+
+                control_map = control_maps.get(requirement.panel_id, {})
+                if not requirement.control_id:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_dsky_macros",
+                            message="DSKY macro requirement missing controlId",
+                            context={"macro_id": macro.id, "panel_id": requirement.panel_id},
+                        )
+                    )
+                    continue
+                control = control_map.get(requirement.control_id)
+                if not control:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_dsky_macros",
+                            message="DSKY macro requirement references unknown control",
+                            context={
+                                "macro_id": macro.id,
+                                "panel_id": requirement.panel_id,
+                                "control_id": requirement.control_id,
+                            },
+                        )
+                    )
+                    continue
+
+                state_ids = {state.id for state in control.states if state.id}
+                if requirement.states:
+                    for state_id in requirement.states:
+                        if state_id not in state_ids:
+                            issues.append(
+                                ValidationIssue(
+                                    level="warning",
+                                    category="ui_dsky_macros",
+                                    message="DSKY macro requirement references unknown control state",
+                                    context={
+                                        "macro_id": macro.id,
+                                        "panel_id": requirement.panel_id,
+                                        "control_id": requirement.control_id,
+                                        "state": state_id,
+                                    },
+                                )
+                            )
+                elif requirement.state:
+                    if requirement.state not in state_ids:
+                        issues.append(
+                            ValidationIssue(
+                                level="warning",
+                                category="ui_dsky_macros",
+                                message="DSKY macro requirement references unknown control state",
+                                context={
+                                    "macro_id": macro.id,
+                                    "panel_id": requirement.panel_id,
+                                    "control_id": requirement.control_id,
+                                    "state": requirement.state,
+                                },
+                            )
+                        )
+
     checklist_pack: Optional[UiChecklistPack] = mission_data.ui_checklists
     if checklist_pack:
         seen_checklists: Set[str] = set()
@@ -878,6 +1036,20 @@ def _validate_ui_packs(mission_data: MissionData) -> List[ValidationIssue]:
                                 },
                             )
                         )
+
+                if step.dsky_macro and step.dsky_macro not in macro_ids:
+                    issues.append(
+                        ValidationIssue(
+                            level="warning",
+                            category="ui_checklists",
+                            message="Checklist step references unknown DSKY macro",
+                            context={
+                                "checklist_id": checklist.id,
+                                "step_id": step.id,
+                                "macro_id": step.dsky_macro,
+                            },
+                        )
+                    )
 
     workspace_pack: Optional[UiWorkspacePack] = mission_data.ui_workspaces
     if workspace_pack:

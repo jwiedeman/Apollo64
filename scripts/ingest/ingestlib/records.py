@@ -636,6 +636,150 @@ class UiPanelPack:
 
 
 @dataclass
+class UiDskyMacroRegister:
+    """Register metadata exposed by a DSKY macro."""
+
+    id: str
+    label: Optional[str]
+    units: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiDskyMacroRegister":
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            label=clean_string(payload.get("label")),
+            units=clean_string(payload.get("units")),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiDskyMacroRequirement:
+    """Panel/control prerequisite referenced by a DSKY macro."""
+
+    panel_id: str
+    control_id: str
+    state: Optional[str]
+    states: List[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiDskyMacroRequirement":
+        control_key = (
+            clean_string(payload.get("controlId"))
+            or clean_string(payload.get("controlID"))
+            or clean_string(payload.get("control"))
+            or ""
+        )
+        states_payload = payload.get("states")
+        states = (
+            _normalize_string_list(states_payload)
+            if isinstance(states_payload, list)
+            else []
+        )
+        return cls(
+            panel_id=clean_string(payload.get("panel")) or "",
+            control_id=control_key,
+            state=clean_string(payload.get("state")),
+            states=states,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiDskyMacro:
+    """Verb/Noun macro definition consumed by the UI and AGC runtime."""
+
+    id: str
+    verb: Optional[int]
+    noun: Optional[int]
+    mode: Optional[str]
+    label: Optional[str]
+    description: Optional[str]
+    program: Optional[str]
+    hud_bindings: List[str]
+    checklists: List[str]
+    registers: List[UiDskyMacroRegister]
+    requires: List[UiDskyMacroRequirement]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiDskyMacro":
+        registers_payload = payload.get("registers")
+        registers: List[UiDskyMacroRegister] = []
+        if isinstance(registers_payload, list):
+            for entry in registers_payload:
+                if isinstance(entry, dict):
+                    registers.append(UiDskyMacroRegister.from_dict(entry))
+
+        requires_payload = payload.get("requires")
+        requires: List[UiDskyMacroRequirement] = []
+        if isinstance(requires_payload, list):
+            for entry in requires_payload:
+                if isinstance(entry, dict):
+                    requires.append(UiDskyMacroRequirement.from_dict(entry))
+
+        hud_payload = payload.get("hudBindings")
+        hud_bindings = (
+            _normalize_string_list(hud_payload)
+            if isinstance(hud_payload, list)
+            else []
+        )
+
+        checklist_payload = payload.get("checklists")
+        checklists = (
+            _normalize_string_list(checklist_payload)
+            if isinstance(checklist_payload, list)
+            else []
+        )
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            verb=safe_int(payload.get("verb")),
+            noun=safe_int(payload.get("noun")),
+            mode=clean_string(payload.get("mode")),
+            label=clean_string(payload.get("label")),
+            description=clean_string(payload.get("description")),
+            program=clean_string(payload.get("program")),
+            hud_bindings=hud_bindings,
+            checklists=checklists,
+            registers=registers,
+            requires=requires,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class UiDskyMacroPack:
+    """Top-level container for DSKY macro definitions."""
+
+    version: Optional[int]
+    description: Optional[str]
+    macros: List[UiDskyMacro]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "UiDskyMacroPack":
+        macros_payload = payload.get("macros")
+        macros: List[UiDskyMacro] = []
+        if isinstance(macros_payload, list):
+            for entry in macros_payload:
+                if isinstance(entry, dict):
+                    macros.append(UiDskyMacro.from_dict(entry))
+
+        return cls(
+            version=safe_int(payload.get("version")),
+            description=clean_string(payload.get("description")),
+            macros=macros,
+            raw=dict(payload),
+        )
+
+    def macro_map(self) -> Dict[str, UiDskyMacro]:
+        return {macro.id: macro for macro in self.macros}
+
+
+@dataclass
 class UiWorkspaceTile:
     """Tile definition within a workspace preset."""
 
@@ -862,6 +1006,7 @@ class MissionData:
     audio_cues: AudioCuePack
     ui_checklists: Optional[UiChecklistPack] = None
     ui_panels: Optional[UiPanelPack] = None
+    ui_dsky_macros: Optional[UiDskyMacroPack] = None
     ui_workspaces: Optional[UiWorkspacePack] = None
     docking_gates: Optional[DockingGateConfig] = None
 
@@ -886,3 +1031,8 @@ class MissionData:
         if not self.ui_checklists:
             return {}
         return self.ui_checklists.checklist_map()
+
+    def ui_dsky_macro_map(self) -> Dict[str, UiDskyMacro]:
+        if not self.ui_dsky_macros:
+            return {}
+        return self.ui_dsky_macros.macro_map()

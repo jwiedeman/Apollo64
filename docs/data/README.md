@@ -8,6 +8,7 @@ This directory contains the structured mission datasets produced during Mileston
 - Provenance log linking each record to the primary reference used.
 - Reaction-control system cluster geometry for both vehicles captured in `thrusters.json`, providing Milestone M2 with baseline lever-arm and control-axis metadata before guidance tuning begins.
 - Apollo 11 audio cue catalog in `audio_cues.json`, defining buses, categories, and mission callouts for the HUD/audio pipeline described in Milestone M3.
+- DSKY macro catalog in `../ui/dsky_macros.json`, enumerating Verb/Noun macros, prerequisites, HUD bindings, and register labels consumed by `AgcRuntime` and the Controls view.
 
 Future updates will publish the ingestion notebooks under `scripts/ingest/`, expand contingency branches, and wire the new analytics into regression notebooks as described in the milestone plan.
 
@@ -41,6 +42,7 @@ The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/inge
   for transearth coast support, now annotated with `cue_on_acquire` / `cue_on_loss` and matching
   channel hints so audio routing can surface station handovers automatically.
 - `audio_cues.json` – Bus/category definitions and cue metadata for alerts, mission callouts, telemetry hints, UI feedback, and ambience routing across web/N64 builds.
+- `dsky_macros.json` – Verb/Noun macro definitions (modes, prerequisites, register labels, HUD bindings) backing the AGC runtime, DSKY module, and checklist references.
 - `thrusters.json` – Reaction-control system geometry for the CSM and LM, including cluster placement, control axes, and baseline thrust/impulse metadata for Milestone M2 tuning.
 
 These files use UTF-8 encoding with Unix line endings and can be imported into spreadsheets or parsed directly by ingestion tooling.

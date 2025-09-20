@@ -17,6 +17,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'audio_cues.json')),
     readOptionalFile(path.resolve(uiDir, 'docking_gates.json')),
     readOptionalFile(path.resolve(uiDir, 'entry_overlay.json')),
+    readOptionalFile(path.resolve(uiDir, 'dsky_macros.json')),
   ]);
 
   const [
@@ -31,6 +32,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     audioCueContent,
     dockingContent,
     entryOverlayContent,
+    dskyMacroContent,
   ] = files;
 
   const autopilotRecords = parseCsv(autopilotsContent);
@@ -85,6 +87,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const audioCues = parseAudioCues(audioCueContent, logger);
   const docking = parseDockingGates(dockingContent, logger);
   const entryOverlay = parseEntryOverlay(entryOverlayContent, logger);
+  const dskyMacros = parseDskyMacros(dskyMacroContent, logger);
 
   const thrusterCraftCount = Array.isArray(thrusters?.craft) ? thrusters.craft.length : 0;
   const thrusterCount = Array.isArray(thrusters?.craft)
@@ -140,6 +143,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     audioCues,
     docking,
     entryOverlay,
+    dskyMacros,
   };
 }
 
@@ -227,6 +231,49 @@ function parseEntryOverlay(content, logger) {
     return parsed;
   } catch (error) {
     logger?.log(0, 'Failed to parse entry overlay dataset', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'failure',
+      error: error.message,
+    });
+    return null;
+  }
+}
+
+function parseDskyMacros(content, logger) {
+  if (!content) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    const macros = Array.isArray(parsed.macros) ? parsed.macros : [];
+    const normalized = macros
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => ({
+        id: typeof entry.id === 'string' ? entry.id.trim() : null,
+        verb: Number.isFinite(entry.verb) ? Number(entry.verb) : null,
+        noun: Number.isFinite(entry.noun) ? Number(entry.noun) : null,
+        mode: typeof entry.mode === 'string' ? entry.mode.trim() : null,
+        label: typeof entry.label === 'string' ? entry.label.trim() : null,
+        description: typeof entry.description === 'string' ? entry.description.trim() : null,
+        program: typeof entry.program === 'string' ? entry.program.trim() : null,
+        registers: Array.isArray(entry.registers) ? entry.registers.map((reg) => ({ ...reg })) : [],
+        requires: Array.isArray(entry.requires) ? entry.requires.map((req) => ({ ...req })) : [],
+      }))
+      .filter((entry) => entry.id);
+
+    return {
+      version: typeof parsed.version === 'number' ? parsed.version : null,
+      description: typeof parsed.description === 'string' ? parsed.description : null,
+      macros: normalized,
+    };
+  } catch (error) {
+    logger?.log(0, 'Failed to parse DSKY macro dataset', {
       logSource: 'sim',
       logCategory: 'system',
       logSeverity: 'failure',

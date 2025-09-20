@@ -40,7 +40,7 @@ issues = validate_mission_data(mission)
 print(f"Validation issues: {len(issues)}")
 ```
 
-`MissionData` now exposes `ui_checklists`, `ui_panels`, and `ui_workspaces` alongside the historical datasets so notebooks can trace panel/control references or generate UI fixtures without reparsing the JSON packs.
+`MissionData` now exposes `ui_checklists`, `ui_panels`, `ui_dsky_macros`, and `ui_workspaces` alongside the historical datasets so notebooks can trace panel/control/macro references or generate UI fixtures without reparsing the JSON packs.
 
 Use `ProvenanceBuilder` from the same package to append table rows to `docs/data/provenance.md` when exporting refreshed CSVs.
 

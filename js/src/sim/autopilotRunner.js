@@ -10,12 +10,18 @@ const DEFAULT_OPTIONS = {
 
 export class AutopilotRunner {
   constructor(resourceSystem, logger, options = {}) {
-    const { rcsController = null, manualActionRecorder = null, ...restOptions } = options ?? {};
+    const {
+      rcsController = null,
+      manualActionRecorder = null,
+      agcRuntime = null,
+      ...restOptions
+    } = options ?? {};
     this.resourceSystem = resourceSystem;
     this.logger = logger;
     this.options = { ...DEFAULT_OPTIONS, ...restOptions };
     this.rcsController = rcsController ?? null;
     this.manualActionRecorder = manualActionRecorder ?? null;
+    this.agcRuntime = agcRuntime ?? null;
 
     this.active = new Map();
     this.completedEvents = new Map();
@@ -495,6 +501,28 @@ export class AutopilotRunner {
         note: entry.note ?? null,
         actor: 'AUTO_CREW',
       });
+    }
+
+    if (this.agcRuntime) {
+      this.agcRuntime.executeEntry(
+        {
+          macroId: entry.macroId ?? null,
+          verb: entry.verb ?? null,
+          noun: entry.noun ?? null,
+          program: entry.program ?? null,
+          registers,
+          sequence,
+          actor: 'AUTO_CREW',
+          note: entry.note ?? null,
+        },
+        {
+          getSeconds,
+          source: 'autopilot',
+          actor: 'AUTO_CREW',
+          autopilotId: state.autopilotId ?? null,
+          eventId: state.eventId ?? null,
+        },
+      );
     }
   }
 
