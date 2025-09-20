@@ -36,7 +36,7 @@ Primary pane layout uses a 3-column grid (trajectory canvas wide left, navball t
 ### Navigation View Overlays
 - **Burn Overlay:** When autopilot or manual burn active, fade in throttle strip, Δv achieved vs. target, residual vector arrow.
 - **Docking Overlay:** Adds rendezvous crosshair widget on navball, range/rate tape, approach corridor indicator.
-- **Entry Overlay:** Replaces trajectory canvas with entry corridor plot plus EMS tape indicator.
+- **Entry Overlay:** Replaces trajectory canvas with entry corridor plot plus EMS tape indicator (detailed in [`entry_overlay.md`](entry_overlay.md)).
 
 ## View 2 — Controls
 
