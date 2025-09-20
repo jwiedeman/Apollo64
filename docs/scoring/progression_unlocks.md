@@ -112,9 +112,10 @@ produce identical unlock results, supporting CI validation once automated tests
 incorporate progression checks.
 
 ## Regression & QA Hooks
-- Extend `npm run parity` to optionally load a profile and assert that unlock
-  states remain unchanged between auto/manual runs unless explicit criteria are
-  met.
+- `npm run parity` now accepts `--profile <path>` to load a commander profile and
+  confirm that auto/manual replays preserve unlocks, achievements, and mission
+  stats; use it alongside the existing parity report when validating checklist,
+  resource, or scoring changes.
 - Add snapshot-based tests around `ProgressionService` once implemented, feeding
   captured `summary` fixtures to verify unlock thresholds.
 - Include profile diffs when recording regression artifacts so reviewers can
