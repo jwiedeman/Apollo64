@@ -29,7 +29,9 @@ export class UiFrameBuilder {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.lastFrame = null;
     this.padMap = this.#normalizePadMap(this.options.pads);
+    this.eventLookup = this.#buildEventLookup(this.options.events);
     this.eventPadMap = this.#buildEventPadMap(this.options.events);
+    this.dockingConfig = this.#normalizeDockingConfig(this.options.docking);
   }
 
   build(currentGetSeconds, context = {}) {
@@ -104,6 +106,7 @@ export class UiFrameBuilder {
     }
 
     const missionLog = this.#summarizeMissionLog(context.missionLog ?? context.missionLogAggregator);
+    const docking = this.#summarizeDocking(currentGetSeconds, context);
 
     const frame = {
       generatedAtSeconds: currentGetSeconds,
@@ -134,6 +137,10 @@ export class UiFrameBuilder {
       frame.trajectory = trajectory;
     } else if (trajectoryHistory) {
       frame.trajectoryHistory = trajectoryHistory;
+    }
+
+    if (docking) {
+      frame.docking = docking;
     }
 
     this.lastFrame = frame;
@@ -754,6 +761,44 @@ export class UiFrameBuilder {
     return map;
   }
 
+  #buildEventLookup(eventsOption) {
+    const map = new Map();
+    if (!eventsOption) {
+      return map;
+    }
+    if (eventsOption instanceof Map) {
+      for (const [key, event] of eventsOption.entries()) {
+        const id = String(key ?? event?.id ?? '');
+        if (!id) {
+          continue;
+        }
+        if (event && typeof event === 'object') {
+          map.set(id, event);
+        }
+      }
+      return map;
+    }
+    if (Array.isArray(eventsOption)) {
+      for (const event of eventsOption) {
+        const id = event?.id ?? event?.eventId ?? null;
+        if (!id || !event || typeof event !== 'object') {
+          continue;
+        }
+        map.set(String(id), event);
+      }
+      return map;
+    }
+    if (typeof eventsOption === 'object') {
+      for (const [key, event] of Object.entries(eventsOption)) {
+        if (!event || typeof event !== 'object') {
+          continue;
+        }
+        map.set(String(key), event);
+      }
+    }
+    return map;
+  }
+
   #resolvePadForEvent(eventId, scheduler) {
     if (!eventId) {
       return null;
@@ -769,6 +814,24 @@ export class UiFrameBuilder {
     }
     const pad = this.padMap.get(padId) ?? null;
     return this.#summarizePad(pad, padId);
+  }
+
+  #resolveEventById(eventId, scheduler) {
+    if (!eventId) {
+      return null;
+    }
+    const key = String(eventId);
+    if (scheduler && typeof scheduler.getEventById === 'function') {
+      try {
+        const resolved = scheduler.getEventById(key);
+        if (resolved && typeof resolved === 'object') {
+          return resolved;
+        }
+      } catch (error) {
+        // Ignore scheduler lookup errors and fall back to the cached map.
+      }
+    }
+    return this.eventLookup.get(key) ?? null;
   }
 
   #summarizePad(pad, padId) {
@@ -1000,6 +1063,17 @@ export class UiFrameBuilder {
   }
 
   #coerceNumber(value) {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return null;
+      }
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
   }
@@ -1026,6 +1100,474 @@ export class UiFrameBuilder {
       return value;
     }
     return value.endsWith('_kg') ? value.slice(0, -3) : value;
+  }
+
+  #summarizeDocking(currentGetSeconds, context) {
+    if (!this.dockingConfig) {
+      return null;
+    }
+
+    const status = context?.docking ?? {};
+    const scheduler = context?.scheduler ?? null;
+
+    const eventId = status.eventId ?? status.event_id ?? this.dockingConfig.eventId ?? null;
+    const event = this.#resolveEventById(eventId, scheduler);
+
+    const openSeconds = this.#coerceNumber(
+      event?.getOpenSeconds
+        ?? event?.get_open_seconds
+        ?? event?.openSeconds
+        ?? event?.opensAtSeconds
+        ?? event?.opens_at_seconds,
+    );
+    const closeSeconds = this.#coerceNumber(
+      event?.getCloseSeconds
+        ?? event?.get_close_seconds
+        ?? event?.closeSeconds
+        ?? event?.closesAtSeconds
+        ?? event?.closes_at_seconds,
+    );
+
+    let progress = this.#coerceNumber(
+      status.progress
+        ?? status.sequenceProgress
+        ?? status.sequence_progress
+        ?? status.eventProgress
+        ?? status.event_progress,
+    );
+    if (progress != null) {
+      progress = this.#clamp(progress, 0, 1);
+    } else if (
+      Number.isFinite(openSeconds)
+      && Number.isFinite(closeSeconds)
+      && closeSeconds > openSeconds
+    ) {
+      const fraction = (currentGetSeconds - openSeconds) / (closeSeconds - openSeconds);
+      progress = this.#clamp(fraction, 0, 1);
+    } else if (
+      Number.isFinite(closeSeconds)
+      && currentGetSeconds >= closeSeconds
+    ) {
+      progress = 1;
+    } else if (
+      Number.isFinite(openSeconds)
+      && currentGetSeconds < openSeconds
+    ) {
+      progress = 0;
+    } else {
+      progress = null;
+    }
+
+    const gateStatusMap = new Map();
+    if (Array.isArray(status.gates)) {
+      for (const entry of status.gates) {
+        if (!entry || typeof entry !== 'object') {
+          continue;
+        }
+        const id = entry.id ?? entry.gateId ?? entry.gate_id ?? null;
+        if (!id) {
+          continue;
+        }
+        gateStatusMap.set(String(id), {
+          status: entry.status ?? null,
+          progress: this.#clamp(
+            this.#coerceNumber(entry.progress ?? entry.fraction ?? null),
+            0,
+            1,
+          ),
+          deadlineSeconds: this.#coerceNumber(
+            entry.deadlineSeconds ?? entry.deadline_seconds ?? null,
+          ),
+          deadlineGet: typeof entry.deadlineGet === 'string' ? entry.deadlineGet : null,
+          completedAtSeconds: this.#coerceNumber(
+            entry.completedAtSeconds ?? entry.completed_at_seconds ?? null,
+          ),
+        });
+      }
+    }
+    if (Array.isArray(status.completedGateIds)) {
+      for (const id of status.completedGateIds) {
+        if (!id) {
+          continue;
+        }
+        const key = String(id);
+        const existing = gateStatusMap.get(key) ?? {};
+        gateStatusMap.set(key, { ...existing, status: existing.status ?? 'complete' });
+      }
+    }
+
+    const gates = [];
+    for (const gate of this.dockingConfig.gates) {
+      const gateKey = gate.id ?? null;
+      const override = gateKey ? gateStatusMap.get(String(gateKey)) : null;
+      const gateProgress = override?.progress ?? progress;
+      const statusLabel = this.#resolveGateStatus(gate, override, gateProgress);
+
+      let deadlineSeconds = override?.deadlineSeconds ?? null;
+      if (!Number.isFinite(deadlineSeconds)) {
+        deadlineSeconds = this.#computeGateDeadline(gate, {
+          eventOpenSeconds: openSeconds,
+          eventCloseSeconds: closeSeconds,
+        });
+      }
+      const deadlineGet = override?.deadlineGet
+        ?? gate.deadlineGet
+        ?? (Number.isFinite(deadlineSeconds) ? formatGET(Math.round(deadlineSeconds)) : null);
+      const timeRemainingSeconds = Number.isFinite(deadlineSeconds)
+        ? deadlineSeconds - currentGetSeconds
+        : null;
+
+      gates.push({
+        id: gate.id,
+        label: gate.label,
+        rangeMeters: gate.rangeMeters,
+        targetRateMps: gate.targetRateMps,
+        tolerance: gate.tolerance,
+        activationProgress: gate.activationProgress,
+        completionProgress: gate.completionProgress,
+        checklistId: gate.checklistId,
+        notes: gate.notes,
+        sources: gate.sources,
+        deadlineSeconds: Number.isFinite(deadlineSeconds) ? deadlineSeconds : null,
+        deadlineGet,
+        status: statusLabel,
+        progress: gateProgress != null ? this.#clamp(gateProgress, 0, 1) : null,
+        completedAtSeconds: override?.completedAtSeconds ?? null,
+        overdue: Number.isFinite(timeRemainingSeconds) ? timeRemainingSeconds < 0 : null,
+        timeRemainingSeconds: timeRemainingSeconds ?? null,
+      });
+    }
+
+    const activeGateId = status.activeGateId
+      ?? status.active_gate_id
+      ?? status.activeGate
+      ?? this.#selectActiveGateId(gates);
+
+    const rangeMeters = this.#coerceNumber(
+      status.rangeMeters
+        ?? status.range_meters
+        ?? status.range
+        ?? status.distanceMeters
+        ?? status.distance_meters,
+    );
+    const closingRateMps = this.#coerceNumber(
+      status.closingRateMps
+        ?? status.closing_rate_mps
+        ?? status.rangeRateMps
+        ?? status.range_rate_mps
+        ?? status.relativeVelocityMps
+        ?? status.relative_velocity_mps,
+    );
+    const lateralRateMps = this.#coerceNumber(
+      status.lateralRateMps
+        ?? status.lateral_rate_mps
+        ?? status.crossRangeRateMps
+        ?? status.cross_range_rate_mps,
+    );
+    const predictedContactVelocityMps = this.#coerceNumber(
+      status.predictedContactVelocityMps
+        ?? status.predicted_contact_velocity_mps
+        ?? status.contactVelocityMps
+        ?? status.contact_velocity_mps,
+    );
+
+    const rcs = this.#normalizeDockingRcsStatus(status.rcs ?? status.rcsStatus ?? null);
+
+    const summary = {
+      eventId,
+      activeGateId,
+      activeGate: activeGateId,
+      startRangeMeters: this.dockingConfig.startRangeMeters,
+      endRangeMeters: this.dockingConfig.endRangeMeters,
+      notes: this.dockingConfig.notes,
+      progress,
+      gates,
+      rangeMeters,
+      closingRateMps,
+      lateralRateMps,
+      predictedContactVelocityMps,
+      rcs,
+    };
+
+    if (this.dockingConfig.version != null) {
+      summary.version = this.dockingConfig.version;
+    }
+
+    return summary;
+  }
+
+  #normalizeDockingRcsStatus(rcsStatus) {
+    if (!rcsStatus || typeof rcsStatus !== 'object') {
+      return null;
+    }
+
+    const quads = [];
+    if (Array.isArray(rcsStatus.quads)) {
+      for (const entry of rcsStatus.quads) {
+        if (!entry || typeof entry !== 'object') {
+          continue;
+        }
+        const id = entry.id ?? entry.quadId ?? entry.quad_id ?? null;
+        if (!id) {
+          continue;
+        }
+        quads.push({
+          id,
+          enabled: entry.enabled != null ? Boolean(entry.enabled) : null,
+          dutyCyclePct: this.#coerceNumber(
+            entry.dutyCyclePct
+              ?? entry.duty_cycle_pct
+              ?? entry.dutyCycle
+              ?? entry.duty_cycle,
+          ),
+        });
+      }
+    }
+
+    const remaining = this.#cloneNumberMap(
+      rcsStatus.propellantKgRemaining
+        ?? rcsStatus.propellant_remaining
+        ?? rcsStatus.propellantKg
+        ?? rcsStatus.remainingKg
+        ?? null,
+    );
+    const budget = this.#cloneNumberMap(
+      rcsStatus.propellantKgBudget
+        ?? rcsStatus.propellant_budget
+        ?? rcsStatus.propellantBudget
+        ?? null,
+    );
+
+    if (quads.length === 0 && Object.keys(remaining).length === 0 && Object.keys(budget).length === 0) {
+      return null;
+    }
+
+    const summary = {};
+    if (quads.length > 0) {
+      summary.quads = quads;
+    }
+    if (Object.keys(remaining).length > 0) {
+      summary.propellantKgRemaining = remaining;
+    }
+    if (Object.keys(budget).length > 0) {
+      summary.propellantKgBudget = budget;
+    }
+    return summary;
+  }
+
+  #selectActiveGateId(gates) {
+    if (!Array.isArray(gates) || gates.length === 0) {
+      return null;
+    }
+
+    const completed = gates.filter((gate) => gate.status === 'complete');
+    if (completed.length === gates.length) {
+      return completed[completed.length - 1]?.id ?? null;
+    }
+
+    const active = gates.find((gate) => gate.status === 'active');
+    if (active) {
+      return active.id ?? null;
+    }
+
+    const pending = gates.find((gate) => gate.status !== 'complete');
+    return pending?.id ?? null;
+  }
+
+  #resolveGateStatus(gate, override, progress) {
+    if (override?.status) {
+      return override.status;
+    }
+    const gateProgress = override?.progress ?? progress;
+    const completion = this.#coerceNumber(gate.completionProgress);
+    const activation = this.#coerceNumber(gate.activationProgress);
+
+    if (gateProgress != null) {
+      const normalized = this.#clamp(gateProgress, 0, 1);
+      if (completion != null && normalized >= completion - 1e-6) {
+        return 'complete';
+      }
+      if (activation != null && normalized >= activation - 1e-6) {
+        return 'active';
+      }
+      return 'pending';
+    }
+
+    if (completion != null && completion <= 0) {
+      return 'complete';
+    }
+    if (activation != null && activation <= 0) {
+      return 'pending';
+    }
+    return 'pending';
+  }
+
+  #normalizeDockingConfig(config) {
+    if (!config || typeof config !== 'object') {
+      return null;
+    }
+
+    const version = Number.isFinite(config.version) ? Number(config.version) : null;
+    const eventId = typeof config.eventId === 'string' && config.eventId.trim().length > 0
+      ? config.eventId.trim()
+      : null;
+    const startRangeMeters = this.#coerceNumber(
+      config.startRangeMeters ?? config.start_range_meters ?? config.startRange ?? null,
+    );
+    const endRangeMeters = this.#coerceNumber(
+      config.endRangeMeters ?? config.end_range_meters ?? config.endRange ?? null,
+    );
+    const notes = typeof config.notes === 'string' && config.notes.trim().length > 0
+      ? config.notes.trim()
+      : null;
+
+    const gatesRaw = Array.isArray(config.gates) ? config.gates : [];
+    const gates = [];
+    for (const entry of gatesRaw) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const id = typeof entry.id === 'string' && entry.id.trim().length > 0 ? entry.id.trim() : null;
+      if (!id) {
+        continue;
+      }
+      const label = typeof entry.label === 'string' && entry.label.trim().length > 0
+        ? entry.label.trim()
+        : id;
+      const rangeMeters = this.#coerceNumber(
+        entry.rangeMeters ?? entry.range_meters ?? entry.range ?? null,
+      );
+      const targetRateMps = this.#coerceNumber(
+        entry.targetRateMps
+          ?? entry.target_rate_mps
+          ?? entry.targetRate
+          ?? entry.target_rate
+          ?? null,
+      );
+      const activationProgress = this.#clamp(
+        this.#coerceNumber(entry.activationProgress ?? entry.activation_progress ?? null),
+        0,
+        1,
+      );
+      const completionProgress = this.#clamp(
+        this.#coerceNumber(entry.completionProgress ?? entry.completion_progress ?? null),
+        0,
+        1,
+      );
+
+      let tolerancePlus = null;
+      let toleranceMinus = null;
+      if (entry.tolerance && typeof entry.tolerance === 'object') {
+        tolerancePlus = this.#coerceNumber(entry.tolerance.plus ?? entry.tolerance.max ?? null);
+        toleranceMinus = this.#coerceNumber(entry.tolerance.minus ?? entry.tolerance.min ?? null);
+      }
+
+      const checklistId = typeof entry.checklistId === 'string' && entry.checklistId.trim().length > 0
+        ? entry.checklistId.trim()
+        : null;
+      const notesValue = typeof entry.notes === 'string' && entry.notes.trim().length > 0
+        ? entry.notes.trim()
+        : null;
+      const sources = Array.isArray(entry.sources)
+        ? entry.sources
+            .map((source) => (typeof source === 'string' ? source.trim() : ''))
+            .filter((value) => value.length > 0)
+        : [];
+
+      const deadlineGet = typeof entry.deadlineGet === 'string' && entry.deadlineGet.trim().length > 0
+        ? entry.deadlineGet.trim()
+        : null;
+      let deadlineSeconds = this.#coerceNumber(
+        entry.deadlineSeconds ?? entry.deadline_seconds ?? null,
+      );
+      if (deadlineSeconds == null && deadlineGet) {
+        const parsed = parseGET(deadlineGet);
+        deadlineSeconds = parsed != null ? parsed : null;
+      }
+      const deadlineOffsetSeconds = this.#coerceNumber(
+        entry.deadlineOffsetSeconds ?? entry.deadline_offset_seconds ?? null,
+      );
+
+      gates.push({
+        id,
+        label,
+        rangeMeters,
+        targetRateMps,
+        tolerance: { plus: tolerancePlus, minus: toleranceMinus },
+        activationProgress,
+        completionProgress,
+        checklistId,
+        notes: notesValue,
+        sources,
+        deadlineGet,
+        deadlineSeconds,
+        deadlineOffsetSeconds,
+      });
+    }
+
+    gates.sort((a, b) => {
+      const aProgress = a.activationProgress ?? a.completionProgress ?? Number.POSITIVE_INFINITY;
+      const bProgress = b.activationProgress ?? b.completionProgress ?? Number.POSITIVE_INFINITY;
+      if (aProgress !== bProgress) {
+        return aProgress - bProgress;
+      }
+      const aRange = Number.isFinite(a.rangeMeters) ? a.rangeMeters : Number.POSITIVE_INFINITY;
+      const bRange = Number.isFinite(b.rangeMeters) ? b.rangeMeters : Number.POSITIVE_INFINITY;
+      return aRange - bRange;
+    });
+
+    return {
+      version,
+      eventId,
+      startRangeMeters,
+      endRangeMeters,
+      notes,
+      gates,
+    };
+  }
+
+  #computeGateDeadline(gate, { eventOpenSeconds, eventCloseSeconds } = {}) {
+    if (!gate) {
+      return null;
+    }
+    if (Number.isFinite(gate.deadlineSeconds)) {
+      return gate.deadlineSeconds;
+    }
+    if (Number.isFinite(gate.deadlineOffsetSeconds) && Number.isFinite(eventOpenSeconds)) {
+      return eventOpenSeconds + gate.deadlineOffsetSeconds;
+    }
+    if (
+      Number.isFinite(eventOpenSeconds)
+      && Number.isFinite(eventCloseSeconds)
+      && eventCloseSeconds > eventOpenSeconds
+    ) {
+      const completion = this.#coerceNumber(gate.completionProgress);
+      if (completion != null) {
+        const fraction = this.#clamp(completion, 0, 1);
+        const duration = eventCloseSeconds - eventOpenSeconds;
+        return eventOpenSeconds + (duration * fraction);
+      }
+      const activation = this.#coerceNumber(gate.activationProgress);
+      if (activation != null) {
+        const fraction = this.#clamp(activation, 0, 1);
+        const duration = eventCloseSeconds - eventOpenSeconds;
+        return eventOpenSeconds + (duration * fraction);
+      }
+    }
+    return null;
+  }
+
+  #clamp(value, min = 0, max = 1) {
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    if (value < min) {
+      return min;
+    }
+    if (value > max) {
+      return max;
+    }
+    return value;
   }
 }
 

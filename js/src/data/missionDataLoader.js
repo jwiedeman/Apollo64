@@ -4,6 +4,7 @@ import { parseCsv } from '../utils/csv.js';
 import { parseGET } from '../utils/time.js';
 
 export async function loadMissionData(dataDir, { logger } = {}) {
+  const uiDir = path.resolve(dataDir, '..', 'ui');
   const files = await Promise.all([
     readFile(path.resolve(dataDir, 'events.csv')),
     readFile(path.resolve(dataDir, 'checklists.csv')),
@@ -14,6 +15,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'thrusters.json')),
     readFile(path.resolve(dataDir, 'communications_trends.json')),
     readFile(path.resolve(dataDir, 'audio_cues.json')),
+    readOptionalFile(path.resolve(uiDir, 'docking_gates.json')),
   ]);
 
   const [
@@ -26,6 +28,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     thrustersContent,
     communicationsContent,
     audioCueContent,
+    dockingContent,
   ] = files;
 
   const autopilotRecords = parseCsv(autopilotsContent);
@@ -76,6 +79,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const thrusters = parseThrusters(thrustersContent, logger);
   const communications = parseCommunicationsTrends(communicationsContent, logger);
   const audioCues = parseAudioCues(audioCueContent, logger);
+  const docking = parseDockingGates(dockingContent, logger);
 
   const thrusterCraftCount = Array.isArray(thrusters?.craft) ? thrusters.craft.length : 0;
   const thrusterCount = Array.isArray(thrusters?.craft)
@@ -114,6 +118,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
         audioBuses: audioCues.buses.length,
         audioCategories: audioCues.categories.length,
         audioCues: audioCues.cues.length,
+        dockingGates: Array.isArray(docking?.gates) ? docking.gates.length : 0,
       },
     });
   }
@@ -128,11 +133,23 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     thrusters,
     communications,
     audioCues,
+    docking,
   };
 }
 
 async function readFile(filePath) {
   return fs.readFile(filePath, 'utf8');
+}
+
+async function readOptionalFile(filePath) {
+  try {
+    return await fs.readFile(filePath, 'utf8');
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
 }
 
 async function loadAutopilotScript(dataDir, relativePath, logger) {
@@ -166,6 +183,28 @@ function parseOptionalJson(value) {
     return JSON.parse(value);
   } catch (error) {
     return {};
+  }
+}
+
+function parseDockingGates(content, logger) {
+  if (!content) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    logger?.log(0, 'Failed to parse docking_gates.json', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'warning',
+      error: error.message,
+    });
+    return null;
   }
 }
 

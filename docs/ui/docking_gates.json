@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "eventId": "LM_ASCENT_030",
+  "startRangeMeters": 500,
+  "endRangeMeters": 0,
+  "notes": "Flight Plan Section 7 rendezvous charts (pp. 7-30 – 7-32) and Apollo 11 Mission Operations Report Section 3.6 outline the sequential braking gates and target closure rates used during LM ascent docking.",
+  "gates": [
+    {
+      "id": "GATE_500M",
+      "label": "500 m braking gate",
+      "rangeMeters": 500,
+      "targetRateMps": -2.4,
+      "tolerance": { "plus": 0.8, "minus": 0.4 },
+      "activationProgress": 0,
+      "completionProgress": 0.3,
+      "checklistId": "FP_7-32_RNDZ_DOCK",
+      "sources": [
+        "Apollo 11 Flight Plan p. 7-32 (Braking Gates)",
+        "Mission Operations Report Section 3.6"
+      ]
+    },
+    {
+      "id": "GATE_150M",
+      "label": "150 m braking gate",
+      "rangeMeters": 150,
+      "targetRateMps": -0.9,
+      "tolerance": { "plus": 0.3, "minus": 0.2 },
+      "activationProgress": 0.3,
+      "completionProgress": 0.7,
+      "checklistId": "FP_7-32_RNDZ_DOCK",
+      "sources": [
+        "Apollo 11 Flight Plan p. 7-32 (Braking Gates)",
+        "Mission Operations Report Section 3.6"
+      ]
+    },
+    {
+      "id": "GATE_030M",
+      "label": "30 m approach gate",
+      "rangeMeters": 30,
+      "targetRateMps": -0.3,
+      "tolerance": { "plus": 0.1, "minus": 0.1 },
+      "activationProgress": 0.7,
+      "completionProgress": 0.9,
+      "checklistId": "FP_7-32_RNDZ_DOCK",
+      "sources": [
+        "Apollo 11 Flight Plan p. 7-32 (Final approach cues)",
+        "Mission Operations Report Section 3.6"
+      ]
+    },
+    {
+      "id": "GATE_CONTACT",
+      "label": "Contact / capture gate",
+      "rangeMeters": 0,
+      "targetRateMps": -0.2,
+      "tolerance": { "plus": 0.05, "minus": 0.05 },
+      "activationProgress": 0.9,
+      "completionProgress": 1,
+      "checklistId": "FP_7-32_RNDZ_DOCK",
+      "sources": [
+        "Apollo 11 Flight Plan p. 7-32 (Soft-dock criteria)",
+        "Mission Operations Report Section 3.6"
+      ]
+    }
+  ]
+}
