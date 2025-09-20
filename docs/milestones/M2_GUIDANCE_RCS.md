@@ -35,6 +35,7 @@ Milestone M2 layers guidance execution, reaction-control modelling, and rendezvo
 - **Authoring reference:** Keep [`docs/data/autopilot_scripts.md`](../data/autopilot_scripts.md) current as new commands or propulsion parameters are introduced so tooling, validation, and future contributors share the same schema.
 - **Thruster configuration:** Reference `docs/data/thrusters.json` for the initial CSM/LM RCS cluster tables (thrust, Isp, cluster angle, control axes) and expand them with refined vectors as tuning data becomes available. These feed both JS prototype calculations and the eventual N64 build.
 - **Tuning notebooks:** Plan for Python notebooks under `scripts/ingest/` (or similar) that replay burns and rendezvous sequences, plotting attitude error and propellant usage against historical baselines.
+- **AGC integration:** Follow the runtime/command-bus plan in [`docs/sim/agc_guidance_integration.md`](../sim/agc_guidance_integration.md) so PAD loading, program mode changes, and annunciator alarms remain synchronized with guidance tuning and autopilot execution.
 
 ## HUD & Telemetry Enhancements
 - Extend the existing HUD with readouts for throttle %, Δv remaining, RCS propellant per tank, and roll/pitch/yaw error.
