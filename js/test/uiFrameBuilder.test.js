@@ -238,15 +238,48 @@ describe('UiFrameBuilder', () => {
       rating: {
         baseScore: 72.5,
         manualBonus: 4.0,
-        commanderScore: 76.5,
-        grade: 'C',
+        commanderScore: 78.5,
+        grade: 'B',
         breakdown: {
           events: { score: 0.8, weight: 0.4 },
           resources: { score: 0.65, weight: 0.3 },
           faults: { score: 0.5, weight: 0.2 },
           manual: { score: 0.4, weight: 0.1 },
         },
+        delta: {
+          commanderScore: 2.0,
+          baseScore: 1.5,
+          manualBonus: 0.5,
+          breakdown: { events: 0.2, resources: 0.1, faults: -0.05, manual: 0.02 },
+          gradeChanged: true,
+          grade: 'B',
+          previousGrade: 'C',
+        },
       },
+      history: [
+        {
+          getSeconds: 30,
+          commanderScore: 76.5,
+          baseScore: 71.0,
+          manualBonus: 4.0,
+          grade: 'C',
+          breakdown: {
+            events: { score: 0.75, weight: 0.4 },
+            resources: { score: 0.6, weight: 0.3 },
+            faults: { score: 0.48, weight: 0.2 },
+            manual: { score: 0.35, weight: 0.1 },
+          },
+          delta: {
+            commanderScore: 1.5,
+            baseScore: 1.0,
+            manualBonus: 0.5,
+            breakdown: { events: 0.1, resources: 0.05, faults: -0.02, manual: 0.01 },
+            gradeChanged: false,
+            grade: 'C',
+            previousGrade: 'C',
+          },
+        },
+      ],
     };
 
     const audioBinder = {
@@ -508,14 +541,29 @@ describe('UiFrameBuilder', () => {
     assert.strictEqual(frame.trajectory.history, orbitHistory);
 
     assert.ok(frame.score);
-    assert.equal(frame.score.rating.commanderScore, 76.5);
-    assert.equal(frame.score.rating.grade, 'C');
+    assert.equal(frame.score.rating.commanderScore, 78.5);
+    assert.equal(frame.score.rating.grade, 'B');
     assert.equal(frame.score.events.completed, 3);
     assert.deepEqual(frame.score.resources.propellantUsedKg, { csm_sps: 8.5 });
     assert.deepEqual(frame.score.faults.resourceFailureIds, [
       'FAIL_COMM_PASS_MISSED',
       'FAIL_POWER_LOW',
     ]);
+
+    assert.ok(Array.isArray(frame.score.history));
+    assert.equal(frame.score.history.length, 1);
+    const historyEntry = frame.score.history[0];
+    assert.equal(historyEntry.getSeconds, 30);
+    assert.equal(historyEntry.get, '000:00:30');
+    assert.equal(historyEntry.commanderScore, 76.5);
+    assert.ok(historyEntry.delta);
+    assert.equal(historyEntry.delta.commanderScore, 1.5);
+    assert.equal(historyEntry.delta.breakdown.events, 0.1);
+
+    assert.ok(frame.score.rating.delta);
+    assert.equal(frame.score.rating.delta.commanderScore, 2.0);
+    assert.equal(frame.score.rating.delta.gradeChanged, true);
+    assert.equal(frame.score.rating.delta.previousGrade, 'C');
     assert.equal(frame.missionLog, null);
   });
 

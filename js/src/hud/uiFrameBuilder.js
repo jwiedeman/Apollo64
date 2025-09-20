@@ -884,7 +884,7 @@ export class UiFrameBuilder {
     const manualFraction = this.#coerceNumber(manual.manualFraction);
     const manualFractionRounded = manualFraction != null ? this.#roundNumber(manualFraction, 3) : null;
 
-    return {
+    const result = {
       missionDurationSeconds: this.#coerceNumber(summary.missionDurationSeconds),
       events: {
         total: this.#coerceNumber(events.total),
@@ -934,6 +934,22 @@ export class UiFrameBuilder {
         },
       },
     };
+
+    const history = Array.isArray(summary.history)
+      ? summary.history
+        .map((entry) => this.#summarizeScoreHistoryEntry(entry))
+        .filter((entry) => entry != null)
+      : null;
+    if (history && history.length > 0) {
+      result.history = history;
+    }
+
+    const ratingDelta = this.#summarizeScoreDelta(summary.rating?.delta ?? null);
+    if (ratingDelta) {
+      result.rating.delta = ratingDelta;
+    }
+
+    return result;
   }
 
   #summarizeTrajectory(summary) {
@@ -1678,6 +1694,102 @@ export class UiFrameBuilder {
       score,
       weight,
     };
+  }
+
+  #summarizeScoreHistoryEntry(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+
+    const getSeconds = this.#coerceNumber(entry.getSeconds);
+    const commanderScore = this.#coerceNumber(entry.commanderScore);
+    const baseScore = this.#coerceNumber(entry.baseScore);
+    const manualBonus = this.#coerceNumber(entry.manualBonus);
+    const grade = typeof entry.grade === 'string' ? entry.grade : null;
+
+    const breakdown = entry.breakdown ?? {};
+
+    const historyEntry = {
+      getSeconds,
+      get: Number.isFinite(getSeconds) ? formatGET(getSeconds) : null,
+      commanderScore,
+      baseScore,
+      manualBonus,
+      grade,
+      breakdown: {
+        events: this.#summarizeScoreBreakdown(breakdown.events),
+        resources: this.#summarizeScoreBreakdown(breakdown.resources),
+        faults: this.#summarizeScoreBreakdown(breakdown.faults),
+        manual: this.#summarizeScoreBreakdown(breakdown.manual),
+      },
+    };
+
+    const delta = this.#summarizeScoreDelta(entry.delta ?? null);
+    if (delta) {
+      historyEntry.delta = delta;
+    }
+
+    return historyEntry;
+  }
+
+  #summarizeScoreDelta(delta) {
+    if (!delta || typeof delta !== 'object') {
+      return null;
+    }
+
+    const commanderScore = this.#coerceNumber(delta.commanderScore);
+    const baseScore = this.#coerceNumber(delta.baseScore);
+    const manualBonus = this.#coerceNumber(delta.manualBonus);
+
+    let breakdown = null;
+    if (delta.breakdown && typeof delta.breakdown === 'object') {
+      breakdown = {};
+      let hasValue = false;
+      for (const key of ['events', 'resources', 'faults', 'manual']) {
+        const value = this.#coerceNumber(delta.breakdown[key]);
+        if (value != null) {
+          breakdown[key] = this.#roundNumber(value, 3);
+          if (value !== 0) {
+            hasValue = true;
+          }
+        } else {
+          breakdown[key] = null;
+        }
+      }
+      if (!hasValue) {
+        breakdown = null;
+      }
+    }
+
+    const gradeChanged = Boolean(delta.gradeChanged);
+    const grade = typeof delta.grade === 'string' ? delta.grade : null;
+    const previousGrade = typeof delta.previousGrade === 'string' ? delta.previousGrade : null;
+
+    const hasValue =
+      commanderScore != null
+      || baseScore != null
+      || manualBonus != null
+      || gradeChanged
+      || breakdown != null;
+
+    if (!hasValue) {
+      return null;
+    }
+
+    const result = {
+      commanderScore,
+      baseScore,
+      manualBonus,
+      gradeChanged,
+      grade,
+      previousGrade,
+    };
+
+    if (breakdown) {
+      result.breakdown = breakdown;
+    }
+
+    return result;
   }
 
   #cloneNumberMap(map) {
