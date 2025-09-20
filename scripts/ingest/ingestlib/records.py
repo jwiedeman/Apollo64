@@ -10,6 +10,81 @@ from .time import parse_get
 from .utils import clean_string, parse_json_field, safe_bool, safe_float, safe_int, split_multi_value
 
 
+def _parse_optional_seconds(value: Any) -> Optional[float]:
+    """Return ``value`` as seconds, accepting GET strings or numeric offsets."""
+
+    if value is None:
+        return None
+
+    try:
+        seconds = parse_get(value)
+    except (TypeError, ValueError):
+        numeric = safe_float(value)
+        return numeric if numeric is not None else None
+    return seconds
+
+
+def _parse_entry_event_reference(
+    payload: Any, events: Optional[Dict[str, str]]
+) -> Dict[str, Optional[str]]:
+    """Normalize event references used by entry overlay states."""
+
+    event_key: Optional[str] = None
+    event_id: Optional[str] = None
+
+    if isinstance(payload, str):
+        candidate = clean_string(payload)
+        if candidate:
+            if events and candidate in events:
+                event_key = candidate
+                event_id = clean_string(events.get(candidate))
+            else:
+                event_id = candidate
+        return {"event_key": event_key, "event_id": event_id}
+
+    if isinstance(payload, dict):
+        raw_key = (
+            payload.get("event")
+            or payload.get("eventKey")
+            or payload.get("event_key")
+        )
+        if raw_key is not None:
+            event_key = clean_string(raw_key)
+
+        raw_id = payload.get("eventId") or payload.get("event_id")
+        if raw_id is not None:
+            event_id = clean_string(raw_id)
+
+        if event_key and events and event_key in events:
+            mapped = clean_string(events.get(event_key))
+            if mapped:
+                event_id = mapped
+        elif event_key and not event_id and events:
+            for candidate_key, candidate_id in events.items():
+                if clean_string(candidate_id) == event_key:
+                    event_id = clean_string(candidate_id)
+                    event_key = candidate_key
+                    break
+            if event_id is None:
+                event_id = event_key
+        elif event_id and not event_key and events:
+            for candidate_key, candidate_id in events.items():
+                if clean_string(candidate_id) == event_id:
+                    event_key = candidate_key
+                    break
+
+        return {"event_key": event_key, "event_id": event_id}
+
+    return {"event_key": None, "event_id": None}
+
+
+def _first_non_none(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
 @dataclass
 class EventRecord:
     """Normalized view of a row from ``events.csv``."""
@@ -992,6 +1067,466 @@ class DockingGateConfig:
 
 
 @dataclass
+class EntryOverlayCorridorState:
+    """State descriptor for entry corridor offsets."""
+
+    event_key: Optional[str]
+    event_id: Optional[str]
+    required_status: Optional[str]
+    after_seconds: Optional[float]
+    after_completion_seconds: Optional[float]
+    after_get_seconds: Optional[float]
+    angle_offset_deg: Optional[float]
+    downrange_error_km: Optional[float]
+    crossrange_error_km: Optional[float]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(
+        cls,
+        payload: Dict[str, Any],
+        events: Optional[Dict[str, str]],
+    ) -> "EntryOverlayCorridorState":
+        ref = _parse_entry_event_reference(payload, events)
+        required_status = clean_string(payload.get("status"))
+        status = required_status.lower() if required_status else None
+        after_seconds_raw = _first_non_none(
+            payload.get("afterSeconds"),
+            payload.get("after_seconds"),
+        )
+        after_completion_raw = _first_non_none(
+            payload.get("afterCompletionSeconds"),
+            payload.get("after_completion_seconds"),
+        )
+        after_get_raw = _first_non_none(
+            payload.get("afterGetSeconds"),
+            payload.get("after_get_seconds"),
+            payload.get("afterGet"),
+            payload.get("after_get"),
+        )
+        angle_source = _first_non_none(
+            payload.get("angleOffsetDeg"),
+            payload.get("angle_offset_deg"),
+            payload.get("offsetDegrees"),
+            payload.get("offset_degrees"),
+        )
+        downrange_source = _first_non_none(
+            payload.get("downrangeErrorKm"),
+            payload.get("downrange_error_km"),
+        )
+        crossrange_source = _first_non_none(
+            payload.get("crossrangeErrorKm"),
+            payload.get("crossrange_error_km"),
+        )
+
+        return cls(
+            event_key=ref["event_key"],
+            event_id=ref["event_id"],
+            required_status=status,
+            after_seconds=_parse_optional_seconds(after_seconds_raw),
+            after_completion_seconds=_parse_optional_seconds(after_completion_raw),
+            after_get_seconds=_parse_optional_seconds(after_get_raw),
+            angle_offset_deg=safe_float(angle_source)
+            if angle_source is not None
+            else None,
+            downrange_error_km=safe_float(downrange_source)
+            if downrange_source is not None
+            else None,
+            crossrange_error_km=safe_float(crossrange_source)
+            if crossrange_source is not None
+            else None,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class EntryOverlayCorridorConfig:
+    """Entry corridor configuration and state table."""
+
+    tolerance_degrees: Optional[float]
+    target_degrees: Optional[float]
+    default_state: Optional[EntryOverlayCorridorState]
+    states: List[EntryOverlayCorridorState]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(
+        cls, payload: Dict[str, Any], events: Optional[Dict[str, str]]
+    ) -> "EntryOverlayCorridorConfig":
+        default_raw = (
+            payload.get("default")
+            or payload.get("defaultState")
+            or payload.get("default_state")
+        )
+        default_state = (
+            EntryOverlayCorridorState.from_dict(default_raw, events)
+            if isinstance(default_raw, dict)
+            else None
+        )
+
+        states_payload = payload.get("states")
+        states: List[EntryOverlayCorridorState] = []
+        if isinstance(states_payload, list):
+            for entry in states_payload:
+                if isinstance(entry, dict):
+                    states.append(EntryOverlayCorridorState.from_dict(entry, events))
+
+        target = _first_non_none(
+            payload.get("targetDegrees"),
+            payload.get("target_degrees"),
+        )
+        tolerance_source = _first_non_none(
+            payload.get("toleranceDegrees"),
+            payload.get("tolerance_degrees"),
+        )
+
+        return cls(
+            tolerance_degrees=safe_float(tolerance_source)
+            if tolerance_source is not None
+            else None,
+            target_degrees=safe_float(target) if target is not None else None,
+            default_state=default_state,
+            states=states,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class EntryOverlayBlackoutConfig:
+    """Entry communications blackout window definition."""
+
+    start_seconds: Optional[float]
+    end_seconds: Optional[float]
+    start_get: Optional[str]
+    end_get: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "EntryOverlayBlackoutConfig":
+        start_raw = _first_non_none(
+            payload.get("startsAtSeconds"),
+            payload.get("startSeconds"),
+            payload.get("start_seconds"),
+            payload.get("start"),
+            payload.get("startGet"),
+            payload.get("start_get"),
+            payload.get("startGET"),
+        )
+        end_raw = _first_non_none(
+            payload.get("endsAtSeconds"),
+            payload.get("endSeconds"),
+            payload.get("end_seconds"),
+            payload.get("end"),
+            payload.get("endGet"),
+            payload.get("end_get"),
+            payload.get("endGET"),
+        )
+
+        start_get = clean_string(payload.get("startGet") or payload.get("start_get"))
+        end_get = clean_string(payload.get("endGet") or payload.get("end_get"))
+
+        return cls(
+            start_seconds=_parse_optional_seconds(start_raw),
+            end_seconds=_parse_optional_seconds(end_raw),
+            start_get=start_get,
+            end_get=end_get,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class EntryOverlayGLoadState:
+    """G-load timeline value keyed to mission events."""
+
+    event_key: Optional[str]
+    event_id: Optional[str]
+    required_status: Optional[str]
+    after_seconds: Optional[float]
+    after_completion_seconds: Optional[float]
+    after_get_seconds: Optional[float]
+    value: Optional[float]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(
+        cls,
+        payload: Dict[str, Any],
+        events: Optional[Dict[str, str]],
+    ) -> "EntryOverlayGLoadState":
+        ref = _parse_entry_event_reference(payload, events)
+        required_status = clean_string(payload.get("status"))
+        status = required_status.lower() if required_status else None
+        after_seconds_raw = _first_non_none(
+            payload.get("afterSeconds"),
+            payload.get("after_seconds"),
+        )
+        after_completion_raw = _first_non_none(
+            payload.get("afterCompletionSeconds"),
+            payload.get("after_completion_seconds"),
+        )
+        after_get_raw = _first_non_none(
+            payload.get("afterGetSeconds"),
+            payload.get("after_get_seconds"),
+            payload.get("afterGet"),
+            payload.get("after_get"),
+        )
+        value_source = payload.get("value")
+
+        return cls(
+            event_key=ref["event_key"],
+            event_id=ref["event_id"],
+            required_status=status,
+            after_seconds=_parse_optional_seconds(after_seconds_raw),
+            after_completion_seconds=_parse_optional_seconds(after_completion_raw),
+            after_get_seconds=_parse_optional_seconds(after_get_raw),
+            value=safe_float(value_source) if value_source is not None else None,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class EntryOverlayGLoadConfig:
+    """Aggregated G-load configuration for entry overlay."""
+
+    max_value: Optional[float]
+    caution: Optional[float]
+    warning: Optional[float]
+    default_state: Optional[EntryOverlayGLoadState]
+    states: List[EntryOverlayGLoadState]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(
+        cls, payload: Dict[str, Any], events: Optional[Dict[str, str]]
+    ) -> "EntryOverlayGLoadConfig":
+        default_raw = (
+            payload.get("default")
+            or payload.get("defaultState")
+            or payload.get("default_state")
+        )
+        default_state = (
+            EntryOverlayGLoadState.from_dict(default_raw, events)
+            if isinstance(default_raw, dict)
+            else None
+        )
+
+        states_payload = payload.get("states")
+        states: List[EntryOverlayGLoadState] = []
+        if isinstance(states_payload, list):
+            for entry in states_payload:
+                if isinstance(entry, dict):
+                    states.append(EntryOverlayGLoadState.from_dict(entry, events))
+
+        return cls(
+            max_value=safe_float(payload.get("max")) if payload.get("max") is not None else None,
+            caution=safe_float(payload.get("caution")) if payload.get("caution") is not None else None,
+            warning=safe_float(payload.get("warning")) if payload.get("warning") is not None else None,
+            default_state=default_state,
+            states=states,
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class EntryOverlayEmsConfig:
+    """Entry Monitoring System baseline targets."""
+
+    target_velocity_ft_per_sec: Optional[float]
+    target_altitude_ft: Optional[float]
+    predicted_splashdown_seconds: Optional[float]
+    predicted_splashdown_get: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "EntryOverlayEmsConfig":
+        velocity_source = _first_non_none(
+            payload.get("targetVelocityFtPerSec"),
+            payload.get("target_velocity_ft_per_sec"),
+        )
+        altitude_source = _first_non_none(
+            payload.get("targetAltitudeFt"),
+            payload.get("target_altitude_ft"),
+        )
+        splashdown_seconds_source = _first_non_none(
+            payload.get("predictedSplashdownSeconds"),
+            payload.get("predicted_splashdown_seconds"),
+            payload.get("predictedSplashdown"),
+            payload.get("predicted_splashdown"),
+        )
+
+        return cls(
+            target_velocity_ft_per_sec=safe_float(velocity_source)
+            if velocity_source is not None
+            else None,
+            target_altitude_ft=safe_float(altitude_source)
+            if altitude_source is not None
+            else None,
+            predicted_splashdown_seconds=_parse_optional_seconds(
+                splashdown_seconds_source
+            ),
+            predicted_splashdown_get=clean_string(
+                payload.get("predictedSplashdownGet")
+                or payload.get("predicted_splashdown_get")
+            ),
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class EntryOverlayRecoveryStep:
+    """Recovery milestone displayed in the entry overlay."""
+
+    id: str
+    label: Optional[str]
+    get: Optional[str]
+    get_seconds: Optional[float]
+    ack_offset_seconds: float
+    complete_offset_seconds: float
+    ack_event_key: Optional[str]
+    ack_event_id: Optional[str]
+    complete_event_key: Optional[str]
+    complete_event_id: Optional[str]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(
+        cls,
+        payload: Dict[str, Any],
+        events: Optional[Dict[str, str]],
+    ) -> "EntryOverlayRecoveryStep":
+        get_raw = _first_non_none(
+            payload.get("getSeconds"),
+            payload.get("get_seconds"),
+            payload.get("get"),
+        )
+        get_seconds = _parse_optional_seconds(get_raw)
+        get_value = clean_string(payload.get("get"))
+
+        ack_ref = _parse_entry_event_reference(
+            {
+                "event": payload.get("ackEvent")
+                or payload.get("ack_event")
+                or payload.get("ackEventKey")
+                or payload.get("ack_event_key"),
+                "eventId": payload.get("ackEventId") or payload.get("ack_event_id"),
+            },
+            events,
+        )
+        complete_ref = _parse_entry_event_reference(
+            {
+                "event": payload.get("completeEvent")
+                or payload.get("complete_event")
+                or payload.get("completeEventKey")
+                or payload.get("complete_event_key"),
+                "eventId": payload.get("completeEventId")
+                or payload.get("complete_event_id"),
+            },
+            events,
+        )
+
+        ack_offset_raw = _first_non_none(
+            payload.get("ackOffsetSeconds"),
+            payload.get("ack_offset_seconds"),
+        )
+        complete_offset_raw = _first_non_none(
+            payload.get("completeOffsetSeconds"),
+            payload.get("complete_offset_seconds"),
+        )
+        ack_offset = _parse_optional_seconds(ack_offset_raw)
+        complete_offset = _parse_optional_seconds(complete_offset_raw)
+
+        return cls(
+            id=clean_string(payload.get("id")) or "",
+            label=clean_string(payload.get("label")),
+            get=get_value,
+            get_seconds=get_seconds,
+            ack_offset_seconds=ack_offset if ack_offset is not None else 0.0,
+            complete_offset_seconds=
+            complete_offset
+            if complete_offset is not None
+            else ack_offset if ack_offset is not None else 0.0,
+            ack_event_key=ack_ref["event_key"],
+            ack_event_id=ack_ref["event_id"],
+            complete_event_key=complete_ref["event_key"],
+            complete_event_id=complete_ref["event_id"],
+            raw=dict(payload),
+        )
+
+
+@dataclass
+class EntryOverlayConfig:
+    """Top-level entry overlay configuration pack."""
+
+    version: Optional[int]
+    pad_id: Optional[str]
+    events: Dict[str, str]
+    corridor: Optional[EntryOverlayCorridorConfig]
+    blackout: Optional[EntryOverlayBlackoutConfig]
+    g_load: Optional[EntryOverlayGLoadConfig]
+    ems: Optional[EntryOverlayEmsConfig]
+    recovery: List[EntryOverlayRecoveryStep]
+    raw: Dict[str, Any] = field(repr=False)
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "EntryOverlayConfig":
+        events_payload = payload.get("events")
+        events: Dict[str, str] = {}
+        if isinstance(events_payload, dict):
+            for key, value in events_payload.items():
+                key_str = clean_string(key)
+                value_str = clean_string(value)
+                if key_str and value_str:
+                    events[key_str] = value_str
+
+        corridor_payload = payload.get("corridor")
+        corridor = (
+            EntryOverlayCorridorConfig.from_dict(corridor_payload, events)
+            if isinstance(corridor_payload, dict)
+            else None
+        )
+
+        blackout_payload = payload.get("blackout")
+        blackout = (
+            EntryOverlayBlackoutConfig.from_dict(blackout_payload)
+            if isinstance(blackout_payload, dict)
+            else None
+        )
+
+        g_load_payload = payload.get("gLoad") or payload.get("g_load")
+        g_load = (
+            EntryOverlayGLoadConfig.from_dict(g_load_payload, events)
+            if isinstance(g_load_payload, dict)
+            else None
+        )
+
+        ems_payload = payload.get("ems")
+        ems = (
+            EntryOverlayEmsConfig.from_dict(ems_payload)
+            if isinstance(ems_payload, dict)
+            else None
+        )
+
+        recovery_payload = payload.get("recoveryTimeline") or payload.get("recovery")
+        recovery: List[EntryOverlayRecoveryStep] = []
+        if isinstance(recovery_payload, list):
+            for entry in recovery_payload:
+                if isinstance(entry, dict):
+                    recovery.append(EntryOverlayRecoveryStep.from_dict(entry, events))
+
+        return cls(
+            version=safe_int(payload.get("version")),
+            pad_id=clean_string(payload.get("padId") or payload.get("pad_id")),
+            events=events,
+            corridor=corridor,
+            blackout=blackout,
+            g_load=g_load,
+            ems=ems,
+            recovery=recovery,
+            raw=dict(payload),
+        )
+
+
+@dataclass
 class MissionData:
     """Container aggregating the parsed mission datasets."""
 
@@ -1009,6 +1544,7 @@ class MissionData:
     ui_dsky_macros: Optional[UiDskyMacroPack] = None
     ui_workspaces: Optional[UiWorkspacePack] = None
     docking_gates: Optional[DockingGateConfig] = None
+    entry_overlay: Optional[EntryOverlayConfig] = None
 
     def event_map(self) -> Dict[str, EventRecord]:
         return {event.id: event for event in self.events}

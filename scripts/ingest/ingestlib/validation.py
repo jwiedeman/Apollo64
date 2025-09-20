@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 from .records import (
+    EntryOverlayConfig,
+    EntryOverlayCorridorState,
+    EntryOverlayGLoadState,
+    EntryOverlayRecoveryStep,
     MissionData,
     UiChecklist,
     UiChecklistPack,
@@ -49,6 +53,8 @@ def validate_mission_data(mission_data: MissionData) -> List[ValidationIssue]:
     autopilot_map = mission_data.autopilot_map()
     failure_ids = {failure.id for failure in mission_data.failures}
     docking_config = mission_data.docking_gates
+    pad_map = {pad.id: pad for pad in mission_data.pads}
+    entry_config = mission_data.entry_overlay
 
     # Events
     for event in mission_data.events:
@@ -257,9 +263,12 @@ def validate_mission_data(mission_data: MissionData) -> List[ValidationIssue]:
                         level="warning",
                         category="docking_gates",
                         message="Docking gate deadlineGet could not be parsed",
-                        context={"gate_id": gate.id, "deadline_get": gate.deadline_get},
-                    )
+                    context={"gate_id": gate.id, "deadline_get": gate.deadline_get},
                 )
+            )
+
+    if entry_config:
+        issues.extend(_validate_entry_overlay(entry_config, event_map, pad_map))
 
     # PADs
     for pad in mission_data.pads:
@@ -729,7 +738,242 @@ def _parse_get_field(
             )
         )
         return None
+
     return seconds
+
+
+def _validate_entry_overlay(
+    config: EntryOverlayConfig,
+    event_map: Dict[str, Any],
+    pad_map: Dict[str, Any],
+) -> List[ValidationIssue]:
+    issues: List[ValidationIssue] = []
+
+    known_event_keys = set(config.events.keys())
+    known_event_ids = set(event_map.keys())
+
+    if config.pad_id and config.pad_id not in pad_map:
+        issues.append(
+            ValidationIssue(
+                level="error",
+                category="entry_overlay",
+                message="Entry overlay references unknown PAD",
+                context={"pad_id": config.pad_id},
+            )
+        )
+
+    for key, event_id in config.events.items():
+        if event_id and event_id not in known_event_ids:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Entry overlay event mapping references unknown event",
+                    context={"event_key": key, "event_id": event_id},
+                )
+            )
+
+    def check_reference(
+        reference: Optional[EntryOverlayCorridorState],
+        *,
+        section: str,
+        identifier: str,
+    ) -> None:
+        if not reference:
+            return
+        if reference.event_key and reference.event_key not in known_event_keys:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Entry overlay state references unknown event key",
+                    context={
+                        "section": section,
+                        "id": identifier,
+                        "event_key": reference.event_key,
+                    },
+                )
+            )
+        if reference.event_id and reference.event_id not in known_event_ids:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Entry overlay state references unknown event id",
+                    context={
+                        "section": section,
+                        "id": identifier,
+                        "event_id": reference.event_id,
+                    },
+                )
+            )
+
+    corridor = config.corridor
+    if corridor:
+        if corridor.default_state:
+            check_reference(
+                corridor.default_state,
+                section="corridor",
+                identifier="default",
+            )
+        for index, state in enumerate(corridor.states):
+            check_reference(
+                state,
+                section="corridor",
+                identifier=f"state_{index}",
+            )
+
+    g_load = config.g_load
+    if g_load:
+        default_state = getattr(g_load, "default_state", None)
+        if isinstance(default_state, EntryOverlayGLoadState):
+            check_reference(
+                EntryOverlayCorridorState(
+                    event_key=default_state.event_key,
+                    event_id=default_state.event_id,
+                    required_status=None,
+                    after_seconds=None,
+                    after_completion_seconds=None,
+                    after_get_seconds=None,
+                    angle_offset_deg=None,
+                    downrange_error_km=None,
+                    crossrange_error_km=None,
+                    raw=default_state.raw,
+                ),
+                section="g_load",
+                identifier="default",
+            )
+        for index, state in enumerate(g_load.states):
+            check_reference(
+                EntryOverlayCorridorState(
+                    event_key=state.event_key,
+                    event_id=state.event_id,
+                    required_status=None,
+                    after_seconds=None,
+                    after_completion_seconds=None,
+                    after_get_seconds=None,
+                    angle_offset_deg=None,
+                    downrange_error_km=None,
+                    crossrange_error_km=None,
+                    raw=state.raw,
+                ),
+                section="g_load",
+                identifier=f"state_{index}",
+            )
+
+    blackout = config.blackout
+    if blackout:
+        if blackout.start_seconds is None:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Entry blackout start time could not be parsed",
+                    context={"start_get": blackout.start_get},
+                )
+            )
+        if blackout.end_seconds is None:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Entry blackout end time could not be parsed",
+                    context={"end_get": blackout.end_get},
+                )
+            )
+        if (
+            blackout.start_seconds is not None
+            and blackout.end_seconds is not None
+            and blackout.end_seconds <= blackout.start_seconds
+        ):
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Entry blackout end precedes start",
+                    context={
+                        "start_seconds": blackout.start_seconds,
+                        "end_seconds": blackout.end_seconds,
+                    },
+                )
+            )
+
+    seen_recovery_ids: Set[str] = set()
+    for index, step in enumerate(config.recovery):
+        if not step.id:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Recovery milestone missing id",
+                    context={"index": index},
+                )
+            )
+        elif step.id in seen_recovery_ids:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Duplicate recovery milestone id",
+                    context={"id": step.id},
+                )
+            )
+        else:
+            seen_recovery_ids.add(step.id)
+
+        if step.get_seconds is None:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    category="entry_overlay",
+                    message="Recovery milestone missing GET",
+                    context={"id": step.id, "index": index},
+                )
+            )
+
+        def check_recovery_reference(
+            event_key: Optional[str],
+            event_id: Optional[str],
+            tag: str,
+        ) -> None:
+            if not event_key and not event_id:
+                return
+            dummy_state = EntryOverlayCorridorState(
+                event_key=event_key,
+                event_id=event_id,
+                required_status=None,
+                after_seconds=None,
+                after_completion_seconds=None,
+                after_get_seconds=None,
+                angle_offset_deg=None,
+                downrange_error_km=None,
+                crossrange_error_km=None,
+                raw=step.raw,
+            )
+            check_reference(dummy_state, section=tag, identifier=step.id)
+
+        check_recovery_reference(step.ack_event_key, step.ack_event_id, "recovery_ack")
+        check_recovery_reference(
+            step.complete_event_key,
+            step.complete_event_id,
+            "recovery_complete",
+        )
+
+        if step.complete_offset_seconds < step.ack_offset_seconds:
+            issues.append(
+                ValidationIssue(
+                    level="warning",
+                    category="entry_overlay",
+                    message="Recovery completion offset precedes acknowledgement",
+                    context={
+                        "id": step.id,
+                        "ack_offset_seconds": step.ack_offset_seconds,
+                        "complete_offset_seconds": step.complete_offset_seconds,
+                    },
+                )
+            )
+
+    return issues
 
 
 

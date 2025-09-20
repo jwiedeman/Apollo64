@@ -12,6 +12,7 @@ from .records import (
     AudioCuePack,
     ChecklistEntry,
     DockingGateConfig,
+    EntryOverlayConfig,
     EventRecord,
     FailureRecord,
     MissionData,
@@ -40,6 +41,7 @@ _UI_FILES = {
     "ui_workspaces": "workspaces.json",
     "docking_gates": "docking_gates.json",
     "ui_dsky_macros": "dsky_macros.json",
+    "entry_overlay": "entry_overlay.json",
 }
 
 
@@ -107,6 +109,7 @@ def load_mission_data(data_dir: Path, ui_dir: Optional[Path] = None) -> MissionD
     ui_workspaces = load_ui_workspaces(ui_base / _UI_FILES["ui_workspaces"])
     ui_dsky_macros = load_ui_dsky_macros(ui_base / _UI_FILES["ui_dsky_macros"])
     docking_gates = load_docking_gates(ui_base / _UI_FILES["docking_gates"])
+    entry_overlay = load_entry_overlay(ui_base / _UI_FILES["entry_overlay"])
 
     return MissionData(
         events=events,
@@ -123,6 +126,7 @@ def load_mission_data(data_dir: Path, ui_dir: Optional[Path] = None) -> MissionD
         ui_workspaces=ui_workspaces,
         ui_dsky_macros=ui_dsky_macros,
         docking_gates=docking_gates,
+        entry_overlay=entry_overlay,
     )
 
 
@@ -157,6 +161,15 @@ def load_ui_workspaces(path: Path) -> Optional[UiWorkspacePack]:
     if not isinstance(payload, dict):
         return None
     return UiWorkspacePack.from_dict(payload)
+
+
+def load_entry_overlay(path: Path) -> Optional[EntryOverlayConfig]:
+    if not path.is_file():
+        return None
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        return None
+    return EntryOverlayConfig.from_dict(payload)
 
 
 def load_ui_dsky_macros(path: Path) -> Optional[UiDskyMacroPack]:
