@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "padId": "PAD_ENTRY_001",
+  "events": {
+    "padReview": "RETURN_030",
+    "finalAlign": "RETURN_031",
+    "serviceModuleJettison": "ENTRY_001",
+    "entryMonitoring": "ENTRY_002",
+    "recovery": "ENTRY_003"
+  },
+  "corridor": {
+    "toleranceDegrees": 0.35,
+    "default": {
+      "angleOffsetDeg": 0.15,
+      "downrangeErrorKm": 60,
+      "crossrangeErrorKm": -18
+    },
+    "states": [
+      {
+        "event": "padReview",
+        "status": "complete",
+        "angleOffsetDeg": 0.05,
+        "downrangeErrorKm": 18,
+        "crossrangeErrorKm": -6
+      },
+      {
+        "event": "finalAlign",
+        "status": "complete",
+        "angleOffsetDeg": 0.02,
+        "downrangeErrorKm": 7,
+        "crossrangeErrorKm": -2
+      },
+      {
+        "event": "serviceModuleJettison",
+        "status": "complete",
+        "angleOffsetDeg": 0.015,
+        "downrangeErrorKm": 5,
+        "crossrangeErrorKm": -1
+      },
+      {
+        "event": "entryMonitoring",
+        "status": "active",
+        "angleOffsetDeg": -0.01,
+        "downrangeErrorKm": 3,
+        "crossrangeErrorKm": 1
+      },
+      {
+        "event": "entryMonitoring",
+        "status": "complete",
+        "angleOffsetDeg": -0.02,
+        "downrangeErrorKm": 2,
+        "crossrangeErrorKm": 0.5
+      },
+      {
+        "event": "recovery",
+        "status": "complete",
+        "angleOffsetDeg": 0,
+        "downrangeErrorKm": 0,
+        "crossrangeErrorKm": 0
+      }
+    ]
+  },
+  "blackout": {
+    "startGet": "195:16:24",
+    "endGet": "195:19:54"
+  },
+  "gLoad": {
+    "max": 6.7,
+    "caution": 5.5,
+    "warning": 6.3,
+    "states": [
+      {
+        "value": 1.0
+      },
+      {
+        "event": "serviceModuleJettison",
+        "status": "active",
+        "value": 1.2
+      },
+      {
+        "event": "entryMonitoring",
+        "status": "active",
+        "value": 3.6
+      },
+      {
+        "event": "entryMonitoring",
+        "status": "complete",
+        "value": 1.3
+      },
+      {
+        "event": "recovery",
+        "status": "complete",
+        "value": 1.0
+      }
+    ]
+  },
+  "ems": {
+    "targetVelocityFtPerSec": 36000,
+    "targetAltitudeFt": 250000,
+    "predictedSplashdownGet": "195:23:00"
+  },
+  "recoveryTimeline": [
+    {
+      "id": "DROGUE_DEPLOY",
+      "label": "Drogues Deploy",
+      "get": "195:21:10",
+      "ackOffsetSeconds": 0,
+      "completeOffsetSeconds": 60
+    },
+    {
+      "id": "MAIN_CHUTE",
+      "label": "Main Chutes Reefed",
+      "get": "195:21:50",
+      "ackOffsetSeconds": 0,
+      "completeOffsetSeconds": 60
+    },
+    {
+      "id": "SWIMMER_DROP",
+      "label": "Swim Team Deployed",
+      "get": "195:23:20",
+      "ackOffsetSeconds": 0,
+      "completeOffsetSeconds": 120
+    },
+    {
+      "id": "HATCH_OPEN",
+      "label": "Hatch Open",
+      "get": "195:24:30",
+      "ackOffsetSeconds": 0,
+      "completeOffsetSeconds": 180
+    }
+  ]
+}

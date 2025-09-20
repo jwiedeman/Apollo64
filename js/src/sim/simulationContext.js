@@ -72,6 +72,7 @@ export async function createSimulationContext({
     pads: missionData.pads,
     events: missionData.events,
     docking: missionData.docking,
+    entry: missionData.entryOverlay,
     ...(hudOptions ?? {}),
   };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);

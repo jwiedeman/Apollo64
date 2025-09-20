@@ -28,7 +28,7 @@ consumers do not need bespoke heuristics:
 
 - **Categories** – `logCategory`, `category`, or `type` fields map to a
   curated set (`event`, `checklist`, `manual`, `autopilot`, `audio`,
-  `ui`, `accessibility`, `system`, `score`, `resource`). Unknown values
+  `ui`, `accessibility`, `entry`, `system`, `score`, `resource`). Unknown values
   fall back to `system` after keyword inspection of the message.【F:js/src/logging/missionLogAggregator.js†L9-L203】
 - **Severities** – `logSeverity` or `severity` collapse onto the
   canonical `info`, `notice`, `caution`, `warning`, or `failure` bands.

@@ -263,22 +263,48 @@ The `rcs` object (when present) contains:
 
 ### `entry`
 
-Future frames expose deterministic entry telemetry for the TEI → recovery
-sequence, enabling the corridor overlay documented in
+Frames now expose deterministic entry telemetry for the TEI → recovery
+sequence, combining PAD metadata, the orbit snapshot, and the structured
+overlay config in [`docs/ui/entry_overlay.json`](entry_overlay.json). The
+payload powers the corridor overlay defined in
 [`entry_overlay.md`](entry_overlay.md).
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `entryInterfaceSeconds` | number&#124;null | GET seconds for the predicted entry interface. |
-| `corridor` | object&#124;null | Corridor geometry with `targetDegrees`, `toleranceDegrees`, `currentDegrees`, `downrangeErrorKm`, `crossrangeErrorKm`. |
-| `blackout` | object&#124;null | Blackout window with `startsAtSeconds`, `endsAtSeconds`, and `remainingSeconds`. |
-| `ems` | object&#124;null | Entry Monitoring System snapshot (`velocityFtPerSec`, `altitudeFt`, `predictedSplashdownSeconds`). |
+| `entryInterfaceSeconds` | number&#124;null | GET seconds for the predicted entry interface (`PAD_ENTRY_001`). |
+| `entryInterfaceGet` | string&#124;null | GET label (`HHH:MM:SS`) for the predicted entry interface. |
+| `corridor` | object&#124;null | Corridor geometry with pre-computed offsets driven by entry event status. |
+| `corridor.targetDegrees` | number&#124;null | PAD flight-path angle target (degrees). |
+| `corridor.toleranceDegrees` | number&#124;null | Corridor half-width (degrees) from overlay config. |
+| `corridor.currentDegrees` | number&#124;null | Active corridor angle (degrees) after applying the current state offset. |
+| `corridor.downrangeErrorKm` | number&#124;null | Estimated downrange error (km) for the current state. |
+| `corridor.crossrangeErrorKm` | number&#124;null | Estimated crossrange error (km) for the current state. |
+| `blackout` | object&#124;null | Comm blackout summary derived from the overlay config. |
+| `blackout.status` | string&#124;null | `pending`, `active`, or `complete` relative to the blackout window. |
+| `blackout.startsAtSeconds` | number&#124;null | GET seconds when blackout begins. |
+| `blackout.startsAtGet` | string&#124;null | GET label for blackout start. |
+| `blackout.endsAtSeconds` | number&#124;null | GET seconds when blackout ends. |
+| `blackout.endsAtGet` | string&#124;null | GET label for blackout end. |
+| `blackout.remainingSeconds` | number&#124;null | Seconds until blackout begins or ends (whichever is next). |
+| `ems` | object&#124;null | Entry Monitoring System snapshot. |
+| `ems.velocityFtPerSec` | number&#124;null | Current orbital velocity converted to ft/s (falls back to overlay target). |
+| `ems.altitudeFt` | number&#124;null | Current orbital altitude converted to ft (falls back to overlay target). |
+| `ems.predictedSplashdownSeconds` | number&#124;null | Predicted splashdown GET seconds from overlay config. |
+| `ems.predictedSplashdownGet` | string&#124;null | GET label for predicted splashdown. |
 | `gLoad` | object&#124;null | Current/max/caution/warning G-load metrics. |
-| `recovery[]` | array | Ordered recovery milestones with `id`, `getSeconds`, and `status` (`pending`, `acknowledged`, `complete`). |
+| `gLoad.current` | number&#124;null | State-driven g-load approximation (g). |
+| `gLoad.max` | number&#124;null | Expected peak g-load (g). |
+| `gLoad.caution` | number&#124;null | Caution threshold (g). |
+| `gLoad.warning` | number&#124;null | Warning threshold (g). |
+| `recovery[]` | array | Ordered recovery milestones from the overlay config. |
+| `recovery[].id` | string | Milestone identifier (e.g., `DROGUE_DEPLOY`). |
+| `recovery[].label` | string&#124;null | Human-readable label for UI chips. |
+| `recovery[].getSeconds` | number&#124;null | Nominal GET seconds for the milestone. |
+| `recovery[].get` | string&#124;null | Nominal GET label for the milestone. |
+| `recovery[].status` | string | `pending`, `acknowledged`, or `complete` based on GET offsets and event progress. |
 
-Consumers should treat `entry` as optional until the simulator surfaces
-the corresponding payload. When absent, UI layers continue rendering the
-standard Navigation/System panes without the overlay.
+When `entry` is absent the UI should continue rendering the standard
+Navigation/System panes without the overlay.
 
 ### `alerts`
 
