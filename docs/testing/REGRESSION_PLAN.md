@@ -33,7 +33,7 @@ This guide documents the repeatable checks that keep the Apollo 11 mission datas
 ### Node Test Suite
 - **Command:** `npm test`
 - **Location:** [`js/test/`](../../js/test)
-- **Scope:** Exercises deterministic units including the autopilot runner, manual action queue, UI frame builder, score system, and supporting utilities so behaviour stays stable as the engine grows.【F:js/test/autopilotRunner.test.js†L1-L74】【F:js/test/scoreSystem.test.js†L1-L108】
+- **Scope:** Exercises deterministic units including the autopilot runner, manual action queue, AGC runtime, UI frame builder, score system, and supporting utilities so behaviour stays stable as the engine grows.【F:js/test/autopilotRunner.test.js†L1-L74】【F:js/test/agcRuntime.test.js†L1-L175】【F:js/test/scoreSystem.test.js†L1-L108】
 - **When to run:** Before every commit touching `js/src/` or mission datasets that feed the tested systems.
 
 ### UI Frame Exporter & HUD Snapshots

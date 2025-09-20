@@ -96,6 +96,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 - Performance tests for line rendering and audio DMA.
 - Design-side unit tests for PAD logic and failure cascades.
 - JavaScript regression suite (`npm test`) covering autopilot mass flow tracking, manual action queue behaviors, and HUD frame generation to catch automation or UI contract regressions every pass.
+- Dedicated AGC runtime unit tests exercise macro execution, annunciator state transitions, acknowledgement flow, and rejection handling so guidance and DSKY integrations flag regressions immediately.
 
 ## 11. Milestones
 Supporting details for each milestone live in [`docs/milestones/`](milestones).
