@@ -1,3 +1,5 @@
+import { formatGET } from '../utils/time.js';
+
 const DEFAULT_WEIGHTS = {
   events: 0.4,
   resources: 0.3,
@@ -23,6 +25,8 @@ const DEFAULT_OPTIONS = {
   historyLimit: 64,
   historyStepSeconds: 60,
   deltaLogThreshold: 0.5,
+  manualTimelineBucketSeconds: 300,
+  manualTimelineLimit: 64,
 };
 
 export class ScoreSystem {
@@ -43,6 +47,8 @@ export class ScoreSystem {
       historyLimit = DEFAULT_OPTIONS.historyLimit,
       historyStepSeconds = DEFAULT_OPTIONS.historyStepSeconds,
       deltaLogThreshold = DEFAULT_OPTIONS.deltaLogThreshold,
+      manualTimelineBucketSeconds = DEFAULT_OPTIONS.manualTimelineBucketSeconds,
+      manualTimelineLimit = DEFAULT_OPTIONS.manualTimelineLimit,
       ...restOptions
     } = options ?? {};
 
@@ -67,6 +73,13 @@ export class ScoreSystem {
     this.deltaLogThreshold = Number.isFinite(deltaLogThreshold)
       ? Math.max(0, Math.abs(Number(deltaLogThreshold)))
       : DEFAULT_OPTIONS.deltaLogThreshold;
+    this.manualTimelineBucketSeconds = Number.isFinite(manualTimelineBucketSeconds)
+      && manualTimelineBucketSeconds > 0
+      ? Number(manualTimelineBucketSeconds)
+      : DEFAULT_OPTIONS.manualTimelineBucketSeconds;
+    this.manualTimelineLimit = Number.isFinite(manualTimelineLimit)
+      ? Math.max(0, Number(manualTimelineLimit))
+      : DEFAULT_OPTIONS.manualTimelineLimit;
 
     this.eventStatus = new Map();
     this.initializedEvents = false;
@@ -92,6 +105,10 @@ export class ScoreSystem {
     this.lastDelta = null;
     this.cachedSummary = null;
     this.cachedSummarySeconds = null;
+    this.manualTimelineBuckets = new Map();
+    this.manualTimelineKeys = [];
+    this.lastManualStepCount = null;
+    this.lastAutoStepCount = null;
   }
 
   attachManualQueue(manualQueue) {
@@ -144,6 +161,11 @@ export class ScoreSystem {
     this.lastUpdateGetSeconds = currentGetSeconds;
     if (Number.isFinite(currentGetSeconds)) {
       this.missionDurationSeconds = Math.max(this.missionDurationSeconds, currentGetSeconds);
+    }
+
+    const checklistStats = this.checklistManager?.stats?.();
+    if (checklistStats?.totals) {
+      this.#updateManualTimelineFromTotals(checklistStats.totals, currentGetSeconds);
     }
 
     this.#ensureInitialized();
@@ -219,6 +241,8 @@ export class ScoreSystem {
 
     const manualFractionRounded = totalSteps > 0 ? this.#round(manualFraction, 3) : null;
 
+    const manualTimeline = this.#cloneManualTimeline();
+
     const summary = {
       missionDurationSeconds: this.#round(this.missionDurationSeconds, 3),
       events: {
@@ -263,6 +287,8 @@ export class ScoreSystem {
         autoSteps,
         totalSteps,
         manualFraction: manualFractionRounded,
+        timelineBucketSeconds: this.manualTimelineBucketSeconds,
+        timeline: manualTimeline,
       },
       rating: {
         baseScore: this.#round(baseScore, 1),
@@ -330,6 +356,12 @@ export class ScoreSystem {
     const history = this.#cloneScoreHistory();
     if (history.length > 0) {
       summary.history = history;
+    }
+
+    if (Array.isArray(baseSummary.manual?.timeline)) {
+      summary.manual.timeline = baseSummary.manual.timeline.map((entry) => ({ ...entry }));
+    } else {
+      summary.manual.timeline = [];
     }
 
     const delta = this.#cloneScoreDelta(this.lastDelta);
@@ -481,6 +513,142 @@ export class ScoreSystem {
     };
 
     this.lastDelta = deltaEntry;
+  }
+
+  #updateManualTimelineFromTotals(totals, currentGetSeconds) {
+    if (!totals) {
+      return;
+    }
+
+    const manualValue = this.#coerceNumber(totals.manualSteps);
+    const autoValue = this.#coerceNumber(totals.autoSteps);
+
+    if (!Number.isFinite(currentGetSeconds)) {
+      if (Number.isFinite(manualValue)) {
+        this.lastManualStepCount = manualValue;
+      }
+      if (Number.isFinite(autoValue)) {
+        this.lastAutoStepCount = autoValue;
+      }
+      return;
+    }
+
+    let manualDelta = 0;
+    if (Number.isFinite(manualValue)) {
+      if (this.lastManualStepCount == null) {
+        this.lastManualStepCount = manualValue;
+      }
+      manualDelta = manualValue - this.lastManualStepCount;
+      if (manualDelta < 0) {
+        manualDelta = 0;
+      }
+    }
+
+    let autoDelta = 0;
+    if (Number.isFinite(autoValue)) {
+      if (this.lastAutoStepCount == null) {
+        this.lastAutoStepCount = autoValue;
+      }
+      autoDelta = autoValue - this.lastAutoStepCount;
+      if (autoDelta < 0) {
+        autoDelta = 0;
+      }
+    }
+
+    if (manualDelta > 0 || autoDelta > 0) {
+      this.#addManualTimelineSample(currentGetSeconds, manualDelta, autoDelta);
+    }
+
+    if (Number.isFinite(manualValue)) {
+      this.lastManualStepCount = manualValue;
+    }
+    if (Number.isFinite(autoValue)) {
+      this.lastAutoStepCount = autoValue;
+    }
+  }
+
+  #addManualTimelineSample(getSeconds, manualDelta, autoDelta) {
+    if ((manualDelta ?? 0) <= 0 && (autoDelta ?? 0) <= 0) {
+      return;
+    }
+    if (!Number.isFinite(this.manualTimelineBucketSeconds) || this.manualTimelineBucketSeconds <= 0) {
+      return;
+    }
+    if (!Number.isFinite(getSeconds)) {
+      return;
+    }
+
+    const bucketSize = this.manualTimelineBucketSeconds;
+    const bucketStart = Math.floor(getSeconds / bucketSize) * bucketSize;
+    const bucketEnd = bucketStart + bucketSize;
+
+    let bucket = this.manualTimelineBuckets.get(bucketStart);
+    if (!bucket) {
+      bucket = {
+        startSeconds: bucketStart,
+        endSeconds: bucketEnd,
+        manualSteps: 0,
+        autoSteps: 0,
+      };
+      this.manualTimelineBuckets.set(bucketStart, bucket);
+      this.#insertManualTimelineKey(bucketStart);
+      this.#trimManualTimeline();
+    }
+
+    if (manualDelta > 0) {
+      bucket.manualSteps += manualDelta;
+    }
+    if (autoDelta > 0) {
+      bucket.autoSteps += autoDelta;
+    }
+  }
+
+  #insertManualTimelineKey(bucketStart) {
+    if (this.manualTimelineKeys.includes(bucketStart)) {
+      return;
+    }
+    if (this.manualTimelineKeys.length === 0 || bucketStart >= this.manualTimelineKeys[this.manualTimelineKeys.length - 1]) {
+      this.manualTimelineKeys.push(bucketStart);
+      return;
+    }
+    const index = this.manualTimelineKeys.findIndex((key) => bucketStart < key);
+    if (index === -1) {
+      this.manualTimelineKeys.push(bucketStart);
+    } else {
+      this.manualTimelineKeys.splice(index, 0, bucketStart);
+    }
+  }
+
+  #trimManualTimeline() {
+    if (this.manualTimelineLimit <= 0) {
+      return;
+    }
+    while (this.manualTimelineKeys.length > this.manualTimelineLimit) {
+      const removed = this.manualTimelineKeys.shift();
+      if (removed != null) {
+        this.manualTimelineBuckets.delete(removed);
+      }
+    }
+  }
+
+  #cloneManualTimeline() {
+    if (this.manualTimelineKeys.length === 0) {
+      return [];
+    }
+    const timeline = [];
+    for (const key of this.manualTimelineKeys) {
+      const bucket = this.manualTimelineBuckets.get(key);
+      if (!bucket) {
+        continue;
+      }
+      timeline.push({
+        startSeconds: bucket.startSeconds,
+        endSeconds: bucket.endSeconds,
+        manualSteps: bucket.manualSteps,
+        autoSteps: bucket.autoSteps,
+      });
+    }
+    return timeline;
   }
 
   #ensureInitialized() {

@@ -31,7 +31,8 @@ and Nintendo 64 build render identical score feedback using the
 | Source | Fields Used | Notes |
 | --- | --- | --- |
 | `ui_frame.score` | Grade, base score, manual bonus, metric breakdown, resource minima, fault counts, manual participation | Authoritative input; do not recompute weights client-side. |
-| `ui_frame.score.history[]` | Time-indexed commander score samples with component breakdowns and deltas | Powers the rolling timeline, manual vs. auto sparkline, and contextual annotations. |
+| `ui_frame.score.history[]` | Time-indexed commander score samples with component breakdowns and deltas | Powers the rolling score timeline and contextual annotations. |
+| `ui_frame.score.manual.timeline` + `timelineBucketSeconds` | Bucketed manual vs. auto step counts | Drives the manual participation sparkline and tooltip copy (5-minute buckets by default). |
 | `ui_frame.score.rating.delta` | Latest score delta and grade-change metadata | Drives header toasts, mission log markers, and recovery recommendations. |
 | `ui_frame.resources` | Live power/Δv margins, propellant status | Used for inline gauges and tooltips referencing current vs. minimum values. |
 | `resourceHistory` (optional) | Minute-resolution power, Δv, thermal trends | Drives sparklines under the resource section; builder must enable history in export/debug modes. |
@@ -101,9 +102,15 @@ and Nintendo 64 build render identical score feedback using the
   `resources.thermalViolationSeconds`.
 
 ### 6. Manual vs. Auto Sparkline
-- Binary strip chart marking manual (`manualSteps`) vs. auto steps per
-  5-minute bucket. Live indicator pulses when a manual acknowledgement is
-  pending in `frame.manualQueue`.
+- Binary strip chart rendered from `score.manual.timeline`, using
+  `timelineBucketSeconds` to size each bucket (defaults to 300 seconds
+  when provided by the score system). Tooltips display
+  `startGet`–`endGet` with the manual/auto counts for the bucket.
+- When the timeline is empty (e.g., prior to the first manual action),
+  collapse to a single bar reflecting the current
+  `manual.manualFraction` so the widget still communicates participation.
+- Live indicator pulses when a manual acknowledgement is pending in
+  `frame.manualQueue`.
 
 ### 7. Fault Ledger
 - Tabular list of `faults.resourceFailureIds` with severity, first/last

@@ -234,6 +234,11 @@ describe('UiFrameBuilder', () => {
         autoSteps: 6,
         totalSteps: 10,
         manualFraction: 0.4,
+        timelineBucketSeconds: 300,
+        timeline: [
+          { startSeconds: 0, endSeconds: 300, manualSteps: 2, autoSteps: 3 },
+          { startSeconds: 300, endSeconds: 600, manualSteps: 2, autoSteps: 3 },
+        ],
       },
       rating: {
         baseScore: 72.5,
@@ -549,6 +554,23 @@ describe('UiFrameBuilder', () => {
       'FAIL_COMM_PASS_MISSED',
       'FAIL_POWER_LOW',
     ]);
+    assert.equal(frame.score.manual.timelineBucketSeconds, 300);
+    assert.ok(Array.isArray(frame.score.manual.timeline));
+    assert.equal(frame.score.manual.timeline.length, 2);
+    const manualTimelineFirst = frame.score.manual.timeline[0];
+    assert.equal(manualTimelineFirst.startSeconds, 0);
+    assert.equal(manualTimelineFirst.startGet, formatGET(0));
+    assert.equal(manualTimelineFirst.endSeconds, 300);
+    assert.equal(manualTimelineFirst.endGet, formatGET(300));
+    assert.equal(manualTimelineFirst.manualSteps, 2);
+    assert.equal(manualTimelineFirst.autoSteps, 3);
+    const manualTimelineSecond = frame.score.manual.timeline[1];
+    assert.equal(manualTimelineSecond.startSeconds, 300);
+    assert.equal(manualTimelineSecond.startGet, formatGET(300));
+    assert.equal(manualTimelineSecond.endSeconds, 600);
+    assert.equal(manualTimelineSecond.endGet, formatGET(600));
+    assert.equal(manualTimelineSecond.manualSteps, 2);
+    assert.equal(manualTimelineSecond.autoSteps, 3);
 
     assert.ok(Array.isArray(frame.score.history));
     assert.equal(frame.score.history.length, 1);
