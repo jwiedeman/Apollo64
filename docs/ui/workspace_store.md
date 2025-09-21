@@ -23,8 +23,9 @@ operate on identical workspace data.
    metadata so contributors can diff changes against the committed
    baseline.
 4. **Cross-platform budget awareness** – surface layout complexity and
-   active widget counts so the eventual N64 build can enforce limits
-   (tile cap, text banding, memory for cached trajectories).
+   active widget counts while exposing quantized coordinates so the
+   eventual N64 build can enforce limits (tile cap, text banding, memory
+   for cached trajectories).
 
 ## State Model
 
@@ -37,9 +38,27 @@ for persistence. A representative state snapshot looks like:
   "activePresetId": "NAV_DEFAULT",
   "activeView": "navigation",
   "tiles": {
-    "trajectory": { "x": 0, "y": 0, "width": 0.58, "height": 0.65 },
-    "navball": { "x": 0.58, "y": 0, "width": 0.42, "height": 0.4 },
-    "timeline": { "x": 0, "y": 0.65, "width": 1, "height": 0.15 }
+    "trajectory": {
+      "x": 0,
+      "y": 0,
+      "width": 0.58,
+      "height": 0.65,
+      "quantized": { "x": 0, "y": 0, "width": 0.6, "height": 0.65 }
+    },
+    "navball": {
+      "x": 0.58,
+      "y": 0,
+      "width": 0.42,
+      "height": 0.4,
+      "quantized": { "x": 0.575, "y": 0, "width": 0.425, "height": 0.4 }
+    },
+    "timeline": {
+      "x": 0,
+      "y": 0.65,
+      "width": 1,
+      "height": 0.15,
+      "quantized": { "x": 0, "y": 0.65, "width": 1, "height": 0.15 }
+    }
   },
   "overrides": {
     "hudPinned": true,
@@ -52,14 +71,25 @@ for persistence. A representative state snapshot looks like:
     "n64": {}
   },
   "history": [
-    { "type": "tile.move", "tileId": "navball", "get": "003:12:44" },
-    { "type": "tile.focus", "tileId": "trajectory", "get": "003:12:45" }
+    {
+      "type": "tile.move",
+      "tileId": "navball",
+      "get": "003:12:44",
+      "mutation": { "x": 0.58 },
+      "quantized": { "x": 0.575 }
+    },
+    {
+      "type": "tile.focus",
+      "tileId": "trajectory",
+      "get": "003:12:45"
+    }
   ]
 }
 ```
 
 - `tiles` stores normalized geometry for every active window (Navigation
-  layouts omit Systems-only tiles until the view switches).
+  layouts omit Systems-only tiles until the view switches) alongside a
+  `quantized` object that snaps coordinates to the N64-friendly grid.
 - `overrides` captures workspace-wide toggles: HUD pin state, high
   contrast, caption verbosity, and other accessibility options described
   in [`logging_accessibility_guidelines.md`](logging_accessibility_guidelines.md).
@@ -105,7 +135,7 @@ for persistence. A representative state snapshot looks like:
 | Event | Payload | Consumers |
 | --- | --- | --- |
 | `workspace:preset_loaded` | `presetId`, `view`, `source` | Mission log, accessibility narrator (announces layout change), parity harness. |
-| `workspace:update` | `tileId`, `mutation`, `pointer`, `view`, `get` | Manual action recorder, HUD console dock, regression diffs. |
+| `workspace:update` | `tileId`, `mutation`, `pointer`, `view`, `get`, `quantized` | Manual action recorder, HUD console dock, regression diffs. |
 | `workspace:override_changed` | `key`, `value`, `source` | Audio captions, HUD palette swap, accessibility export. |
 | `workspace:input_override` | `device`, `binding`, `action` | Input mapper UI, parity harness (records remap for replays). |
 
@@ -122,7 +152,8 @@ checklist, audio, and AGC traffic.
 - **Geometry precision:** Tiles store four-decimal normalized values.
   N64 builds quantize to 1/40 increments (8 px at 320×240) when emitting
   display lists; the store tracks both the raw normalized values and the
-  quantized coordinates for platform exporters.
+  quantized coordinates for platform exporters, exposing both on tiles,
+  history entries, and serialized exports.
 - **Persistence size:** Controller Pak exports target <8 KB per profile.
   The serializer drops mutation history and trims override defaults when
   writing to Pak or EEPROM while leaving the CLI/browser exports intact.
@@ -140,7 +171,8 @@ checklist, audio, and AGC traffic.
 4. `WorkspaceStore` now forwards history entries into
    `ManualActionRecorder.recordWorkspaceEvent()` so parity replays and CLI
    exports capture tile moves, overrides, and input remaps with the same
-   GET stamps used in mission logs.【F:js/src/hud/workspaceStore.js†L1-L740】【F:js/src/logging/manualActionRecorder.js†L201-L260】
+   GET stamps and quantized coordinate snapshots used in mission
+   logs.【F:js/src/hud/workspaceStore.js†L1-L740】【F:js/src/logging/manualActionRecorder.js†L201-L260】
 5. Update the validator (`npm run validate:data`) to ensure every preset
    references valid widget IDs, honors platform capacity limits, and
    provides descriptions for accessibility logs.

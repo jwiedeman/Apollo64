@@ -19,7 +19,9 @@ exposes lightweight `recordChecklistAck()`, `recordDskyEntry()`, and
 entries without knowing about the eventual export format. Workspace
 events capture tile mutations, override toggles, and input remaps with
 GET stamps, mirroring the mission log `workspace:*` entries for parity
-tooling and CLI exports.【F:js/src/logging/manualActionRecorder.js†L201-L260】
+tooling and CLI exports while preserving the rounded and quantized
+coordinates produced by the workspace store so N64 exporters share the
+same layout snapshots.【F:js/src/logging/manualActionRecorder.js†L201-L260】【F:js/src/hud/workspaceStore.js†L1-L740】
 
 The recorder is wired into the simulation context at construction time,
 allowing the checklist manager and autopilot runner to inject
@@ -59,9 +61,10 @@ metrics (auto vs. manual counts, per-event totals). When callers request
 
 The resulting JSON matches the manual action script contract documented
 under `docs/data/manual_scripts/`, while the new `workspace[]` array
-preserves tile, override, and input changes for replay tooling. Parity
-runs can ignore the supplemental array when feeding actions into the
-manual queue or use it to reconstruct HUD layouts for deterministic UI
+preserves tile, override, and input changes (including `quantized`/
+`previous_quantized` snapshots) for replay tooling. Parity runs can
+ignore the supplemental array when feeding actions into the manual
+queue or use it to reconstruct HUD layouts for deterministic UI and N64
 playback.【F:js/src/logging/manualActionRecorder.js†L225-L260】
 
 ## CLI Workflow
