@@ -145,6 +145,15 @@ These entries feed:
    controller button states into the same high-level command IDs, sharing
    the mission event bus contract with the web build.
 
+An initial implementation of the shared dispatcher now lives in
+[`js/src/ui/uiInputService.js`](../../js/src/ui/uiInputService.js), with
+automated coverage in
+[`js/test/uiInputService.test.js`](../../js/test/uiInputService.test.js)
+exercising keyboard, gamepad, and N64 mappings. Manual queue dispatch is
+handled by [`js/src/ui/uiManualActionDispatcher.js`](../../js/src/ui/uiManualActionDispatcher.js), which logs `ui:manual` events,
+routes actions onto `ManualActionQueue`, and is covered by
+[`js/test/uiManualActionDispatcher.test.js`](../../js/test/uiManualActionDispatcher.test.js).
+
 This mapping plan keeps future UI work grounded in the mission
 procedures, ensuring that every button press ties directly to the
 checklists, panels, and telemetry documented across the project plan.
