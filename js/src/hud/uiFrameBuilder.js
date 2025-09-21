@@ -38,6 +38,15 @@ export class UiFrameBuilder {
     this.eventPadMap = this.#buildEventPadMap(this.options.events);
     this.dockingConfig = this.#normalizeDockingConfig(this.options.docking);
     this.entryConfig = this.#normalizeEntryConfig(this.options.entry);
+    const checklistBundle = this.#normalizeUiBundle(this.options.uiChecklists, 'checklists');
+    this.uiChecklists = checklistBundle.map;
+    this.uiChecklistItems = checklistBundle.items;
+    const panelBundle = this.#normalizeUiBundle(this.options.uiPanels, 'panels');
+    this.uiPanels = panelBundle.map;
+    this.uiPanelItems = panelBundle.items;
+    const workspaceBundle = this.#normalizeUiBundle(this.options.uiWorkspaces, 'presets');
+    this.uiWorkspaces = workspaceBundle.map;
+    this.uiWorkspaceItems = workspaceBundle.items;
   }
 
   build(currentGetSeconds, context = {}) {
@@ -173,6 +182,11 @@ export class UiFrameBuilder {
     });
     if (audio) {
       frame.audio = audio;
+    }
+
+    const uiSummary = this.#summarizeUiDefinitions();
+    if (uiSummary) {
+      frame.ui = uiSummary;
     }
 
     this.lastFrame = frame;
@@ -1287,6 +1301,45 @@ export class UiFrameBuilder {
     };
   }
 
+  #normalizeUiBundle(source, defaultKey) {
+    if (!source) {
+      return { map: null, items: [] };
+    }
+
+    if (source instanceof Map) {
+      return { map: source, items: Array.from(source.values()) };
+    }
+
+    if (source.map instanceof Map) {
+      const items = Array.isArray(source.items)
+        ? source.items
+        : Array.isArray(source[defaultKey])
+          ? source[defaultKey]
+          : Array.from(source.map.values());
+      return { map: source.map, items };
+    }
+
+    let items = [];
+    if (Array.isArray(source)) {
+      items = source;
+    } else if (typeof source === 'object') {
+      if (Array.isArray(source.items)) {
+        items = source.items;
+      } else if (Array.isArray(source[defaultKey])) {
+        items = source[defaultKey];
+      }
+    }
+
+    const map = new Map();
+    for (const item of items) {
+      if (item && typeof item === 'object' && item.id) {
+        map.set(item.id, item);
+      }
+    }
+
+    return { map, items };
+  }
+
   #normalizeEntryCorridor(raw, events) {
     if (!raw || typeof raw !== 'object') {
       return null;
@@ -1559,22 +1612,22 @@ export class UiFrameBuilder {
       return null;
     }
 
+    const activeEntries = Array.isArray(stats.active)
+      ? stats.active.map((entry) => this.#augmentChecklistEntry(entry, resolvePad))
+      : [];
+
     const limit = Math.max(0, Number(this.options.activeChecklistLimit) || 0);
-    const active = limit > 0 ? stats.active.slice(0, limit) : stats.active.slice();
-    const augmentedActive = active.map((entry) => ({
-      ...entry,
-      pad: resolvePad ? resolvePad(entry.eventId) : null,
-    }));
-    const chip = this.#selectChecklistChip(stats.active, resolvePad);
+    const active = limit > 0 ? activeEntries.slice(0, limit) : activeEntries.slice();
+    const chip = this.#selectChecklistChip(activeEntries);
 
     return {
       totals: stats.totals,
-      active: augmentedActive,
+      active,
       chip,
     };
   }
 
-  #selectChecklistChip(active, resolvePad) {
+  #selectChecklistChip(active) {
     if (!Array.isArray(active) || active.length === 0) {
       return null;
     }
@@ -1592,7 +1645,7 @@ export class UiFrameBuilder {
     });
 
     const selected = sorted[0];
-    return {
+    const chip = {
       eventId: selected.eventId,
       checklistId: selected.checklistId,
       title: selected.title,
@@ -1601,8 +1654,261 @@ export class UiFrameBuilder {
       nextStepAction: selected.nextStepAction,
       stepsRemaining: Math.max(0, selected.totalSteps - selected.completedSteps),
       autoAdvancePending: selected.autoAdvancePending,
-      pad: resolvePad ? resolvePad(selected.eventId) : null,
+      pad: selected.pad ?? null,
     };
+
+    if (selected.definition) {
+      chip.definition = deepClone(selected.definition);
+    }
+    if (selected.nextStepDefinition) {
+      chip.nextStepDefinition = deepClone(selected.nextStepDefinition);
+    }
+
+    return chip;
+  }
+
+  #augmentChecklistEntry(entry, resolvePad) {
+    if (!entry || typeof entry !== 'object') {
+      return entry;
+    }
+
+    const augmented = { ...entry };
+    augmented.pad = resolvePad ? resolvePad(entry.eventId) : null;
+
+    const checklist = this.uiChecklists?.get(entry.checklistId);
+    if (checklist) {
+      augmented.definition = this.#buildChecklistDefinition(checklist);
+      if (entry.nextStepNumber != null) {
+        const stepDefinition = this.#lookupChecklistStep(checklist, entry.nextStepNumber);
+        if (stepDefinition) {
+          augmented.nextStepDefinition = this.#summarizeChecklistStep(stepDefinition);
+        }
+      }
+    }
+
+    return augmented;
+  }
+
+  #buildChecklistDefinition(checklist) {
+    const summary = {
+      id: checklist.id ?? null,
+      title: checklist.title ?? checklist.id ?? null,
+      phase: checklist.phase ?? null,
+      role: checklist.role ?? null,
+      nominalGet: checklist.nominalGet ?? null,
+      nominalGetSeconds: Number.isFinite(checklist.nominalGetSeconds)
+        ? checklist.nominalGetSeconds
+        : null,
+      totalSteps: Number.isFinite(checklist.totalSteps) ? checklist.totalSteps : null,
+    };
+
+    if (checklist.source) {
+      summary.source = deepClone(checklist.source);
+    }
+    if (Array.isArray(checklist.tags) && checklist.tags.length > 0) {
+      summary.tags = checklist.tags.slice();
+    }
+
+    return summary;
+  }
+
+  #lookupChecklistStep(checklist, stepNumber) {
+    if (!checklist || stepNumber == null) {
+      return null;
+    }
+
+    if (checklist.stepsByOrder instanceof Map) {
+      return checklist.stepsByOrder.get(stepNumber) ?? null;
+    }
+
+    if (Array.isArray(checklist.steps)) {
+      return checklist.steps.find((step) => step.order === stepNumber) ?? null;
+    }
+
+    return null;
+  }
+
+  #summarizeChecklistStep(step) {
+    if (!step || typeof step !== 'object') {
+      return null;
+    }
+
+    const summary = {
+      id: step.id ?? null,
+      order: Number.isFinite(step.order) ? step.order : null,
+      callout: step.callout ?? null,
+      panelId: step.panelId ?? null,
+      dskyMacro: step.dskyMacro ?? null,
+      manualOnly: Boolean(step.manualOnly),
+      notes: step.notes ?? null,
+      prerequisites: Array.isArray(step.prerequisites) ? [...step.prerequisites] : [],
+      tags: Array.isArray(step.tags) ? [...step.tags] : [],
+    };
+
+    if (Array.isArray(step.effects)) {
+      summary.effects = step.effects.map((effect) => deepClone(effect));
+    } else {
+      summary.effects = [];
+    }
+
+    if (Array.isArray(step.controls)) {
+      summary.controls = step.controls
+        .map((control) => this.#summarizeChecklistControl(control, step.panelId))
+        .filter(Boolean);
+    } else {
+      summary.controls = [];
+    }
+
+    if (step.panelId && this.uiPanels) {
+      const panel = this.uiPanels.get(step.panelId);
+      if (panel) {
+        summary.panel = {
+          id: panel.id ?? null,
+          name: panel.name ?? panel.id ?? null,
+          craft: panel.craft ?? null,
+        };
+      }
+    }
+
+    return summary;
+  }
+
+  #summarizeChecklistControl(control, panelId) {
+    if (!control || typeof control !== 'object') {
+      return null;
+    }
+
+    const summary = {
+      controlId: control.controlId ?? control.id ?? null,
+      targetState: control.targetState ?? control.state ?? null,
+      verification: control.verification ?? null,
+      tolerance: this.#coerceNumber(control.tolerance),
+    };
+
+    if (control.label != null) {
+      summary.label = control.label;
+    }
+    if (control.notes != null) {
+      summary.notes = control.notes;
+    }
+    if (Array.isArray(control.prerequisites) && control.prerequisites.length > 0) {
+      summary.prerequisites = control.prerequisites.slice();
+    }
+    if (control.metadata) {
+      summary.metadata = deepClone(control.metadata);
+    }
+
+    const panel = panelId && this.uiPanels ? this.uiPanels.get(panelId) : null;
+    const controlDefinition = panel?.controlsById?.get(summary.controlId) ?? null;
+    if (controlDefinition) {
+      summary.control = {
+        id: controlDefinition.id,
+        label: controlDefinition.label ?? controlDefinition.id ?? null,
+        type: controlDefinition.type ?? null,
+        defaultState: controlDefinition.defaultState ?? null,
+      };
+
+      if (controlDefinition.statesById instanceof Map) {
+        summary.control.states = Array.from(controlDefinition.statesById.values()).map((state) => ({
+          id: state.id ?? null,
+          label: state.label ?? null,
+        }));
+      } else if (Array.isArray(controlDefinition.states)) {
+        summary.control.states = controlDefinition.states.map((state) => ({
+          id: state.id ?? null,
+          label: state.label ?? null,
+        }));
+      }
+
+      if (summary.controlId && summary.targetState && controlDefinition.statesById instanceof Map) {
+        const state = controlDefinition.statesById.get(summary.targetState);
+        if (state) {
+          summary.targetStateLabel = state.label ?? summary.targetState;
+          const deltas = {};
+          for (const field of ['drawKw', 'heatKw', 'propellantKg', 'deltaKw', 'deltaKg']) {
+            if (state[field] != null) {
+              const numeric = this.#coerceNumber(state[field]);
+              if (numeric != null) {
+                deltas[field] = numeric;
+              }
+            }
+          }
+          if (Object.keys(deltas).length > 0) {
+            summary.targetStateDeltas = deltas;
+          }
+        }
+      }
+
+      if (panel?.hotspotsByControl instanceof Map) {
+        const hotspot = panel.hotspotsByControl.get(summary.controlId);
+        if (hotspot) {
+          summary.control.hotspot = { ...hotspot };
+        }
+      }
+    }
+
+    return summary;
+  }
+
+  #summarizeUiDefinitions() {
+    const workspaces = this.#summarizeWorkspaces();
+    if (workspaces) {
+      return { workspaces };
+    }
+    return null;
+  }
+
+  #summarizeWorkspaces() {
+    if (!Array.isArray(this.uiWorkspaceItems) || this.uiWorkspaceItems.length === 0) {
+      return null;
+    }
+
+    const summaries = this.uiWorkspaceItems
+      .map((preset) => this.#summarizeWorkspacePreset(preset))
+      .filter(Boolean);
+
+    return summaries.length > 0 ? summaries : null;
+  }
+
+  #summarizeWorkspacePreset(preset) {
+    if (!preset || typeof preset !== 'object') {
+      return null;
+    }
+
+    const summary = {
+      id: preset.id ?? null,
+      name: preset.name ?? null,
+      description: preset.description ?? null,
+      tileCount: Array.isArray(preset.tiles) ? preset.tiles.length : 0,
+    };
+
+    if (preset.viewport && typeof preset.viewport === 'object') {
+      const viewport = {};
+      if (preset.viewport.minWidth != null) {
+        const minWidth = this.#coerceNumber(preset.viewport.minWidth);
+        if (minWidth != null) {
+          viewport.minWidth = minWidth;
+        }
+      }
+      if (preset.viewport.minHeight != null) {
+        const minHeight = this.#coerceNumber(preset.viewport.minHeight);
+        if (minHeight != null) {
+          viewport.minHeight = minHeight;
+        }
+      }
+      if (typeof preset.viewport.hudPinned === 'boolean') {
+        viewport.hudPinned = preset.viewport.hudPinned;
+      }
+      if (Object.keys(viewport).length > 0) {
+        summary.viewport = viewport;
+      }
+    }
+
+    if (Array.isArray(preset.tags) && preset.tags.length > 0) {
+      summary.tags = preset.tags.slice();
+    }
+
+    return summary;
   }
 
   #summarizeFailures(entries) {
