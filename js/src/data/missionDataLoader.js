@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { parseCsv } from '../utils/csv.js';
 import { parseGET } from '../utils/time.js';
+import { loadUiDefinitions } from './uiDefinitionLoader.js';
 
 export async function loadMissionData(dataDir, { logger } = {}) {
   const uiDir = path.resolve(dataDir, '..', 'ui');
@@ -88,6 +89,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const docking = parseDockingGates(dockingContent, logger);
   const entryOverlay = parseEntryOverlay(entryOverlayContent, logger);
   const dskyMacros = parseDskyMacros(dskyMacroContent, logger);
+  const uiDefinitions = await loadUiDefinitions(uiDir, { logger });
 
   const thrusterCraftCount = Array.isArray(thrusters?.craft) ? thrusters.craft.length : 0;
   const thrusterCount = Array.isArray(thrusters?.craft)
@@ -127,6 +129,12 @@ export async function loadMissionData(dataDir, { logger } = {}) {
         audioCategories: audioCues.categories.length,
         audioCues: audioCues.cues.length,
         dockingGates: Array.isArray(docking?.gates) ? docking.gates.length : 0,
+        uiPanels: uiDefinitions.panels.items.length,
+        uiPanelControls: uiDefinitions.panels.totalControls,
+        uiChecklists: uiDefinitions.checklists.items.length,
+        uiChecklistSteps: uiDefinitions.checklists.totalSteps,
+        uiWorkspaces: uiDefinitions.workspaces.items.length,
+        uiWorkspaceTiles: uiDefinitions.workspaces.totalTiles,
       },
     });
   }
@@ -144,6 +152,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     docking,
     entryOverlay,
     dskyMacros,
+    ui: uiDefinitions,
   };
 }
 

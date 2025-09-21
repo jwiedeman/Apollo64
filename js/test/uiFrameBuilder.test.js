@@ -881,6 +881,141 @@ describe('UiFrameBuilder', () => {
     assert.equal(hatch.getSeconds, parseGET('195:24:30'));
   });
 
+  test('enriches checklist summaries with UI definitions and workspace presets', () => {
+    const panelDefinition = {
+      id: 'CSM_TEST',
+      name: 'Test Panel',
+      craft: 'CSM',
+      controls: [],
+      controlsById: new Map(),
+      hotspotsByControl: new Map(),
+    };
+    const controlDefinition = {
+      id: 'CTRL_A',
+      label: 'Control A',
+      type: 'toggle',
+      defaultState: 'OFF',
+      states: [
+        { id: 'OFF', label: 'Off', drawKw: 0 },
+        { id: 'ON', label: 'On', drawKw: 0.5 },
+      ],
+      statesById: new Map([
+        ['OFF', { id: 'OFF', label: 'Off', drawKw: 0 }],
+        ['ON', { id: 'ON', label: 'On', drawKw: 0.5 }],
+      ]),
+    };
+    panelDefinition.controls.push(controlDefinition);
+    panelDefinition.controlsById.set('CTRL_A', controlDefinition);
+    panelDefinition.hotspotsByControl.set('CTRL_A', {
+      controlId: 'CTRL_A',
+      x: 10,
+      y: 20,
+      width: 30,
+      height: 40,
+    });
+
+    const stepDefinition = {
+      id: 'CHK_STEP',
+      order: 1,
+      callout: 'Test callout',
+      panelId: 'CSM_TEST',
+      controls: [
+        { controlId: 'CTRL_A', targetState: 'ON', verification: 'indicator' },
+      ],
+      dskyMacro: 'V16N65_TEST',
+      manualOnly: false,
+      prerequisites: ['event:TEST'],
+      effects: [{ type: 'flag', id: 'flag', value: true }],
+      notes: 'Test note',
+    };
+
+    const checklistDefinition = {
+      id: 'CHK_TEST',
+      title: 'Test Checklist',
+      phase: 'Translunar',
+      role: 'CMP',
+      nominalGet: '000:05:00',
+      nominalGetSeconds: parseGET('000:05:00'),
+      steps: [stepDefinition],
+      stepsById: new Map([[stepDefinition.id, stepDefinition]]),
+      stepsByOrder: new Map([[1, stepDefinition]]),
+      totalSteps: 1,
+      tags: ['test'],
+      source: { document: 'Flight Plan', page: '3-10' },
+    };
+
+    const workspaceDefinition = {
+      id: 'WS_TEST',
+      name: 'Workspace',
+      description: 'Test workspace',
+      viewport: { minWidth: 1280, minHeight: 720, hudPinned: true },
+      tiles: [
+        { id: 'tile1', window: 'trajectoryCanvas', x: 0, y: 0, width: 0.5, height: 0.5 },
+      ],
+    };
+
+    const builder = new UiFrameBuilder({
+      uiPanels: { items: [panelDefinition], map: new Map([[panelDefinition.id, panelDefinition]]) },
+      uiChecklists: {
+        items: [checklistDefinition],
+        map: new Map([[checklistDefinition.id, checklistDefinition]]),
+      },
+      uiWorkspaces: {
+        items: [workspaceDefinition],
+        map: new Map([[workspaceDefinition.id, workspaceDefinition]]),
+      },
+      activeChecklistLimit: 2,
+    });
+
+    const frame = builder.build(0, {
+      scheduler: { stats: () => ({ counts: {}, upcoming: [] }) },
+      checklistManager: {
+        stats: () => ({
+          totals: {
+            active: 1,
+            completed: 0,
+            aborted: 0,
+            acknowledgedSteps: 0,
+            autoSteps: 0,
+            manualSteps: 0,
+          },
+          active: [
+            {
+              eventId: 'EVT_TEST',
+              checklistId: 'CHK_TEST',
+              title: 'Test Checklist',
+              crewRole: 'CMP',
+              completedSteps: 0,
+              totalSteps: 1,
+              nextStepNumber: 1,
+              nextStepAction: 'Test callout',
+              autoAdvancePending: false,
+            },
+          ],
+        }),
+      },
+    });
+
+    const active = frame.checklists.active[0];
+    assert.equal(active.definition.phase, 'Translunar');
+    assert.equal(active.definition.totalSteps, 1);
+    assert.equal(active.nextStepDefinition.controls[0].targetStateLabel, 'On');
+    assert.equal(active.nextStepDefinition.controls[0].control.hotspot.width, 30);
+    assert.deepEqual(active.nextStepDefinition.prerequisites, ['event:TEST']);
+
+    const chip = frame.checklists.chip;
+    assert.ok(chip.definition);
+    assert.equal(chip.nextStepDefinition.controls[0].control.label, 'Control A');
+
+    assert.ok(frame.ui);
+    assert.equal(frame.ui.workspaces.length, 1);
+    const workspace = frame.ui.workspaces[0];
+    assert.equal(workspace.id, 'WS_TEST');
+    assert.equal(workspace.tileCount, 1);
+    assert.equal(workspace.viewport.minWidth, 1280);
+    assert.strictEqual(workspace.viewport.hudPinned, true);
+  });
+
   test('flags low periapsis without duplicating alerts', () => {
     function buildFrame(periapsisAltitudeMeters) {
       const builder = new UiFrameBuilder();

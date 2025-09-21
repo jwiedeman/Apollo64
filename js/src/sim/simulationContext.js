@@ -17,6 +17,7 @@ import { MissionLogAggregator } from '../logging/missionLogAggregator.js';
 import { AudioCueBinder } from '../audio/audioCueBinder.js';
 import { AudioDispatcher, NullAudioMixer } from '../audio/audioDispatcher.js';
 import { AgcRuntime } from './agcRuntime.js';
+import { WorkspaceStore } from '../hud/workspaceStore.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -46,6 +47,10 @@ export async function createSimulationContext({
   const missionData = await loadMissionData(resolvedDataDir, { logger });
 
   const missionLogAggregator = new MissionLogAggregator(logger);
+  const workspaceStore = new WorkspaceStore({
+    bundle: missionData.ui?.workspaces ?? null,
+    logger,
+  });
 
   const audioBinder = new AudioCueBinder(missionData.audioCues, logger);
   const audioMixer = new NullAudioMixer({ logger });
@@ -91,6 +96,10 @@ export async function createSimulationContext({
     events: missionData.events,
     docking: missionData.docking,
     entry: missionData.entryOverlay,
+    uiPanels: missionData.ui?.panels,
+    uiChecklists: missionData.ui?.checklists,
+    uiWorkspaces: missionData.ui?.workspaces,
+    workspaceStore,
     ...(hudOptions ?? {}),
   };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);
@@ -182,6 +191,8 @@ export async function createSimulationContext({
     audioDispatcher,
   });
 
+  workspaceStore.setTimeProvider(() => simulation?.clock?.getCurrent?.() ?? 0);
+
   return {
     missionData,
     simulation,
@@ -195,6 +206,7 @@ export async function createSimulationContext({
     orbitPropagator,
     hud,
     uiFrameBuilder,
+    workspaceStore,
     scoreSystem,
     manualActionRecorder,
     missionLogAggregator,
