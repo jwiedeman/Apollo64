@@ -31,7 +31,7 @@ Primary pane layout uses a 3-column grid (trajectory canvas wide left, navball t
 | Navball / Attitude | Top-right | Full FDAI sphere with prograde/retrograde markers, PTC roll ring, attitude error needles. | Guidance state, autopilot runner, resource alerts. | Clicking toggles between AGC- and SCS-driven attitude frames. |
 | State Vector Table | Bottom-right | Apoapsis/periapsis, TIG, Δv, burn duration, attitude error, residuals. | PAD dataset, resource metrics. | Copy button copies PAD parameters; warnings highlight residuals beyond tolerance. |
 | Timeline Ribbon | Bottom (full width) | Horizontal event timeline with markers for TLI, MCCs, LOI, PDI, TEI, entry corridor, comm windows. | Event scheduler stats, communications dataset. | Clicking marker scrolls checklist lane to relevant entry; dragging scrubs to preview upcoming windows without altering sim time. |
-| Console Dock (collapsible) | Bottom overlay | Text feed of mission log, autopilot transitions, PAD deliveries. | Mission logger stream. | Filter chips (All / Events / Autopilot / Audio). |
+| Console Dock (collapsible) | Bottom overlay | Text feed of mission log, autopilot transitions, PAD deliveries. Detailed behaviour captured in [`console_dock.md`](console_dock.md). | Mission logger stream. | Filter chips (All / Events / Autopilot / Audio). |
 
 ### Navigation View Overlays
 - **Burn Overlay:** When autopilot or manual burn active, fade in throttle strip, Δv achieved vs. target, residual vector arrow.
