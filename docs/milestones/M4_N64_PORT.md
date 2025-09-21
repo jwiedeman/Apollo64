@@ -73,6 +73,7 @@ Pak persistence for user settings.
 ## Asset & Build Pipeline
 - **Tools:** Add `tools/` scripts (Python 3) for asset packing, ADPCM conversion (using `audioconv64` or ffmpeg wrappers), and ROM
   manifest generation. Provide Makefile targets for `make pack-assets`, `make rom-debug`, and `make rom-release`.
+- **Reference:** Follow the pack formats, audio workflow, and manifest contract outlined in [`docs/n64/asset_pipeline.md`](../n64/asset_pipeline.md) when authoring the tooling.
 - **Continuous integration:** Set up headless emulator runs (cen64 or ares) to boot the ROM, execute a scripted translunar slice,
   and diff deterministic logs against golden outputs.
 - **Versioning:** Embed mission dataset hashes and Git revision metadata into the ROM splash screen for provenance tracking.
