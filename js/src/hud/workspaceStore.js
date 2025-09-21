@@ -2,6 +2,8 @@ import { formatGET } from '../utils/time.js';
 
 const DEFAULT_HISTORY_LIMIT = 32;
 const DEFAULT_CAPACITY = 12;
+const DEFAULT_NORMALIZED_PRECISION = 4;
+const DEFAULT_QUANTIZATION_STEP = 1 / 40;
 const DEFAULT_VIEW_PRESETS = new Map([
   ['navigation', 'NAV_DEFAULT'],
   ['controls', 'DOCKING'],
@@ -26,6 +28,8 @@ export class WorkspaceStore {
     logger = null,
     timeProvider = null,
     recorder = null,
+    normalizedPrecision = DEFAULT_NORMALIZED_PRECISION,
+    quantization = null,
   } = {}) {
     this.logger = logger ?? null;
     this.capacity = Number.isFinite(capacity) && capacity > 0 ? Math.floor(capacity) : DEFAULT_CAPACITY;
@@ -34,6 +38,10 @@ export class WorkspaceStore {
       : DEFAULT_HISTORY_LIMIT;
     this.timeProvider = typeof timeProvider === 'function' ? timeProvider : () => 0;
     this.recorder = recorder ?? null;
+    this.normalizedPrecision = Number.isInteger(normalizedPrecision) && normalizedPrecision >= 0
+      ? normalizedPrecision
+      : DEFAULT_NORMALIZED_PRECISION;
+    this.quantization = this.#normalizeQuantization(quantization);
 
     this.version = null;
     this.presets = new Map();
@@ -181,6 +189,8 @@ export class WorkspaceStore {
       return null;
     }
 
+    const previousQuantized = tile.quantized ? { ...tile.quantized } : null;
+
     const sanitized = this.#sanitizeTilePatch(tile, patch);
     if (!sanitized) {
       return null;
@@ -200,12 +210,46 @@ export class WorkspaceStore {
     tile.updatedAtSeconds = this.#now();
     tile.updatedAtGet = formatGET(tile.updatedAtSeconds);
 
+    this.#applyTileQuantization(tile);
+
+    if (sanitized.x != null) {
+      sanitized.x = tile.x;
+    }
+    if (sanitized.y != null) {
+      sanitized.y = tile.y;
+    }
+    if (sanitized.width != null) {
+      sanitized.width = tile.width;
+    }
+    if (sanitized.height != null) {
+      sanitized.height = tile.height;
+    }
+
+    const quantized = {};
+    if (sanitized.x != null && tile.quantized?.x != null) {
+      quantized.x = tile.quantized.x;
+    }
+    if (sanitized.y != null && tile.quantized?.y != null) {
+      quantized.y = tile.quantized.y;
+    }
+    if (sanitized.width != null && tile.quantized?.width != null) {
+      quantized.width = tile.quantized.width;
+    }
+    if (sanitized.height != null && tile.quantized?.height != null) {
+      quantized.height = tile.quantized.height;
+    }
+    if (Object.keys(quantized).length > 0) {
+      sanitized.quantized = quantized;
+    }
+
     const context = {
       presetId: this.state.activePresetId,
       view: this.state.activeView,
       tileId,
       mutation: sanitized,
       previous,
+      quantized,
+      previousQuantized,
       pointer: options.pointer ?? null,
       reason: options.reason ?? null,
       source: options.source ?? null,
@@ -218,6 +262,8 @@ export class WorkspaceStore {
         presetId: this.state.activePresetId,
         view: this.state.activeView,
         mutation: sanitized,
+        quantized,
+        previousQuantized,
         pointer: options.pointer ?? null,
         reason: options.reason ?? null,
         source: options.source ?? null,
@@ -485,7 +531,7 @@ export class WorkspaceStore {
       ? deepClone(tile.constraints)
       : null;
 
-    return {
+    const tileState = {
       id,
       window: windowId,
       x: this.#coerceNumber(tile.x, 0),
@@ -497,6 +543,9 @@ export class WorkspaceStore {
       tags: Array.isArray(tile.tags) ? tile.tags.slice() : [],
       metadata: tile.metadata && typeof tile.metadata === 'object' ? deepClone(tile.metadata) : null,
     };
+
+    this.#applyTileQuantization(tileState);
+    return tileState;
   }
 
   #applyPreset(presetId, {
@@ -517,6 +566,7 @@ export class WorkspaceStore {
       const clone = deepClone(tile);
       clone.updatedAtSeconds = this.#now();
       clone.updatedAtGet = formatGET(clone.updatedAtSeconds);
+      this.#applyTileQuantization(clone);
       tiles.set(clone.id, clone);
     }
 
@@ -606,9 +656,11 @@ export class WorkspaceStore {
 
     if (sanitized.x != null) {
       sanitized.x = Math.max(0, Math.min(sanitized.x, Math.max(0, 1 - width)));
+      sanitized.x = this.#roundNormalized(sanitized.x);
     }
     if (sanitized.y != null) {
       sanitized.y = Math.max(0, Math.min(sanitized.y, Math.max(0, 1 - height)));
+      sanitized.y = this.#roundNormalized(sanitized.y);
     }
 
     return sanitized;
@@ -708,6 +760,123 @@ export class WorkspaceStore {
     return Math.max(number, 0);
   }
 
+  #roundNormalized(value) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    const factor = 10 ** this.normalizedPrecision;
+    return Math.round(value * factor) / factor;
+  }
+
+  #applyTileQuantization(tile) {
+    if (!tile || typeof tile !== 'object') {
+      return;
+    }
+
+    const normalizedWidth = this.#roundNormalized(Math.min(Math.max(Number(tile.width) || 0, 0), 1));
+    const normalizedHeight = this.#roundNormalized(Math.min(Math.max(Number(tile.height) || 0, 0), 1));
+    const maxX = Math.max(0, 1 - normalizedWidth);
+    const maxY = Math.max(0, 1 - normalizedHeight);
+    const normalizedX = this.#roundNormalized(Math.min(Math.max(Number(tile.x) || 0, 0), maxX));
+    const normalizedY = this.#roundNormalized(Math.min(Math.max(Number(tile.y) || 0, 0), maxY));
+
+    tile.x = normalizedX;
+    tile.y = normalizedY;
+    tile.width = normalizedWidth;
+    tile.height = normalizedHeight;
+
+    const quantizedWidth = this.#quantizeDimension(normalizedWidth, 'width', normalizedWidth);
+    const quantizedHeight = this.#quantizeDimension(normalizedHeight, 'height', normalizedHeight);
+    const quantMaxX = Math.max(0, 1 - quantizedWidth);
+    const quantMaxY = Math.max(0, 1 - quantizedHeight);
+    const quantizedX = this.#roundNormalized(Math.max(0, Math.min(this.#quantizeDimension(normalizedX, 'x', normalizedX), quantMaxX)));
+    const quantizedY = this.#roundNormalized(Math.max(0, Math.min(this.#quantizeDimension(normalizedY, 'y', normalizedY), quantMaxY)));
+
+    tile.quantized = {
+      x: quantizedX,
+      y: quantizedY,
+      width: this.#roundNormalized(quantizedWidth),
+      height: this.#roundNormalized(quantizedHeight),
+    };
+  }
+
+  #quantizeDimension(value, key, fallback) {
+    if (!Number.isFinite(value)) {
+      return this.#roundNormalized(fallback ?? 0);
+    }
+    if (!this.quantization.enabled) {
+      return this.#roundNormalized(value);
+    }
+    const step = this.#quantizationStepFor(key);
+    if (!(step > 0)) {
+      return this.#roundNormalized(value);
+    }
+    let quantized = Math.round(value / step) * step;
+    if (key === 'width' || key === 'height') {
+      quantized = Math.max(step, quantized);
+    }
+    quantized = Math.min(Math.max(quantized, 0), 1);
+    return this.#roundNormalized(quantized);
+  }
+
+  #quantizationStepFor(key) {
+    const specific = Number(this.quantization[key]);
+    if (Number.isFinite(specific) && specific > 0) {
+      return specific;
+    }
+    const generic = Number(this.quantization.step);
+    if (Number.isFinite(generic) && generic > 0) {
+      return generic;
+    }
+    return DEFAULT_QUANTIZATION_STEP;
+  }
+
+  #normalizeQuantization(raw) {
+    const defaults = {
+      enabled: true,
+      step: DEFAULT_QUANTIZATION_STEP,
+      x: null,
+      y: null,
+      width: null,
+      height: null,
+    };
+
+    if (raw == null) {
+      return defaults;
+    }
+
+    if (typeof raw === 'boolean') {
+      return { ...defaults, enabled: raw };
+    }
+
+    if (typeof raw === 'number') {
+      const step = Math.abs(raw);
+      if (Number.isFinite(step) && step > 0) {
+        return { ...defaults, step };
+      }
+      return defaults;
+    }
+
+    if (typeof raw !== 'object') {
+      return defaults;
+    }
+
+    const normalized = { ...defaults };
+    if (typeof raw.enabled === 'boolean') {
+      normalized.enabled = raw.enabled;
+    }
+    if (Number.isFinite(raw.step) && raw.step > 0) {
+      normalized.step = Number(raw.step);
+    }
+    for (const key of ['x', 'y', 'width', 'height']) {
+      const value = raw[key];
+      if (Number.isFinite(value) && value > 0) {
+        normalized[key] = Number(value);
+      }
+    }
+    return normalized;
+  }
+
   #now() {
     const value = Number(this.timeProvider?.());
     return Number.isFinite(value) && value >= 0 ? value : 0;
@@ -782,3 +951,4 @@ function deepClone(value) {
   }
   return clone;
 }
+

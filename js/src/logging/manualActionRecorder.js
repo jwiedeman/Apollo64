@@ -509,6 +509,8 @@ export class ManualActionRecorder {
       binding: this.#normalizeString(event.binding),
       mutation: this.#cloneWorkspaceMutation(event.mutation),
       value: this.#normalizeWorkspaceValue(event.value),
+      quantized: this.#cloneWorkspaceMutation(event.quantized ?? event.quantized_patch),
+      previousQuantized: this.#cloneWorkspaceMutation(event.previousQuantized ?? event.previous_quantized),
     };
 
     return entry;
@@ -585,6 +587,12 @@ export class ManualActionRecorder {
     if (clone.mutation && typeof clone.mutation === 'object') {
       clone.mutation = this.#cloneWorkspaceValue(clone.mutation);
     }
+    if (clone.quantized && typeof clone.quantized === 'object') {
+      clone.quantized = this.#cloneWorkspaceValue(clone.quantized);
+    }
+    if (clone.previousQuantized && typeof clone.previousQuantized === 'object') {
+      clone.previousQuantized = this.#cloneWorkspaceValue(clone.previousQuantized);
+    }
     return clone;
   }
 
@@ -632,6 +640,12 @@ export class ManualActionRecorder {
     }
     if (entry.mutation) {
       payload.mutation = this.#cloneWorkspaceValue(entry.mutation);
+    }
+    if (entry.quantized) {
+      payload.quantized = this.#cloneWorkspaceValue(entry.quantized);
+    }
+    if (entry.previousQuantized) {
+      payload.previous_quantized = this.#cloneWorkspaceValue(entry.previousQuantized);
     }
 
     return payload;

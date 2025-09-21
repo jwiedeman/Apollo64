@@ -58,11 +58,15 @@ describe('WorkspaceStore', () => {
     assert.ok(result.height <= 1, 'height clamped to viewport');
     assert.ok(result.x <= 0.6 + 1e-6, 'x clamped to viewport width');
     assert.equal(result.y, 0, 'y clamped to zero when negative');
+    assert.ok(result.quantized, 'quantized coordinates returned');
+    assert.ok(result.quantized.width >= result.width - 0.05);
+    assert.ok(result.quantized.x <= result.x + 0.05);
 
     const state = store.getState();
     const tile = state.tiles.trajectory;
     assert.equal(tile.width, result.width);
     assert.equal(tile.x, result.x);
+    assert.ok(tile.quantized);
 
     const history = state.history;
     const historyEntry = history[history.length - 1];
@@ -70,6 +74,7 @@ describe('WorkspaceStore', () => {
     assert.equal(historyEntry.type, 'tile.mutate');
     assert.equal(historyEntry.pointer, 'mouse');
     assert.equal(historyEntry.source, 'drag');
+    assert.ok(historyEntry.quantized);
 
     const entries = logger.getEntries();
     const lastEntry = entries[entries.length - 1];
@@ -77,6 +82,7 @@ describe('WorkspaceStore', () => {
     assert.equal(lastEntry.context.eventType, 'workspace:update');
     assert.equal(lastEntry.context.tileId, 'trajectory');
     assert.equal(lastEntry.context.pointer, 'mouse');
+    assert.ok(lastEntry.context.quantized);
   });
 
   test('serializes state and applies overrides to a new store', () => {
@@ -107,6 +113,7 @@ describe('WorkspaceStore', () => {
     assert.equal(state.inputOverrides.keyboard.toggleTileMode, 'KeyT');
     assert.ok(Math.abs(state.tiles.navball.x - snapshot.tiles.navball.x) < 1e-6);
     assert.ok(Math.abs(state.tiles.navball.width - snapshot.tiles.navball.width) < 1e-6);
+    assert.ok(state.tiles.navball.quantized);
   });
 
   test('records workspace history into the manual action recorder', () => {
@@ -127,6 +134,7 @@ describe('WorkspaceStore', () => {
     assert.equal(snapshot.total, 2);
     assert.equal(snapshot.entries[0].type, 'tile.mutate');
     assert.equal(snapshot.entries[0].tileId, 'navball');
+    assert.ok(snapshot.entries[0].quantized);
     assert.equal(snapshot.entries[1].type, 'override');
     assert.equal(snapshot.entries[1].key, 'hudPinned');
   });

@@ -34,5 +34,6 @@ describe('exportWorkspace CLI', () => {
     assert.equal(data.workspace.activePresetId, 'NAV_DEFAULT');
     assert.equal(data.workspace.overrides.highContrast, true);
     assert.ok(!data.workspace.history, 'History should be omitted when --no-history provided');
+    assert.ok(data.workspace.tiles.navball.quantized);
   });
 });

@@ -14,6 +14,7 @@ describe('ManualActionRecorder workspace integration', () => {
       view: 'navigation',
       tileId: 'navball',
       mutation: { x: 0.62, width: 0.35 },
+      quantized: { x: 0.625, width: 0.35 },
       pointer: 'mouse',
       source: 'cli',
     });
@@ -28,6 +29,7 @@ describe('ManualActionRecorder workspace integration', () => {
     assert.equal(snapshot.entries[0].tileId, 'navball');
     assert.equal(snapshot.entries[0].presetId, 'NAV_DEFAULT');
     assert.equal(snapshot.entries[0].mutation.x, 0.62);
+    assert.ok(snapshot.entries[0].quantized);
 
     const payload = recorder.toJSON();
     assert.equal(payload.metadata.workspace_events_recorded, 1);
@@ -37,5 +39,6 @@ describe('ManualActionRecorder workspace integration', () => {
     assert.equal(exported.tile_id, 'navball');
     assert.equal(exported.preset_id, 'NAV_DEFAULT');
     assert.equal(exported.mutation.width, 0.35);
+    assert.ok(exported.quantized);
   });
 });
