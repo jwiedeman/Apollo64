@@ -958,6 +958,17 @@ export class UiFrameBuilder {
       result.history = history;
     }
 
+    const timelineBucketSeconds = this.#coerceNumber(manual.timelineBucketSeconds);
+    const manualTimeline = Array.isArray(manual.timeline)
+      ? manual.timeline
+        .map((entry) => this.#summarizeManualTimelineEntry(entry))
+        .filter((entry) => entry != null)
+      : [];
+    if (timelineBucketSeconds != null) {
+      result.manual.timelineBucketSeconds = timelineBucketSeconds;
+    }
+    result.manual.timeline = manualTimeline;
+
     const ratingDelta = this.#summarizeScoreDelta(summary.rating?.delta ?? null);
     if (ratingDelta) {
       result.rating.delta = ratingDelta;
@@ -2000,6 +2011,28 @@ export class UiFrameBuilder {
       score,
       weight,
     };
+  }
+
+  #summarizeManualTimelineEntry(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+
+    const startSeconds = this.#coerceNumber(entry.startSeconds ?? entry.start_seconds ?? entry.start);
+    const endSeconds = this.#coerceNumber(entry.endSeconds ?? entry.end_seconds ?? entry.end);
+    const manualSteps = this.#coerceNumber(entry.manualSteps ?? entry.manual_steps ?? entry.manual);
+    const autoSteps = this.#coerceNumber(entry.autoSteps ?? entry.auto_steps ?? entry.auto);
+
+    const summary = {
+      startSeconds,
+      endSeconds,
+      manualSteps,
+      autoSteps,
+      startGet: Number.isFinite(startSeconds) ? formatGET(Math.max(0, Math.round(startSeconds))) : null,
+      endGet: Number.isFinite(endSeconds) ? formatGET(Math.max(0, Math.round(endSeconds))) : null,
+    };
+
+    return summary;
   }
 
   #summarizeScoreHistoryEntry(entry) {

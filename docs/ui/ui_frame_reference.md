@@ -416,6 +416,14 @@ recomputing from raw telemetry.
 | `manual.autoSteps` | number&#124;null | Checklist steps advanced automatically. |
 | `manual.totalSteps` | number&#124;null | Total checklist steps assessed by the score system. |
 | `manual.manualFraction` | number&#124;null | Fraction of manual checklist participation (0–1). |
+| `manual.timelineBucketSeconds` | number&#124;null | Duration (seconds) represented by each manual timeline bucket (defaults to 300 when provided by the score system). |
+| `manual.timeline[]` | array | Manual-vs-auto checklist counts ordered by bucket start time. |
+| `manual.timeline[].startSeconds` | number&#124;null | Inclusive GET seconds marking the start of the bucket. |
+| `manual.timeline[].endSeconds` | number&#124;null | Exclusive GET seconds marking the end of the bucket. |
+| `manual.timeline[].startGet` | string&#124;null | GET label (`HHH:MM:SS`) for `startSeconds`. |
+| `manual.timeline[].endGet` | string&#124;null | GET label (`HHH:MM:SS`) for `endSeconds`. |
+| `manual.timeline[].manualSteps` | number&#124;null | Manual acknowledgements recorded inside the bucket. |
+| `manual.timeline[].autoSteps` | number&#124;null | Automatic acknowledgements recorded inside the bucket. |
 | `rating.commanderScore` | number&#124;null | Commander score (0–100). |
 | `rating.grade` | string&#124;null | Letter grade derived from the commander score. |
 | `rating.baseScore` | number&#124;null | Base score before manual bonus. |

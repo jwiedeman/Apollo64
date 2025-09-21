@@ -53,13 +53,14 @@ describe('ScoreSystem', () => {
     const autopilotStats = { active: 0, metrics: { totalBurnSeconds: 12 } };
     const autopilotRunner = { stats: () => autopilotStats };
 
+    const checklistTotals = {
+      manualSteps: 5,
+      autoSteps: 15,
+      acknowledgedSteps: 20,
+    };
     const checklistManager = {
       stats: () => ({
-        totals: {
-          manualSteps: 5,
-          autoSteps: 15,
-          acknowledgedSteps: 20,
-        },
+        totals: checklistTotals,
       }),
     };
 
@@ -77,6 +78,7 @@ describe('ScoreSystem', () => {
     assert.ok(Array.isArray(summary1.history));
     assert.equal(summary1.history.length, 1);
     assert.equal(summary1.history[0].delta, null);
+    assert.deepEqual(summary1.manual.timeline, []);
 
     scheduler.events[2].status = 'complete';
     scheduler.events[3].status = 'failed';
@@ -84,9 +86,13 @@ describe('ScoreSystem', () => {
     resourceState.delta_v_margin_mps = -25;
     resourceState.cryo_boiloff_rate_pct_per_hr = 1.5;
 
+    checklistTotals.manualSteps = 7;
+    checklistTotals.autoSteps = 17;
+    checklistTotals.acknowledgedSteps = 24;
+
     scoreSystem.update(1060, 60);
 
-    const summary = scoreSystem.summary();
+    let summary = scoreSystem.summary();
 
     assert.equal(summary.events.total, 4);
     assert.equal(summary.events.completed, 2);
@@ -113,14 +119,22 @@ describe('ScoreSystem', () => {
     assert.equal(summary.faults.totalFaults, 4);
     assert.deepEqual(new Set(summary.faults.resourceFailureIds), new Set(['FAIL_POWER', 'FAIL_COMM']));
 
-    assert.equal(summary.manual.manualSteps, 5);
-    assert.equal(summary.manual.autoSteps, 15);
-    assert.equal(summary.manual.totalSteps, 20);
-    assert.equal(summary.manual.manualFraction, 0.25);
+    assert.equal(summary.manual.manualSteps, 7);
+    assert.equal(summary.manual.autoSteps, 17);
+    assert.equal(summary.manual.totalSteps, 24);
+    assert.equal(summary.manual.manualFraction, 0.292);
+    assert.equal(summary.manual.timelineBucketSeconds, 300);
+    assert.ok(Array.isArray(summary.manual.timeline));
+    assert.equal(summary.manual.timeline.length, 1);
+    const firstBucket = summary.manual.timeline[0];
+    assert.equal(firstBucket.startSeconds, 900);
+    assert.equal(firstBucket.endSeconds, 1200);
+    assert.equal(firstBucket.manualSteps, 2);
+    assert.equal(firstBucket.autoSteps, 2);
 
     assert.equal(summary.rating.baseScore, 43.2);
-    assert.equal(summary.rating.manualBonus, 2.5);
-    assert.equal(summary.rating.commanderScore, 45.7);
+    assert.equal(summary.rating.manualBonus, 2.9);
+    assert.equal(summary.rating.commanderScore, 46.1);
     assert.equal(summary.rating.grade, 'F');
     const breakdown = summary.rating.breakdown;
     assert.ok(Math.abs(breakdown.events.weight - 0.4) < 1e-9);
@@ -154,5 +168,22 @@ describe('ScoreSystem', () => {
     assert.equal(summary.rating.delta.manualBonus, manualDelta);
     assert.equal(summary.rating.delta.gradeChanged, false);
     assert.equal(latestHistory.delta.commanderScore, commanderDelta);
+
+    checklistTotals.manualSteps = 8;
+    checklistTotals.autoSteps = 19;
+    checklistTotals.acknowledgedSteps = 27;
+
+    scoreSystem.update(1360, 60);
+
+    summary = scoreSystem.summary();
+    assert.equal(summary.manual.manualSteps, 8);
+    assert.equal(summary.manual.autoSteps, 19);
+    assert.equal(summary.manual.totalSteps, 27);
+    assert.equal(summary.manual.timeline.length, 2);
+    const latestBucket = summary.manual.timeline[summary.manual.timeline.length - 1];
+    assert.equal(latestBucket.startSeconds, 1200);
+    assert.equal(latestBucket.endSeconds, 1500);
+    assert.equal(latestBucket.manualSteps, 1);
+    assert.equal(latestBucket.autoSteps, 2);
   });
 });

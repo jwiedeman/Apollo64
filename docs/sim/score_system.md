@@ -16,7 +16,10 @@ engine.【F:js/src/sim/scoreSystem.js†L1-L68】
 `AutopilotRunner`, checklist manager, and optional manual queue—and reattach if
 those dependencies change while a run is in progress.【F:js/src/sim/scoreSystem.js†L25-L125】
 - Maintain aggregate event and communications counts, keeping comms-specific
-completion rates available for telemetry widgets and progression unlock checks.【F:js/src/sim/scoreSystem.js†L51-L307】
+ completion rates available for telemetry widgets and progression unlock checks.【F:js/src/sim/scoreSystem.js†L51-L307】
+- Track manual-vs-auto checklist acknowledgements in fixed 5-minute buckets so
+ upcoming scorecard widgets can display manual cadence without reprocessing the
+ raw checklist stream.【F:js/src/sim/scoreSystem.js†L123-L244】【F:js/src/sim/scoreSystem.js†L386-L544】
 - Track minimum/maximum power and Δv margins plus thermal violation windows
 from the resource state every tick, recording how long cryogenic boil-off rates
 exceeded thresholds so thermal penalties mirror milestone requirements.【F:js/src/sim/scoreSystem.js†L310-L339】
@@ -47,7 +50,9 @@ parity harness, and UI frame builder. The structure includes:
 - Resource snapshot (min/max power %, min/max Δv margin, thermal violation
 time and counts, rounded propellant/power deltas).
 - Fault aggregates (event failures plus unique resource failure IDs).
-- Manual step totals and fractional participation.
+- Manual step totals, fractional participation, and the rolling manual-vs-auto
+ timeline (bucket duration exposed via `timelineBucketSeconds`) used by the UI
+ scorecard sparkline.
 - Rating block containing base score, manual bonus, commander score, grade, and
 per-weight breakdowns alongside the latest autopilot statistics.【F:js/src/sim/scoreSystem.js†L127-L236】
 
