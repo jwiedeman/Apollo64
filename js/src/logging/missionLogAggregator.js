@@ -13,6 +13,7 @@ const KNOWN_CATEGORIES = new Set([
   'autopilot',
   'audio',
   'ui',
+  'workspace',
   'accessibility',
   'system',
   'score',
@@ -188,6 +189,9 @@ export class MissionLogAggregator {
     if (lowerMessage.includes('accessibility')) {
       return 'accessibility';
     }
+    if (lowerMessage.includes('workspace')) {
+      return 'workspace';
+    }
     if (lowerMessage.includes('hud') || lowerMessage.includes('ui ')) {
       return 'ui';
     }
@@ -314,6 +318,8 @@ export class MissionLogAggregator {
       case 'ui':
       case 'hud':
         return 'ui';
+      case 'workspace':
+        return 'workspace';
       case 'accessibility':
         return 'accessibility';
       case 'score':

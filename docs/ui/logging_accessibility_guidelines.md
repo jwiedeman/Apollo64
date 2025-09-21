@@ -63,9 +63,10 @@ tags at the source, keeping downstream filtering deterministic.
   [`ManualActionRecorder`](../../js/src/logging/manualActionRecorder.js)
   with the same GET, action type, and payload used by the simulator so
   parity runs (`npm run parity`) can recreate interactive sessions.
-- Record workspace layout changes and accessibility toggles as
-  pseudo-actions (`type: 'ui_setting'`) to guarantee deterministic
-  restoration during parity runs or UI testing.
+- Record workspace layout changes and accessibility toggles via
+  `ManualActionRecorder.recordWorkspaceEvent()` so parity runs capture
+  the same `workspace:*` payloads exported by the store, keeping tile
+  layouts, overrides, and input remaps deterministic across replays.【F:js/src/logging/manualActionRecorder.js†L201-L260】【F:js/src/hud/workspaceStore.js†L1-L740】
 - The recorder persists UI supplements alongside mission action scripts
   (e.g., `actionsUi[]`) so regression tooling can choose to reenact UI
   gestures or simply validate their presence.

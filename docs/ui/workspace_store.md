@@ -137,14 +137,17 @@ checklist, audio, and AGC traffic.
 3. Feed tile drag/resize handlers through `workspaceStore.mutateTile`
    and dispatch mission log entries (include GET via
    `UiFrameBuilder.currentGet`).
-4. Extend `ManualActionRecorder` to capture `workspace:update` events for
-   parity replay.
+4. `WorkspaceStore` now forwards history entries into
+   `ManualActionRecorder.recordWorkspaceEvent()` so parity replays and CLI
+   exports capture tile moves, overrides, and input remaps with the same
+   GET stamps used in mission logs.【F:js/src/hud/workspaceStore.js†L1-L740】【F:js/src/logging/manualActionRecorder.js†L201-L260】
 5. Update the validator (`npm run validate:data`) to ensure every preset
    references valid widget IDs, honors platform capacity limits, and
    provides descriptions for accessibility logs.
-6. Provide CLI commands (`npm run export:workspace`) and UI download
-   buttons that call `workspaceStore.serialize()` for curated layouts or
-   player overrides.
+6. The new `npm run export:workspace` CLI wraps
+   `workspaceStore.serialize()` so curated layouts, overrides, input
+   remaps, and tile mutations can be exported for UI prototyping or
+   regression fixtures.【F:js/src/tools/exportWorkspace.js†L1-L275】【F:js/package.json†L7-L15】
 7. Mirror the store in the libdragon build by writing a lightweight C
    struct and JSON parser that maps to the same schema so presets remain
    portable.

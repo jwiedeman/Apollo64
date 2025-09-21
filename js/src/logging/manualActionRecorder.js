@@ -14,6 +14,7 @@ export class ManualActionRecorder {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.checklistEntries = [];
     this.dskyEntries = [];
+    this.workspaceEntries = [];
     this.metrics = {
       checklist: {
         total: 0,
@@ -24,6 +25,10 @@ export class ManualActionRecorder {
         total: 0,
         auto: 0,
         manual: 0,
+      },
+      workspace: {
+        total: 0,
+        byType: new Map(),
       },
       events: new Map(),
     };
@@ -117,6 +122,13 @@ export class ManualActionRecorder {
         eventId,
         count,
       })),
+      workspace: {
+        total: this.metrics.workspace.total,
+        byType: Array.from(this.metrics.workspace.byType.entries()).map(([type, count]) => ({
+          type,
+          count,
+        })),
+      },
     };
   }
 
@@ -186,8 +198,33 @@ export class ManualActionRecorder {
     return combined;
   }
 
+  recordWorkspaceEvent(event = {}) {
+    const normalized = this.#normalizeWorkspaceEvent(event);
+    if (!normalized) {
+      return;
+    }
+
+    this.workspaceEntries.push(normalized);
+    this.metrics.workspace.total += 1;
+    const currentCount = this.metrics.workspace.byType.get(normalized.type) ?? 0;
+    this.metrics.workspace.byType.set(normalized.type, currentCount + 1);
+  }
+
+  workspaceSnapshot({ limit = null } = {}) {
+    let entries = this.workspaceEntries;
+    if (Number.isFinite(limit) && limit >= 0) {
+      const start = Math.max(0, entries.length - limit);
+      entries = entries.slice(start);
+    }
+    return {
+      total: this.workspaceEntries.length,
+      entries: entries.map((entry) => this.#cloneWorkspaceEntry(entry)),
+    };
+  }
+
   toJSON() {
     const actions = this.buildScriptActions();
+    const workspace = this.workspaceEntries.map((entry) => this.#workspaceEntryToJson(entry));
     return {
       metadata: {
         generated_at: new Date().toISOString(),
@@ -195,9 +232,11 @@ export class ManualActionRecorder {
         script_actor: this.options.scriptActor,
         checklist_entries_recorded: this.metrics.checklist.total,
         dsky_entries_recorded: this.metrics.dsky.total,
+        workspace_events_recorded: this.metrics.workspace.total,
         actions: actions.length,
       },
       actions,
+      workspace,
     };
   }
 
@@ -218,6 +257,7 @@ export class ManualActionRecorder {
       path: absolutePath,
       actions: payload.actions.length,
       checklistEntries: this.metrics.checklist.total,
+      workspaceEntries: this.metrics.workspace.total,
     };
   }
 
@@ -428,5 +468,189 @@ export class ManualActionRecorder {
       return `Recorded auto crew ${stepLabel} at GET ${formattedGet} — ${group.note}`;
     }
     return `Recorded auto crew ${stepLabel} at GET ${formattedGet}`;
+  }
+
+  #generateWorkspaceId(type) {
+    const index = this.workspaceEntries.length + 1;
+    const sanitized = type.replace(/[^a-z0-9]/gi, '_').toUpperCase();
+    return `WORKSPACE_${sanitized}_${index}`;
+  }
+
+  #normalizeWorkspaceEvent(event) {
+    if (!event || typeof event !== 'object') {
+      return null;
+    }
+
+    const type = this.#normalizeString(event.type);
+    if (!type) {
+      return null;
+    }
+
+    const getSeconds = this.#coerceNumber(
+      event.getSeconds ?? event.timestampSeconds ?? event.time ?? null,
+    );
+    if (getSeconds == null) {
+      return null;
+    }
+
+    const entry = {
+      id: this.#generateWorkspaceId(type),
+      type,
+      getSeconds,
+      displayGet: formatGET(getSeconds),
+      presetId: this.#normalizeString(event.presetId ?? event.preset_id),
+      view: this.#normalizeString(event.view),
+      tileId: this.#normalizeString(event.tileId ?? event.tile_id),
+      pointer: this.#normalizeString(event.pointer),
+      source: this.#normalizeString(event.source),
+      reason: this.#normalizeString(event.reason),
+      key: this.#normalizeString(event.key),
+      device: this.#normalizeString(event.device),
+      binding: this.#normalizeString(event.binding),
+      mutation: this.#cloneWorkspaceMutation(event.mutation),
+      value: this.#normalizeWorkspaceValue(event.value),
+    };
+
+    return entry;
+  }
+
+  #coerceNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  #cloneWorkspaceMutation(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const clone = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (['x', 'y', 'width', 'height'].includes(key)) {
+        const numeric = this.#coerceNumber(value);
+        if (numeric != null) {
+          clone[key] = numeric;
+        }
+      } else if (value != null && typeof value === 'object') {
+        const nested = this.#cloneWorkspaceMutation(value);
+        if (nested != null && (Array.isArray(nested) ? nested.length > 0 : Object.keys(nested).length > 0)) {
+          clone[key] = nested;
+        }
+      } else if (value !== undefined) {
+        clone[key] = value;
+      }
+    }
+
+    return Object.keys(clone).length > 0 ? clone : null;
+  }
+
+  #normalizeWorkspaceValue(value) {
+    if (value == null || typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return Number(value);
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return null;
+      }
+      const numeric = this.#coerceNumber(trimmed);
+      return numeric != null ? numeric : trimmed;
+    }
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => this.#normalizeWorkspaceValue(item))
+        .filter((item) => item !== null && item !== undefined);
+    }
+    if (typeof value === 'object') {
+      const result = {};
+      for (const [key, nested] of Object.entries(value)) {
+        const normalized = this.#normalizeWorkspaceValue(nested);
+        if (normalized !== undefined) {
+          result[key] = normalized;
+        }
+      }
+      return Object.keys(result).length > 0 ? result : null;
+    }
+    return null;
+  }
+
+  #cloneWorkspaceEntry(entry) {
+    if (!entry) {
+      return null;
+    }
+    const clone = { ...entry };
+    if (clone.mutation && typeof clone.mutation === 'object') {
+      clone.mutation = this.#cloneWorkspaceValue(clone.mutation);
+    }
+    return clone;
+  }
+
+  #workspaceEntryToJson(entry) {
+    if (!entry) {
+      return null;
+    }
+
+    const payload = {
+      id: entry.id,
+      type: entry.type,
+      get_seconds: Number(entry.getSeconds.toFixed(3)),
+      display_get: entry.displayGet,
+    };
+
+    if (entry.presetId) {
+      payload.preset_id = entry.presetId;
+    }
+    if (entry.view) {
+      payload.view = entry.view;
+    }
+    if (entry.tileId) {
+      payload.tile_id = entry.tileId;
+    }
+    if (entry.pointer) {
+      payload.pointer = entry.pointer;
+    }
+    if (entry.source) {
+      payload.source = entry.source;
+    }
+    if (entry.reason) {
+      payload.reason = entry.reason;
+    }
+    if (entry.key) {
+      payload.key = entry.key;
+    }
+    if (entry.device) {
+      payload.device = entry.device;
+    }
+    if (entry.binding) {
+      payload.binding = entry.binding;
+    }
+    if (entry.value !== undefined) {
+      payload.value = entry.value;
+    }
+    if (entry.mutation) {
+      payload.mutation = this.#cloneWorkspaceValue(entry.mutation);
+    }
+
+    return payload;
+  }
+
+  #cloneWorkspaceValue(value) {
+    if (value == null || typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string') {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.#cloneWorkspaceValue(item));
+    }
+    if (typeof value === 'object') {
+      const clone = {};
+      for (const [key, nested] of Object.entries(value)) {
+        clone[key] = this.#cloneWorkspaceValue(nested);
+      }
+      return clone;
+    }
+    return undefined;
   }
 }

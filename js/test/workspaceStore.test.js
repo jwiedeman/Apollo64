@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { WorkspaceStore } from '../src/hud/workspaceStore.js';
 import { MissionLogger } from '../src/logging/missionLogger.js';
+import { ManualActionRecorder } from '../src/logging/manualActionRecorder.js';
 
 describe('WorkspaceStore', () => {
   test('activates presets by view and emits mission log entries', () => {
@@ -106,6 +107,28 @@ describe('WorkspaceStore', () => {
     assert.equal(state.inputOverrides.keyboard.toggleTileMode, 'KeyT');
     assert.ok(Math.abs(state.tiles.navball.x - snapshot.tiles.navball.x) < 1e-6);
     assert.ok(Math.abs(state.tiles.navball.width - snapshot.tiles.navball.width) < 1e-6);
+  });
+
+  test('records workspace history into the manual action recorder', () => {
+    let now = 400;
+    const recorder = new ManualActionRecorder();
+    const store = new WorkspaceStore({
+      bundle: createWorkspaceBundle(),
+      timeProvider: () => now,
+      recorder,
+    });
+
+    now = 405;
+    store.mutateTile('navball', { x: 0.6 }, { pointer: 'mouse', source: 'drag' });
+    now = 410;
+    store.updateOverride('hudPinned', false, { source: 'cli' });
+
+    const snapshot = recorder.workspaceSnapshot();
+    assert.equal(snapshot.total, 2);
+    assert.equal(snapshot.entries[0].type, 'tile.mutate');
+    assert.equal(snapshot.entries[0].tileId, 'navball');
+    assert.equal(snapshot.entries[1].type, 'override');
+    assert.equal(snapshot.entries[1].key, 'hudPinned');
   });
 });
 

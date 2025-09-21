@@ -9,7 +9,7 @@ The presentation layer drives manual checklist acknowledgements, resource tweaks
 3. Successful actions mutate mission state (acknowledging checklist steps, applying resource deltas, logging DSKY macros) and append entries to the queue’s history buffer so UI tooling can surface deterministic feedback to the player.【F:js/src/sim/manualActionQueue.js†L171-L317】
 4. Optional retry windows let the UI enqueue steps slightly ahead of an event’s activation. The queue automatically defers execution until prerequisites resolve or the retry window closes.【F:js/src/sim/manualActionQueue.js†L101-L333】
 
-The `ManualActionRecorder` mirrors this pipeline by capturing auto-driven steps and DSKY macros, grouping them into the same action schema so parity runs and UI playback can reuse the data.【F:js/src/logging/manualActionRecorder.js†L12-L409】
+The `ManualActionRecorder` mirrors this pipeline by capturing auto-driven steps, DSKY macros, and `workspace:*` events, grouping them into the same action schema while exposing a separate workspace timeline so parity runs and UI playback can reuse the data.【F:js/src/logging/manualActionRecorder.js†L1-L656】
 
 ## Action Schema
 

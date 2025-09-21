@@ -10,6 +10,7 @@
     "parity": "node ./src/tools/runParityCheck.js",
     "analyze:autopilots": "node ./src/tools/analyzeAutopilots.js",
     "export:ui-frames": "node ./src/tools/exportUiFrames.js",
+    "export:workspace": "node ./src/tools/exportWorkspace.js",
     "validate:data": "node ./src/tools/validateMissionData.js"
   },
   "engines": {

@@ -10,12 +10,16 @@ JSON script ready to feed back into the simulation.
 
 ## Recorder Instrumentation
 
-`ManualActionRecorder` tracks two streams of inputs—checklist
-acknowledgements and DSKY entries—while keeping roll-up metrics for
-reporting and regression diffs.【F:js/src/logging/manualActionRecorder.js†L5-L221】
-The recorder exposes lightweight `recordChecklistAck()` and
-`recordDskyEntry()` helpers so subsystems can append GET-stamped entries
-without knowing about the eventual export format.
+`ManualActionRecorder` tracks three streams of inputs—checklist
+acknowledgements, DSKY entries, and workspace mutations—while keeping
+roll-up metrics for reporting and regression
+diffs.【F:js/src/logging/manualActionRecorder.js†L1-L656】 The recorder
+exposes lightweight `recordChecklistAck()`, `recordDskyEntry()`, and
+`recordWorkspaceEvent()` helpers so subsystems can append GET-stamped
+entries without knowing about the eventual export format. Workspace
+events capture tile mutations, override toggles, and input remaps with
+GET stamps, mirroring the mission log `workspace:*` entries for parity
+tooling and CLI exports.【F:js/src/logging/manualActionRecorder.js†L201-L260】
 
 The recorder is wired into the simulation context at construction time,
 allowing the checklist manager and autopilot runner to inject
@@ -27,11 +31,12 @@ observations as soon as they happen.【F:js/src/sim/simulationContext.js†L57-L
   command so replayed runs can mirror Verb/Noun pairs, registers, and key
   sequences exactly—even when automation triggered the macro.【F:js/src/sim/autopilotRunner.js†L432-L504】
 
-Because the recorder sits beside the logger, audio binder, and HUD
-wiring inside `createSimulationContext()`, any new subsystem can opt into
-recording without changing CLI plumbing. Passing a recorder instance is
-purely optional, enabling lightweight headless or regression contexts
-that do not need manual scripts.【F:js/src/sim/simulationContext.js†L40-L120】
+Because the recorder sits beside the logger, workspace store, audio
+binder, and HUD wiring inside `createSimulationContext()`, any new
+subsystem can opt into recording without changing CLI plumbing.
+Workspace history flows directly from `WorkspaceStore` into
+`recordWorkspaceEvent()`, ensuring parity harnesses capture layout
+changes alongside checklist automation.【F:js/src/sim/simulationContext.js†L24-L120】【F:js/src/hud/workspaceStore.js†L1-L740】
 
 ## Script Assembly & Metrics
 
@@ -53,9 +58,11 @@ metrics (auto vs. manual counts, per-event totals). When callers request
    actions.【F:js/src/logging/manualActionRecorder.js†L123-L221】
 
 The resulting JSON matches the manual action script contract documented
-under `docs/data/manual_scripts/`, so exported scripts can be replayed
-alongside handcrafted scenarios or ingestion outputs without additional
-normalisation.
+under `docs/data/manual_scripts/`, while the new `workspace[]` array
+preserves tile, override, and input changes for replay tooling. Parity
+runs can ignore the supplemental array when feeding actions into the
+manual queue or use it to reconstruct HUD layouts for deterministic UI
+playback.【F:js/src/logging/manualActionRecorder.js†L225-L260】
 
 ## CLI Workflow
 
