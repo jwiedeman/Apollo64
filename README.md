@@ -75,6 +75,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - Rendezvous and docking overlay specification in [`docs/ui/rendezvous_overlay.md`](docs/ui/rendezvous_overlay.md) defines activation triggers, layout regions, telemetry bindings, and accessibility hooks so the Navigation and Controls panes can present authentic braking gates, docking reticles, and RCS budget cues in lockstep with Milestones M2 and M3.
 - Entry corridor overlay blueprint in [`docs/ui/entry_overlay.md`](docs/ui/entry_overlay.md) maps corridor bands, blackout handling, recovery timelines, PAD integrations, and accessibility behaviours so the Navigation and Systems panes can surface deterministic entry telemetry during the TEI→splashdown finale.
 - Milestone M4 N64 port plan in [`docs/milestones/M4_N64_PORT.md`](docs/milestones/M4_N64_PORT.md) maps the libdragon architecture, rendering/audio budgets, input scheme, and asset pipeline for the hardware build.
+- N64 ROM asset pipeline blueprint in [`docs/n64/asset_pipeline.md`](docs/n64/asset_pipeline.md) details dataset packing, audio conversion, build automation, and parity validation ahead of the libdragon port.
 - Milestone M5 content integration roadmap in [`docs/milestones/M5_CONTENT_PASS.md`](docs/milestones/M5_CONTENT_PASS.md) itemizes the remaining dataset ingestion work, contingency branches, and ingestion tooling required for the full mission graph.
 - Milestone M6 fidelity pass outline in [`docs/milestones/M6_FIDELITY_PASS.md`](docs/milestones/M6_FIDELITY_PASS.md) defines calibration targets for timelines, propulsion, resources, and communications against Apollo 11 telemetry.
 - Milestone M7 stability plan in [`docs/milestones/M7_STABILITY_FAULTS.md`](docs/milestones/M7_STABILITY_FAULTS.md) details soak-testing strategy, fault injection coverage, and automation expectations for release readiness.
@@ -103,6 +104,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/milestones/M2_GUIDANCE_RCS.md`](docs/milestones/M2_GUIDANCE_RCS.md) – Guidance execution, RCS modelling, and docking gameplay plan.
 - [`docs/milestones/M3_UI_AUDIO.md`](docs/milestones/M3_UI_AUDIO.md) – UI, HUD, audio telemetry, and accessibility planning for the prototype and N64 targets.
 - [`docs/milestones/M4_N64_PORT.md`](docs/milestones/M4_N64_PORT.md) – N64 port architecture, performance validation plan, and Controller Pak integration roadmap.
+- [`docs/n64/asset_pipeline.md`](docs/n64/asset_pipeline.md) – Binary pack formats, audio conversion steps, and ROM build workflow for the Nintendo 64 port.
 - [`docs/milestones/M5_CONTENT_PASS.md`](docs/milestones/M5_CONTENT_PASS.md) – Complete mission dataset integration, contingency coverage, and ingest tooling roadmap.
 - [`docs/milestones/M6_FIDELITY_PASS.md`](docs/milestones/M6_FIDELITY_PASS.md) – Calibration plan for timelines, resources, and communications fidelity.
 - [`docs/milestones/M7_STABILITY_FAULTS.md`](docs/milestones/M7_STABILITY_FAULTS.md) – Stability, fault injection, soak testing, and automation strategy.
