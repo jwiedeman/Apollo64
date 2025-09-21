@@ -49,7 +49,7 @@ Each event has a window, manual inputs, autopilot scripts, telemetry, and failur
 ## 4. Feedback Systems
 - HUD with MET/GET, upcoming events, Δv remaining, resources, thermal status, comms state, and navball.
 - Audio cues for cautions, warnings, and optional voiceovers.
-- Text console for PAD uplinks and autopilot feedback.
+- Text console for PAD uplinks and autopilot feedback, detailed in [`docs/ui/console_dock.md`](ui/console_dock.md) to keep filters, captions, and replay behaviour consistent across builds.
 - Failure breadcrumbs highlighting causal chains (e.g., "PTC OFF → cryo boiloff ↑ → fuel cell ΔP ↓").
 - Panel switch maps, DSKY macro catalog, and workspace schemas documented in [`docs/ui/`](ui) (now including the curated `dsky_macros.json` macro pack) to keep UI prerequisites aligned with mission procedures.
 - Presentation-layer component boundaries and update cadence are outlined in [`docs/ui/component_architecture.md`](ui/component_architecture.md), while cue categories, priority routing, and asset specs live in [`docs/ui/audio_cue_taxonomy.md`](ui/audio_cue_taxonomy.md) and the dispatcher/mixer blueprint in [`docs/ui/audio_dispatcher_architecture.md`](ui/audio_dispatcher_architecture.md) keeps playback wiring aligned with those datasets for Milestone M3.

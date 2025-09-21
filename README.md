@@ -121,6 +121,7 @@ This repository has been reset to develop a real-time Apollo 11 mission simulato
 - [`docs/ui/audio_dispatcher_architecture.md`](docs/ui/audio_dispatcher_architecture.md) – Runtime binder, queueing, mixing, and validation plan that will drive deterministic audio playback across web and N64 builds.
 - [`docs/ui/rendezvous_overlay.md`](docs/ui/rendezvous_overlay.md) – Navigation/Controls overlay blueprint covering braking gates, docking reticle cues, telemetry bindings, and accessibility behaviors for the rendezvous phase.
 - [`docs/ui/logging_accessibility_guidelines.md`](docs/ui/logging_accessibility_guidelines.md) – Deterministic logging contract, replay export pipeline, and accessibility baselines (color, captioning, input remapping) for the presentation layer.
+- [`docs/ui/console_dock.md`](docs/ui/console_dock.md) – Console dock layout, filters, accessibility hooks, and replay integration for the shared mission log overlay.
 - [`docs/ui/replay_viewer.md`](docs/ui/replay_viewer.md) – Replay viewer blueprint aligning exported frames, logs, manual scripts, and audio cues with the Navigation/Controls/Systems layouts for deterministic post-run analysis.
 - [`docs/ui/performance_telemetry.md`](docs/ui/performance_telemetry.md) – Performance instrumentation metrics, mission-log/export bindings, and N64 profiling guidance for HUD/audio workloads.
 - [`docs/sim/simulation_loop.md`](docs/sim/simulation_loop.md) – Simulation context builder, tick cadence, update order, and summary reporting across the fixed-step loop.
