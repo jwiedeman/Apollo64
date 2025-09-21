@@ -390,6 +390,9 @@ function buildReport({
 }) {
   const untilGet = formatGET(untilSeconds);
   const recorderStats = recorder.stats();
+  const workspaceSnapshot = recorder?.workspaceSnapshot
+    ? recorder.workspaceSnapshot({ limit: 50 })
+    : { total: 0, entries: [] };
   const logStats = parity.logStats ?? {
     autoTotal: Array.isArray(autoLogs) ? autoLogs.length : 0,
     manualTotal: Array.isArray(manualLogs) ? manualLogs.length : 0,
@@ -415,8 +418,11 @@ function buildReport({
       autoEntries: recorderStats.checklist.auto,
       manualEntries: recorderStats.checklist.manual,
       events: recorderStats.events,
+      workspaceEntries: recorderStats.workspace.total,
+      workspaceByType: recorderStats.workspace.byType,
       actionsGenerated: recordedActionsCount,
     },
+    workspace: workspaceSnapshot,
     auto: summarizeRun(autoSummary, null, autoLogs),
     manual: summarizeRun(manualSummary, manualQueueStats, manualLogs),
     logs: {

@@ -25,6 +25,7 @@ export class WorkspaceStore {
     capacity = DEFAULT_CAPACITY,
     logger = null,
     timeProvider = null,
+    recorder = null,
   } = {}) {
     this.logger = logger ?? null;
     this.capacity = Number.isFinite(capacity) && capacity > 0 ? Math.floor(capacity) : DEFAULT_CAPACITY;
@@ -32,6 +33,7 @@ export class WorkspaceStore {
       ? Math.floor(historyLimit)
       : DEFAULT_HISTORY_LIMIT;
     this.timeProvider = typeof timeProvider === 'function' ? timeProvider : () => 0;
+    this.recorder = recorder ?? null;
 
     this.version = null;
     this.presets = new Map();
@@ -722,6 +724,9 @@ export class WorkspaceStore {
     if (this.state.history.length > this.historyLimit) {
       const excess = this.state.history.length - this.historyLimit;
       this.state.history.splice(0, excess);
+    }
+    if (this.recorder && typeof this.recorder.recordWorkspaceEvent === 'function') {
+      this.recorder.recordWorkspaceEvent(historyEntry);
     }
   }
 

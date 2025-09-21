@@ -108,9 +108,14 @@ async function main() {
     const scriptPath = path.resolve(args.recordManualScriptPath);
     const result = await manualActionRecorder.writeScript(scriptPath, { pretty: true });
     if (result) {
-      const { path: outPath, actions: actionCount, checklistEntries } = result;
+      const {
+        path: outPath,
+        actions: actionCount,
+        checklistEntries,
+        workspaceEntries,
+      } = result;
       console.log(
-        `Manual action script recorded to ${outPath} (${actionCount} actions from ${checklistEntries} checklist steps)`,
+        `Manual action script recorded to ${outPath} (${actionCount} actions from ${checklistEntries} checklist steps, ${workspaceEntries} workspace events)`,
       );
     }
   }

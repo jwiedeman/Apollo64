@@ -50,6 +50,7 @@ export async function createSimulationContext({
   const workspaceStore = new WorkspaceStore({
     bundle: missionData.ui?.workspaces ?? null,
     logger,
+    recorder: manualActionRecorder,
   });
 
   const audioBinder = new AudioCueBinder(missionData.audioCues, logger);
