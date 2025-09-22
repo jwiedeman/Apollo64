@@ -171,6 +171,7 @@ export async function createSimulationContext({
       autopilotRunner,
       autopilotSummaryHandlers,
       audioBinder,
+      failureCascades: missionData.failureCascades,
     },
   );
 

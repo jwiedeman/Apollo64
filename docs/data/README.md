@@ -35,6 +35,9 @@ The shared helper package at [`../scripts/ingest/ingestlib/`](../../scripts/inge
   validation workflow.
 - `failures.csv` – Recoverable and hard failure hooks tied to mission logic, including optional
   `audio_cue_warning`/`audio_cue_failure` references for caution and master alarm routing.
+- `failure_cascades.json` – Structured cascade definitions that translate failure taxonomy
+  entries into resource penalties, delta-v adjustments, and optional follow-up event arming so the
+  scheduler can react deterministically when faults latch.
 - `pads.csv` – Uplink cards for burns and corrections.
 - `provenance.md` – Source citations for every record range.
 - `consumables.json` – Baseline power, propellant, and life-support budgets with notes and references to the Mission Operations Report and Flight Plan.

@@ -49,6 +49,9 @@ system, and emits autopilot summaries to registered observers, keeping Δv,
 propellant, and PAD analytics synchronized across systems.【F:js/src/sim/eventScheduler.js†L193-L217】
 `Simulation.run()` invokes `scheduler.update()` before resource and HUD refreshes
 so every downstream consumer operates on the latest event state.【F:js/src/sim/simulation.js†L34-L141】
+Failure cascades defined in `docs/data/failure_cascades.json` are consumed via the
+new scheduler hooks, applying dataset-driven resource penalties and optionally
+arming recovery events whenever a mission failure latches.【F:docs/data/failure_cascades.json†L1-L66】【F:js/src/sim/eventScheduler.js†L1-L752】
 
 ## Failure Handling & Tolerance Enforcement
 

@@ -66,6 +66,7 @@ const DEFAULT_STATE = {
     cue_channel_on_loss: null,
     next_pass_cue_on_acquire: null,
     next_pass_cue_channel: null,
+    missed_passes: 0,
   },
 };
 
