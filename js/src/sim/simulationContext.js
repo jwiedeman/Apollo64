@@ -18,6 +18,7 @@ import { AudioCueBinder } from '../audio/audioCueBinder.js';
 import { AudioDispatcher, NullAudioMixer } from '../audio/audioDispatcher.js';
 import { AgcRuntime } from './agcRuntime.js';
 import { WorkspaceStore } from '../hud/workspaceStore.js';
+import { DockingContext } from './dockingContext.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -76,6 +77,14 @@ export async function createSimulationContext({
   });
 
   const rcsController = new RcsController(missionData.thrusters, resourceSystem, logger);
+
+  const dockingContext = new DockingContext({
+    config: missionData.docking,
+    resourceSystem,
+    rcsController,
+    thrusterConfig: missionData.thrusters,
+    logger,
+  });
 
   const agcRuntime = new AgcRuntime({
     logger,
@@ -190,6 +199,7 @@ export async function createSimulationContext({
     missionLogAggregator,
     audioBinder,
     audioDispatcher,
+    docking: dockingContext,
   });
 
   workspaceStore.setTimeProvider(() => simulation?.clock?.getCurrent?.() ?? 0);
@@ -216,6 +226,7 @@ export async function createSimulationContext({
     audioMixer,
     audioCues: missionData.audioCues,
     logger,
+    docking: dockingContext,
     options: {
       dataDir: resolvedDataDir,
       tickRate,

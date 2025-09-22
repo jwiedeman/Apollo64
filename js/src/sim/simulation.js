@@ -18,6 +18,7 @@ export class Simulation {
     missionLogAggregator = null,
     audioBinder = null,
     audioDispatcher = null,
+    docking = null,
   }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
@@ -35,6 +36,7 @@ export class Simulation {
     this.missionLogAggregator = missionLogAggregator;
     this.audioBinder = audioBinder ?? null;
     this.audioDispatcher = audioDispatcher ?? null;
+    this.docking = docking ?? null;
   }
 
   run({ untilGetSeconds, onTick = null } = {}) {
@@ -49,6 +51,9 @@ export class Simulation {
       this.scheduler.update(currentGet, dtSeconds);
       if (this.orbitPropagator) {
         this.orbitPropagator.update(dtSeconds, { getSeconds: currentGet + dtSeconds });
+      }
+      if (this.docking) {
+        this.docking.update(currentGet, { scheduler: this.scheduler });
       }
       this.resourceSystem.update(dtSeconds, currentGet);
       if (this.scoreSystem) {
@@ -77,6 +82,7 @@ export class Simulation {
           missionLog: this.missionLogAggregator,
           audioBinder: this.audioBinder,
           audioDispatcher: this.audioDispatcher,
+          docking: this.docking ? this.docking.snapshot() : null,
         });
       }
       if (typeof onTick === 'function') {
@@ -96,6 +102,7 @@ export class Simulation {
           missionLog: this.missionLogAggregator,
           audioBinder: this.audioBinder,
           audioDispatcher: this.audioDispatcher,
+          docking: this.docking,
         });
         if (shouldContinue === false) {
           break;
@@ -128,6 +135,7 @@ export class Simulation {
       audioSummary.dispatcher = this.audioDispatcher.statsSnapshot();
     }
     const audioStats = Object.keys(audioSummary).length > 0 ? audioSummary : null;
+    const dockingStats = this.docking ? this.docking.stats() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       logSource: 'sim',
@@ -147,6 +155,7 @@ export class Simulation {
       orbit: orbitSummary,
       missionLog: missionLogSummary,
       audio: audioStats,
+      docking: dockingStats,
     });
 
     const finalMissionLogSummary = this.missionLogAggregator
@@ -168,6 +177,7 @@ export class Simulation {
       orbit: orbitSummary,
       missionLog: finalMissionLogSummary,
       audio: audioStats,
+      docking: dockingStats,
     };
   }
 }
