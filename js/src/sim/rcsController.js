@@ -44,7 +44,10 @@ export class RcsController {
       usageByTank: Object.create(null),
       usageByCraft: Object.create(null),
       pulsesByAxis: Object.create(null),
+      usageByCluster: Object.create(null),
     };
+
+    this.usageListeners = new Set();
 
     this.#ingestThrusterData(thrusterData);
   }
@@ -106,6 +109,7 @@ export class RcsController {
     let totalMassKg = 0;
     let totalImpulseNs = 0;
     const usedThrusters = [];
+    const thrusterUsage = [];
     const craftForUsage = normalizedCraft || thrusters[0]?.craftId || null;
     const resolvedTankKey = this.#normalizeTankKey(normalizedTank ?? this.#resolveTankKey(craftForUsage));
 
@@ -143,9 +147,19 @@ export class RcsController {
       const impulsePerPulse = thrust * effectiveDuration;
       const pulseCount = pulses;
 
-      totalMassKg += massPerPulse * pulseCount;
+      const thrusterMassKg = massPerPulse * pulseCount;
+      totalMassKg += thrusterMassKg;
       totalImpulseNs += impulsePerPulse * pulseCount;
       usedThrusters.push(thruster.id);
+
+      thrusterUsage.push({
+        id: thruster.id,
+        craftId: thruster.craftId,
+        clusterId: thruster.clusterId ?? null,
+        pulses: pulseCount,
+        durationSeconds: effectiveDuration,
+        massKg: thrusterMassKg,
+      });
     }
 
     const thrusterPulseCount = pulses * usedThrusters.length;
@@ -197,6 +211,7 @@ export class RcsController {
       massKg: totalMassKg,
       pulses: thrusterPulseCount,
       impulseNs: totalImpulseNs,
+      thrusters: thrusterUsage,
     });
 
     this.logger?.log(getSeconds, 'RCS pulse executed', {
@@ -214,6 +229,20 @@ export class RcsController {
       dutyCycle: duty,
       massKg: totalMassKg,
       impulseNs: totalImpulseNs,
+    });
+
+    this.#notifyUsageListeners({
+      autopilotId,
+      eventId,
+      getSeconds,
+      craftId: craftForUsage,
+      tankKey: resolvedTankKey,
+      axis: normalizedAxis,
+      torqueAxis: normalizedTorque,
+      thrusters: thrusterUsage,
+      massKg: totalMassKg,
+      impulseNs: totalImpulseNs,
+      pulses: thrusterPulseCount,
     });
 
     return {
@@ -234,8 +263,19 @@ export class RcsController {
       usageByTank: { ...this.metrics.usageByTank },
       usageByCraft: { ...this.metrics.usageByCraft },
       pulsesByAxis: { ...this.metrics.pulsesByAxis },
+      usageByCluster: { ...this.metrics.usageByCluster },
       thrusterCount: this.thrusters.size,
       craftCount: this.craft.size,
+    };
+  }
+
+  registerUsageListener(listener) {
+    if (typeof listener !== 'function') {
+      return () => {};
+    }
+    this.usageListeners.add(listener);
+    return () => {
+      this.usageListeners.delete(listener);
     };
   }
 
@@ -401,7 +441,7 @@ export class RcsController {
     map.get(key).add(thrusterId);
   }
 
-  #accumulateMetrics({ tankKey, craftId, axis, massKg, pulses, impulseNs }) {
+  #accumulateMetrics({ tankKey, craftId, axis, massKg, pulses, impulseNs, thrusters = null }) {
     if (Number.isFinite(pulses) && pulses > 0) {
       this.metrics.totalPulses += pulses;
     }
@@ -419,6 +459,39 @@ export class RcsController {
     }
     if (axis) {
       this.metrics.pulsesByAxis[axis] = (this.metrics.pulsesByAxis[axis] ?? 0) + (Number.isFinite(pulses) ? pulses : 0);
+    }
+    if (Array.isArray(thrusters)) {
+      for (const usage of thrusters) {
+        if (!usage || typeof usage !== 'object') {
+          continue;
+        }
+        const clusterId = this.#normalizeId(usage.clusterId ?? usage.cluster_id ?? null);
+        if (!clusterId) {
+          continue;
+        }
+        const massForCluster = this.#coerceNumber(usage.massKg ?? usage.mass_kg);
+        if (Number.isFinite(massForCluster) && massForCluster > 0) {
+          this.metrics.usageByCluster[clusterId] = (this.metrics.usageByCluster[clusterId] ?? 0) + massForCluster;
+        }
+      }
+    }
+  }
+
+  #notifyUsageListeners(payload) {
+    if (!payload || this.usageListeners.size === 0) {
+      return;
+    }
+    for (const listener of this.usageListeners) {
+      try {
+        listener(payload);
+      } catch (error) {
+        this.logger?.log(payload?.getSeconds ?? 0, 'RCS usage listener error', {
+          logSource: 'sim',
+          logCategory: 'autopilot',
+          logSeverity: 'warning',
+          error: error?.message ?? String(error),
+        });
+      }
     }
   }
 
