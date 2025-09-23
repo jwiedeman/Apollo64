@@ -13,7 +13,9 @@
     "export:ui-frames": "node ./src/tools/exportUiFrames.js",
     "export:workspace": "node ./src/tools/exportWorkspace.js",
     "validate:data": "node ./src/tools/validateMissionData.js",
-    "validate:audio": "node ./src/tools/validateAudio.js"
+    "validate:audio": "node ./src/tools/validateAudio.js",
+    "dev": "node ./src/server/index.js",
+    "start:ui": "node ./src/server/index.js"
   },
   "engines": {
     "node": ">=18"
