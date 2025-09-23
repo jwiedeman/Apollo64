@@ -105,4 +105,71 @@ describe('ManualActionQueue', () => {
       [1, 2],
     );
   });
+
+  test('executes panel control actions when panel state is provided', () => {
+    const appliedControls = [];
+    const panelState = {
+      setControlState: (panelId, controlId, stateId, context) => {
+        appliedControls.push({ panelId, controlId, stateId, context });
+        if (panelId === 'PANEL_MAIN' && controlId === 'SWITCH_A') {
+          return {
+            success: true,
+            changed: true,
+            panelId,
+            controlId,
+            stateId,
+            stateLabel: 'OPEN',
+            previousStateId: 'CLOSED',
+          };
+        }
+        return { success: false, reason: 'unknown_control' };
+      },
+    };
+
+    const logger = createTestLogger();
+    const queue = new ManualActionQueue(
+      [
+        {
+          type: 'panel_control',
+          id: 'PANEL_ACTION_1',
+          panel_id: 'PANEL_MAIN',
+          control_id: 'SWITCH_A',
+          state_id: 'OPEN',
+          get: 5,
+          note: 'Flip switch',
+        },
+      ],
+      { logger, panelState },
+    );
+
+    queue.update(5);
+
+    assert.equal(appliedControls.length, 1);
+    assert.deepEqual(appliedControls[0], {
+      panelId: 'PANEL_MAIN',
+      controlId: 'SWITCH_A',
+      stateId: 'OPEN',
+      context: {
+        getSeconds: 5,
+        actor: 'MANUAL_CREW',
+        source: 'PANEL_ACTION_1',
+        note: 'Flip switch',
+      },
+    });
+
+    const history = queue.historySnapshot();
+    assert.equal(history.length, 1);
+    assert.deepEqual(history[0].details, {
+      panelId: 'PANEL_MAIN',
+      controlId: 'SWITCH_A',
+      stateId: 'OPEN',
+      stateLabel: 'OPEN',
+      previousStateId: 'CLOSED',
+      changed: true,
+    });
+
+    const stats = queue.stats();
+    assert.equal(stats.panelControls, 1);
+    assert.equal(stats.executed, 1);
+  });
 });

@@ -15,9 +15,11 @@ windows and next-attempt timestamps allow scripts to follow events that
 arm slightly later than the target time.【F:js/src/sim/manualActionQueue.js†L86-L143】
 - **Mission system integration.** Checklist acknowledgements flow through
 the `ChecklistManager`, resource deltas apply to the shared `ResourceSystem`,
-propellant burns consume tank inventories, and DSKY entries drive the AGC
-runtime when available so manual inputs mutate the same state as
-autopilot and UI interactions.【F:js/src/sim/manualActionQueue.js†L184-L361】
+propellant burns consume tank inventories, DSKY entries drive the AGC
+runtime, and panel control actions publish authoritative switch state
+changes through the shared `PanelState` store. Manual inputs therefore
+mutate the same mission state that autopilot and UI interactions rely on
+for deterministic playback.【F:js/src/sim/manualActionQueue.js†L184-L361】【F:js/src/sim/panelState.js†L1-L248】
 - **Metrics & history.** The queue tracks scheduled, executed, retried,
 and failed counts plus per-action-type tallies, exposing snapshots for
 HUD frames, summaries, and scoring.【F:js/src/sim/manualActionQueue.js†L27-L156】
@@ -45,6 +47,7 @@ early.【F:js/src/sim/manualActionQueue.js†L47-L123】
 | `resource_delta` | Applies arbitrary power/propellant/thermal deltas against the resource system using the same shape as mission event effects. | Validates non-empty payloads and records metrics plus a mission log entry.【F:js/src/sim/manualActionQueue.js†L236-L261】 |
 | `propellant_burn` | Deducts propellant from a named tank, retrying if the resource system rejects the usage (e.g., empty tank). | Normalizes tank identifiers and kg/lb quantities before recording consumption metrics.【F:js/src/sim/manualActionQueue.js†L264-L288】【F:js/src/sim/manualActionQueue.js†L405-L441】 |
 | `dsky_entry` | Emits DSKY verb/noun payloads or macros, logging the action and forwarding it to the AGC runtime so manual runs exercise the same guidance path as automation. | Normalizes registers, key sequences, and macro IDs; logs for replay and stats accounting.【F:js/src/sim/manualActionQueue.js†L290-L361】 |
+| `panel_control` | Updates a specific panel control through `PanelState`, recording switch/guard toggles with actor metadata. Retries if the request references an unknown control or state. | Normalizes identifiers, emits HUD/mission log entries, increments panel metrics, and forwards the change to the manual action recorder for parity scripts.【F:js/src/sim/manualActionQueue.js†L362-L441】【F:js/src/sim/panelState.js†L129-L248】|
 
 Normalization helpers ensure GET fields, macro identifiers, tank keys,
 and numeric payloads conform to simulator expectations before the action
@@ -54,16 +57,17 @@ variance while producing deterministic execution records.【F:js/src/sim/manualA
 ## Runtime Integration
 
 `createSimulationContext()` wires the queue alongside the scheduler,
-resource system, autopilot runner, AGC runtime, HUD, and scoring stack.
-Scripts may be injected programmatically or via `--manual-script`, and
-the resulting queue is passed to the simulation loop, score system, and
-HUD so every subsystem can observe manual actions in real time.【F:js/src/sim/simulationContext.js†L5-L198】
+resource system, autopilot runner, AGC runtime, HUD, scoring stack, and
+the shared `PanelState`. Scripts may be injected programmatically or via
+`--manual-script`, and the resulting queue is passed to the simulation
+loop, score system, HUD, and panel state tracker so every subsystem can
+observe manual actions in real time.【F:js/src/sim/simulationContext.js†L5-L200】
 
 During the fixed-step loop `Simulation.run()` advances the manual action
 queue before scheduler/resource updates, ensuring manual inputs have the
 same effect ordering as live crew interactions. Manual stats feed the
-halt summary, and HUD updates receive the queue reference for checklist
-and overlay widgets.【F:js/src/sim/simulation.js†L4-L171】
+halt summary, and HUD updates receive both the queue reference and the
+current `panelState` snapshot for checklist and panel widgets.【F:js/src/sim/simulation.js†L4-L171】
 
 ## Logging, Recording, and Parity
 
@@ -72,12 +76,13 @@ Every executed action emits a structured mission log entry with
 actors, and notes for replay analysis. The queue also exposes a history
 buffer for debugging failures.【F:js/src/sim/manualActionQueue.js†L221-L361】
 
-The optional `ManualActionRecorder` captures auto-advance checklist and
-DSKY traffic, aggregates them into deterministic scripts, and can flush
-those scripts to disk for parity replays or regression fixtures.【F:js/src/logging/manualActionRecorder.js†L5-L222】 Script
-formatting guidelines and CLI usage live in the manual script reference,
-which defines action schemas, retry semantics, and parity tooling so
-authored scripts remain compatible with the queue.【F:docs/data/manual_scripts/README.md†L1-L156】
+The optional `ManualActionRecorder` captures auto-advance checklist,
+DSKY, and panel control traffic, aggregates them into deterministic
+scripts, and can flush those scripts to disk for parity replays or
+regression fixtures.【F:js/src/logging/manualActionRecorder.js†L5-L401】
+Script formatting guidelines and CLI usage live in the manual script
+reference, which defines action schemas, retry semantics, and parity
+tooling so authored scripts remain compatible with the queue.【F:docs/data/manual_scripts/README.md†L1-L200】
 
 Together these components allow researchers to capture historical crew
 workflows, replay them deterministically, and compare auto vs. manual

@@ -34,6 +34,7 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "autopilot": { ... },
   "checklists": { ... },
   "manualQueue": { ... },
+  "panels": { ... },
   "agc": { ... },
   "trajectory": { ... },
   "docking": { ... },
@@ -193,7 +194,28 @@ Each entry in `events.upcoming[]` now exposes `padId` (raw string) and `pad` (su
 
 ### `manualQueue`
 
-Mirrors `ManualActionQueue.stats()` with counts for scheduled, pending, executed, failed, retried actions plus checklist acknowledgements and resource deltas injected by the manual queue.
+Mirrors `ManualActionQueue.stats()` with counts for scheduled, pending, executed, failed, retried actions plus checklist acknowledgements, panel controls, and resource deltas injected by the manual queue.【F:js/src/sim/manualActionQueue.js†L35-L168】
+
+### `panels`
+
+Present when the simulation wires a `PanelState` instance into the HUD context.
+The payload mirrors [`PanelState.snapshot()`](../../js/src/sim/panelState.js) with:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `version` | number&#124;null | Panel bundle version identifier. |
+| `description` | string&#124;null | Optional bundle description. |
+| `summary.totalPanels` | number | Count of panels ingested from `panels.json`. |
+| `summary.totalControls` | number | Total controls indexed across all panels. |
+| `summary.changes` | number | Number of control state transitions recorded during the run. |
+| `summary.lastUpdateSeconds` | number&#124;null | GET seconds for the most recent control update. |
+| `summary.lastUpdateGet` | string&#124;null | Human-readable GET for the most recent update. |
+| `panels` | object | Map keyed by normalized panel ID. Each entry contains `id`, `name`, `craft`, and a `controls` object keyed by control ID. |
+| `panels[].controls[]` | object | Control summary with current `stateId`, `stateLabel`, defaults, actor/source metadata, and the last update timestamp. |
+
+When `PanelState.snapshot({ includeHistory: true })` is used, an additional
+`history[]` array mirrors `PanelState.historySnapshot()` so UI consumers can
+replay recent toggles without mutating the shared state.【F:js/src/sim/panelState.js†L169-L248】
 
 ### `agc`
 

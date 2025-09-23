@@ -19,6 +19,7 @@ import { AudioDispatcher, NullAudioMixer } from '../audio/audioDispatcher.js';
 import { AgcRuntime } from './agcRuntime.js';
 import { WorkspaceStore } from '../hud/workspaceStore.js';
 import { DockingContext } from './dockingContext.js';
+import { PanelState } from './panelState.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -50,6 +51,12 @@ export async function createSimulationContext({
   const missionLogAggregator = new MissionLogAggregator(logger);
   const workspaceStore = new WorkspaceStore({
     bundle: missionData.ui?.workspaces ?? null,
+    logger,
+    recorder: manualActionRecorder,
+  });
+
+  const panelState = new PanelState({
+    bundle: missionData.ui?.panels ?? null,
     logger,
     recorder: manualActionRecorder,
   });
@@ -126,6 +133,7 @@ export async function createSimulationContext({
       checklistManager,
       resourceSystem,
       agcRuntime,
+      panelState,
       options: manualQueueOptions ?? undefined,
     });
   } else if (manualActionScriptPath) {
@@ -134,6 +142,7 @@ export async function createSimulationContext({
       checklistManager,
       resourceSystem,
       agcRuntime,
+      panelState,
       options: manualQueueOptions ?? undefined,
     });
   }
@@ -201,9 +210,11 @@ export async function createSimulationContext({
     audioBinder,
     audioDispatcher,
     docking: dockingContext,
+    panelState,
   });
 
   workspaceStore.setTimeProvider(() => simulation?.clock?.getCurrent?.() ?? 0);
+  panelState.setTimeProvider(() => simulation?.clock?.getCurrent?.() ?? 0);
 
   return {
     missionData,
@@ -219,6 +230,7 @@ export async function createSimulationContext({
     hud,
     uiFrameBuilder,
     workspaceStore,
+    panelState,
     scoreSystem,
     manualActionRecorder,
     missionLogAggregator,

@@ -356,6 +356,35 @@ describe('UiFrameBuilder', () => {
       },
     };
 
+    const panelSnapshots = [];
+    const panelSnapshot = {
+      version: 1,
+      summary: { totalPanels: 2, totalControls: 4, changes: 1, lastUpdateSeconds: 88, lastUpdateGet: '000:01:28' },
+      panels: {
+        PANEL_MAIN: {
+          id: 'PANEL_MAIN',
+          name: 'Main Panel',
+          craft: 'CSM',
+          controls: {
+            SWITCH_A: {
+              id: 'SWITCH_A',
+              label: 'Switch A',
+              type: 'toggle',
+              stateId: 'OPEN',
+              stateLabel: 'Open',
+              defaultStateId: 'CLOSED',
+              defaultStateLabel: 'Closed',
+              updatedAtSeconds: 88,
+              updatedAt: '000:01:28',
+              actor: 'MANUAL_CREW',
+              source: 'PANEL_ACTION',
+              note: 'Test toggle',
+            },
+          },
+        },
+      },
+    };
+
     const frame = builder.build(90, {
       scheduler: {
         stats: () => ({
@@ -466,6 +495,12 @@ describe('UiFrameBuilder', () => {
       },
       audioBinder,
       audioDispatcher,
+      panelState: {
+        snapshot: (options = {}) => {
+          panelSnapshots.push(options);
+          return panelSnapshot;
+        },
+      },
     });
 
     assert.equal(frame.time.getSeconds, 90);
@@ -490,6 +525,10 @@ describe('UiFrameBuilder', () => {
     assert.equal(propellant.csm_sps.percentRemaining, 75);
     assert.equal(propellant.lm_descent.status, 'caution');
     assert.equal(propellant.lm_ascent.status, 'warning');
+
+    assert.equal(panelSnapshots.length, 1);
+    assert.deepEqual(panelSnapshots[0], { includeHistory: false });
+    assert.deepEqual(frame.panels, panelSnapshot);
 
     const warningIds = frame.alerts.warnings.map((alert) => alert.id).sort();
     assert.deepEqual(warningIds, ['cryo_boiloff_high', 'power_margin_low', 'propellant_lm_ascent']);

@@ -19,6 +19,7 @@ export class Simulation {
     audioBinder = null,
     audioDispatcher = null,
     docking = null,
+    panelState = null,
   }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
@@ -37,6 +38,7 @@ export class Simulation {
     this.audioBinder = audioBinder ?? null;
     this.audioDispatcher = audioDispatcher ?? null;
     this.docking = docking ?? null;
+    this.panelState = panelState ?? null;
   }
 
   run({ untilGetSeconds, onTick = null } = {}) {
@@ -83,6 +85,7 @@ export class Simulation {
           audioBinder: this.audioBinder,
           audioDispatcher: this.audioDispatcher,
           docking: this.docking ? this.docking.snapshot() : null,
+          panelState: this.panelState,
         });
       }
       if (typeof onTick === 'function') {
@@ -103,6 +106,7 @@ export class Simulation {
           audioBinder: this.audioBinder,
           audioDispatcher: this.audioDispatcher,
           docking: this.docking,
+          panelState: this.panelState,
         });
         if (shouldContinue === false) {
           break;
@@ -136,6 +140,7 @@ export class Simulation {
     }
     const audioStats = Object.keys(audioSummary).length > 0 ? audioSummary : null;
     const dockingStats = this.docking ? this.docking.stats() : null;
+    const panelStats = this.panelState ? this.panelState.stats() : null;
 
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       logSource: 'sim',
@@ -156,11 +161,13 @@ export class Simulation {
       missionLog: missionLogSummary,
       audio: audioStats,
       docking: dockingStats,
+      panels: panelStats,
     });
 
     const finalMissionLogSummary = this.missionLogAggregator
       ? this.missionLogAggregator.snapshot({ limit: 10 })
       : missionLogSummary;
+    const panelSnapshot = this.panelState ? this.panelState.snapshot({ includeHistory: false }) : null;
 
     return {
       ticks,
@@ -178,6 +185,7 @@ export class Simulation {
       missionLog: finalMissionLogSummary,
       audio: audioStats,
       docking: dockingStats,
+      panels: panelSnapshot,
     };
   }
 }

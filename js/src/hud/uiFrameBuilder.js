@@ -92,6 +92,9 @@ export class UiFrameBuilder {
     const checklists = this.#summarizeChecklists(checklistStats, resolvePad);
 
     const manualStats = context.manualQueue?.stats?.() ?? null;
+    const panels = context.panelState?.snapshot
+      ? context.panelState.snapshot({ includeHistory: false })
+      : null;
 
     const scoreSummary =
       context.scoreSummary
@@ -145,6 +148,10 @@ export class UiFrameBuilder {
       alerts,
       score,
     };
+
+    if (panels) {
+      frame.panels = panels;
+    }
 
     frame.missionLog = missionLog ?? null;
 

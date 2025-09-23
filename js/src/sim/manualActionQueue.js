@@ -16,12 +16,20 @@ const ACTION_STATUS = {
 export class ManualActionQueue {
   constructor(
     actions = [],
-    { logger = null, checklistManager = null, resourceSystem = null, agcRuntime = null, options = {} } = {},
+    {
+      logger = null,
+      checklistManager = null,
+      resourceSystem = null,
+      agcRuntime = null,
+      panelState = null,
+      options = {},
+    } = {},
   ) {
     this.logger = logger;
     this.checklistManager = checklistManager;
     this.resourceSystem = resourceSystem;
     this.agcRuntime = agcRuntime ?? null;
+    this.panelState = panelState ?? null;
     this.options = { ...DEFAULT_OPTIONS, ...options };
 
     this.queue = [];
@@ -35,6 +43,7 @@ export class ManualActionQueue {
       resourceDeltas: 0,
       propellantBurns: 0,
       dskyEntries: 0,
+      panelControls: 0,
     };
     this._nextInternalId = 0;
 
@@ -46,7 +55,14 @@ export class ManualActionQueue {
 
   static async fromFile(
     filePath,
-    { logger = null, checklistManager = null, resourceSystem = null, agcRuntime = null, options = {} } = {},
+    {
+      logger = null,
+      checklistManager = null,
+      resourceSystem = null,
+      agcRuntime = null,
+      panelState = null,
+      options = {},
+    } = {},
   ) {
     const absolutePath = path.resolve(filePath);
     const content = await fs.readFile(absolutePath, 'utf8');
@@ -62,7 +78,14 @@ export class ManualActionQueue {
       throw new Error(`Manual action script ${absolutePath} must contain an array of actions`);
     }
 
-    const queue = new ManualActionQueue([], { logger, checklistManager, resourceSystem, agcRuntime, options });
+    const queue = new ManualActionQueue([], {
+      logger,
+      checklistManager,
+      resourceSystem,
+      agcRuntime,
+      panelState,
+      options,
+    });
     queue.addActions(actions);
     queue.metrics.scheduled = queue.queue.length;
     queue.logger?.log(0, 'Manual action script loaded', {
@@ -153,6 +176,7 @@ export class ManualActionQueue {
       resourceDeltas: this.metrics.resourceDeltas,
       propellantBurns: this.metrics.propellantBurns,
       dskyEntries: this.metrics.dskyEntries,
+      panelControls: this.metrics.panelControls,
     };
   }
 
@@ -170,6 +194,8 @@ export class ManualActionQueue {
         return this.#executePropellantBurn(action, currentGetSeconds);
       case 'dsky_entry':
         return this.#executeDskyEntry(action, currentGetSeconds);
+      case 'panel_control':
+        return this.#executePanelControl(action, currentGetSeconds);
       default:
         this.logger?.log(currentGetSeconds, `Unknown manual action type ${action.type}`, {
           logSource: 'sim',
@@ -361,6 +387,52 @@ export class ManualActionQueue {
     return { status: ACTION_STATUS.SUCCESS, details };
   }
 
+  #executePanelControl(action, currentGetSeconds) {
+    if (!this.panelState) {
+      return { status: ACTION_STATUS.FAILURE, details: { reason: 'no_panel_state' } };
+    }
+
+    const result = this.panelState.setControlState(action.panelId, action.controlId, action.stateId, {
+      getSeconds: currentGetSeconds,
+      actor: action.actor ?? 'MANUAL_CREW',
+      source: action.source ?? action.id,
+      note: action.note ?? null,
+    });
+
+    if (!result.success) {
+      const reason = result.reason ?? 'panel_control_failed';
+      if (this.#shouldRetry(action, currentGetSeconds)) {
+        return { status: ACTION_STATUS.RETRY, details: { reason } };
+      }
+      return { status: ACTION_STATUS.FAILURE, details: { reason } };
+    }
+
+    this.metrics.panelControls += 1;
+
+    this.logger?.log(currentGetSeconds, 'Manual panel control applied', {
+      logSource: 'sim',
+      logCategory: 'manual',
+      logSeverity: 'notice',
+      actionId: action.id,
+      panelId: action.panelId,
+      controlId: action.controlId,
+      stateId: result.stateId,
+      note: action.note ?? null,
+    });
+
+    return {
+      status: ACTION_STATUS.SUCCESS,
+      details: {
+        panelId: action.panelId,
+        controlId: action.controlId,
+        stateId: result.stateId,
+        stateLabel: result.stateLabel,
+        previousStateId: result.previousStateId ?? null,
+        changed: Boolean(result.changed),
+      },
+    };
+  }
+
   #shouldRetry(action, currentGetSeconds) {
     if (action.retryUntilSeconds == null) {
       return false;
@@ -470,6 +542,34 @@ function normalizeAction(rawAction, internalId) {
         note: rawAction.note ?? null,
       };
     }
+    case 'panel_control': {
+      const panelId = normalizePanelId(rawAction.panel ?? rawAction.panel_id ?? rawAction.panelId);
+      if (!panelId) {
+        throw new Error(`Manual panel control ${id} requires a panel identifier`);
+      }
+      const controlId = normalizePanelId(rawAction.control ?? rawAction.control_id ?? rawAction.controlId);
+      if (!controlId) {
+        throw new Error(`Manual panel control ${id} requires a control identifier`);
+      }
+      const stateId = normalizePanelStateId(
+        rawAction.state
+          ?? rawAction.state_id
+          ?? rawAction.stateId
+          ?? rawAction.target_state
+          ?? rawAction.targetState,
+      );
+      if (!stateId) {
+        throw new Error(`Manual panel control ${id} requires a target state`);
+      }
+      return {
+        ...base,
+        panelId,
+        controlId,
+        stateId,
+        actor: rawAction.actor ?? 'MANUAL_CREW',
+        note: rawAction.note ?? null,
+      };
+    }
     default:
       return base;
   }
@@ -535,6 +635,22 @@ function coerceEffect(effect) {
 }
 
 function normalizeMacroId(value) {
+  if (value == null) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizePanelId(value) {
+  if (value == null) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizePanelStateId(value) {
   if (value == null) {
     return null;
   }
