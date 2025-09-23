@@ -150,8 +150,10 @@ setting `event.audio_cue = 'MISSION_GO_TLI'` or by publishing an
    - Implement Web Audio mixer with bus graph, ducking matrix, and
      waveform preloading.
    - Integrate dispatcher into CLI HUD for headless testing (logs only).
-   - Build `npm run validate:audio` CLI to replay cue triggers and verify
-     cooldown/priority rules against catalog metadata.
+   - `npm run validate:audio` CLI in [`js/src/tools/validateAudio.js`](../../js/src/tools/validateAudio.js)
+     replays mission slices, inspects the dispatcher ledger for
+     concurrency, cooldown, and priority violations, and emits JSON
+     reports for regression tracking.【F:js/src/tools/validateAudio.js†L1-L220】【F:js/test/audioValidation.test.js†L1-L110】
 3. **Phase C – UI integration**
    - Hook Always-On HUD master alarm button to dispatcher mute/resume.
    - Surface captions in console dock, align highlight color with cue

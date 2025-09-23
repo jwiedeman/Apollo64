@@ -112,6 +112,7 @@ export class AudioDispatcher {
     this.catalog = catalog && typeof catalog === 'object' ? catalog : { buses: [], categories: [], cues: [] };
     this.mixer = mixer ?? new NullAudioMixer({ logger: this.logger, logSource: this.logSource, logCategory: this.logCategory });
     this.binder = this.options.binder ?? null;
+    this.recorder = this.options.recorder ?? null;
 
     this.busMap = new Map();
     this.categoryMap = new Map();
@@ -427,6 +428,10 @@ export class AudioDispatcher {
     record.ledgerEntry = ledgerEntry;
     this.#appendLedgerEntry(ledgerEntry);
 
+    if (this.recorder?.recordAudioEvent) {
+      this.recorder.recordAudioEvent(clone(ledgerEntry));
+    }
+
     const state = this.#ensureBusState(busId);
     state.active.push(record);
 
@@ -494,6 +499,10 @@ export class AudioDispatcher {
         : reason === 'preempted'
           ? 'preempted'
           : 'stopped';
+
+      if (this.recorder?.recordAudioEvent) {
+        this.recorder.recordAudioEvent(clone(entry));
+      }
     }
   }
 

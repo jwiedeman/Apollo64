@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { AudioCueBinder } from '../src/audio/audioCueBinder.js';
 import { AudioDispatcher, NullAudioMixer } from '../src/audio/audioDispatcher.js';
+import { ManualActionRecorder } from '../src/logging/manualActionRecorder.js';
 
 const TEST_CATALOG = {
   version: 1,
@@ -134,5 +135,28 @@ describe('AudioDispatcher', () => {
     assert.equal(ledger[0].stopReason, 'export_complete');
     assert.equal(ledger[0].endedAtSeconds, 15);
     assert.ok(ledger[0].durationSeconds > 0);
+  });
+
+  test('notifies manual action recorder about playback lifecycle', () => {
+    const binder = new AudioCueBinder(TEST_CATALOG);
+    const mixer = new NullAudioMixer();
+    const recorder = new ManualActionRecorder();
+    const dispatcher = new AudioDispatcher(TEST_CATALOG, mixer, { binder, recorder });
+
+    binder.recordEvent({ id: 'EVT_REC', audioCueId: 'callouts.go' }, { getSeconds: 20, status: 'active' });
+
+    dispatcher.update(20);
+
+    const snapshot = recorder.audioSnapshot();
+    assert.equal(snapshot.total, 1);
+    assert.equal(snapshot.entries[0].cueId, 'callouts.go');
+    assert.equal(snapshot.entries[0].status, 'playing');
+
+    dispatcher.stopAll('test_stop', 24);
+
+    const finalSnapshot = recorder.audioSnapshot();
+    assert.equal(finalSnapshot.entries[0].status, 'stopped');
+    assert.equal(finalSnapshot.entries[0].stopReason, 'test_stop');
+    assert.equal(finalSnapshot.entries[0].endedAtSeconds, 24);
   });
 });

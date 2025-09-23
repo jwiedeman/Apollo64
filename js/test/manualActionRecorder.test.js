@@ -145,4 +145,64 @@ describe('ManualActionRecorder workspace integration', () => {
     assert.equal(json.panel[0].panel_id, 'MAIN_PANEL');
     assert.equal(json.panel[0].state_label, 'Open');
   });
+
+  test('records audio cue playback and exposes it in stats, snapshots, and exports', () => {
+    const recorder = new ManualActionRecorder();
+
+    recorder.recordAudioEvent({
+      id: 1,
+      cueId: 'callouts.go',
+      categoryId: 'callout',
+      busId: 'dialogue',
+      severity: 'notice',
+      priority: 70,
+      startedAtSeconds: 100,
+      startedAt: '000:01:40',
+      lengthSeconds: 3,
+      loop: false,
+      sourceType: 'event',
+      sourceId: 'EVT_GO',
+      metadata: { eventId: 'EVT_GO' },
+      ducking: [{ targetBusId: 'ambience', gain: 0.25 }],
+      status: 'playing',
+    });
+
+    recorder.recordAudioEvent({
+      id: 1,
+      endedAtSeconds: 103,
+      endedAt: '000:01:43',
+      durationSeconds: 3,
+      stopReason: 'complete',
+      status: 'completed',
+    });
+
+    const stats = recorder.stats();
+    assert.equal(stats.audio.total, 1);
+    const completedEntry = stats.audio.byStatus.find((entry) => entry.status === 'completed');
+    assert.ok(completedEntry);
+    assert.equal(completedEntry.count, 1);
+
+    const snapshot = recorder.audioSnapshot();
+    assert.equal(snapshot.total, 1);
+    const audioEntry = snapshot.entries[0];
+    assert.equal(audioEntry.cueId, 'callouts.go');
+    assert.equal(audioEntry.status, 'completed');
+    assert.equal(audioEntry.durationSeconds, 3);
+    assert.equal(audioEntry.ducking.length, 1);
+    assert.equal(audioEntry.ducking[0].targetBusId, 'ambience');
+
+    const timeline = recorder.timelineSnapshot();
+    assert.ok(Array.isArray(timeline.audio.entries));
+    assert.equal(timeline.audio.entries.length, 1);
+    assert.equal(timeline.audio.entries[0].status, 'completed');
+
+    const payload = recorder.toJSON();
+    assert.equal(payload.metadata.audio_events_recorded, 1);
+    assert.ok(Array.isArray(payload.audio));
+    assert.equal(payload.audio.length, 1);
+    const exported = payload.audio[0];
+    assert.equal(exported.cue_id, 'callouts.go');
+    assert.equal(exported.status, 'completed');
+    assert.equal(exported.duration_seconds, 3);
+  });
 });

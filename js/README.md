@@ -12,8 +12,10 @@ This workspace now includes a Node.js simulation harness that exercises the Apol
 - Streams mission log messages with GET stamps and can export them to JSON for regression playback (`src/logging/missionLogger.js`).
 - Replays autopilot JSON sequences through `AutopilotRunner` (`src/sim/autopilotRunner.js`), issuing ullage, attitude, and throttle commands while subtracting SPS/LM/RCS propellant usage from the shared resource model.
 - Captures auto-advanced checklist acknowledgements and exports them as deterministic manual action scripts when `--record-manual-script` is provided, enabling parity runs without relying on auto crew logic (`src/logging/manualActionRecorder.js`).
+- Manual action recorder exports now bundle workspace, panel, and audio ledgers so parity harnesses, HUD exports, and replay tooling can replay layout changes and the cue soundscape alongside checklist history (`src/logging/manualActionRecorder.js`).
 - Emits periodic text HUD snapshots (`src/hud/textHud.js`) summarizing event status, resource margins, propellant usage, checklist activity, and manual action queues so long running simulations remain legible from the CLI.
 - Exports deterministic `ui_frame` sequences for front-end prototyping through the new CLI in [`src/tools/exportUiFrames.js`](src/tools/exportUiFrames.js).
+- Audio validation CLI in [`src/tools/validateAudio.js`](src/tools/validateAudio.js) replays mission slices, inspects dispatcher-ledger stats for cooldown/priority/concurrency regressions, and emits optional JSON reports for regression tracking.
 - Carries the commander rating snapshot (`frame.score`) through both the CLI HUD and UI frame exporter so mission performance data is available to text output, saved frames, and future UI bindings.
 - Entry overlay config in [`docs/ui/entry_overlay.json`](../docs/ui/entry_overlay.json) now feeds `UiFrameBuilder`'s `frame.entry` payload with corridor, blackout, EMS, and recovery telemetry so downstream HUD experiments can render the TEI → splashdown finale without custom data stitching.
 
