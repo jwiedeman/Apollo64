@@ -6,9 +6,11 @@ const state = {
   currentFrame: null,
   summary: null,
   activeView: 'navigation',
+  highlightChecklistTarget: null,
 };
 
 let eventSource = null;
+let checklistHighlightTimer = null;
 
 const dom = {
   hud: {
@@ -24,6 +26,10 @@ const dom = {
     status: document.getElementById('hud-status'),
     progress: document.getElementById('hud-progress'),
     progressBar: document.querySelector('.progress-bar'),
+    ptc: document.getElementById('hud-ptc'),
+    checklistChip: document.getElementById('hud-checklist-chip'),
+    checklistLabel: document.getElementById('hud-checklist-label'),
+    checklistDetail: document.getElementById('hud-checklist-detail'),
   },
   alertBanner: document.getElementById('alert-banner'),
   navigation: {
@@ -50,6 +56,13 @@ const dom = {
 
 function init() {
   setupViewTabs();
+  if (dom.hud.checklistChip) {
+    dom.hud.checklistChip.addEventListener('click', () => {
+      if (!dom.hud.checklistChip.disabled) {
+        focusActiveChecklist();
+      }
+    });
+  }
   dom.restartButton?.addEventListener('click', () => {
     connectStream();
   });
@@ -95,6 +108,54 @@ function updateViewVisibility() {
   });
 }
 
+function focusActiveChecklist() {
+  const chip = state.currentFrame?.checklists?.chip;
+  if (!chip) {
+    return;
+  }
+  switchView('controls');
+  const target = {
+    checklistId: chip.checklistId ?? chip.id ?? null,
+    eventId: chip.eventId ?? null,
+  };
+  if (checklistHighlightTimer) {
+    clearTimeout(checklistHighlightTimer);
+    checklistHighlightTimer = null;
+  }
+  state.highlightChecklistTarget = target;
+  render();
+  scrollChecklistIntoView(target);
+  checklistHighlightTimer = window.setTimeout(() => {
+    resetChecklistHighlight();
+    render();
+  }, 1500);
+}
+
+function scrollChecklistIntoView(target) {
+  if (!target || !dom.controls.checklists) {
+    return;
+  }
+  const cards = dom.controls.checklists.querySelectorAll('.checklist-card');
+  for (const card of cards) {
+    const checklistId = card.dataset.checklistId || null;
+    const eventId = card.dataset.eventId || null;
+    const matchesChecklist = target.checklistId && checklistId === target.checklistId;
+    const matchesEvent = target.eventId && eventId === target.eventId;
+    if (matchesChecklist || matchesEvent) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      break;
+    }
+  }
+}
+
+function resetChecklistHighlight() {
+  state.highlightChecklistTarget = null;
+  if (checklistHighlightTimer) {
+    clearTimeout(checklistHighlightTimer);
+    checklistHighlightTimer = null;
+  }
+}
+
 function connectStream() {
   cleanupStream();
   state.status = 'connecting';
@@ -102,6 +163,7 @@ function connectStream() {
   state.currentFrame = null;
   state.summary = null;
   state.targetSeconds = null;
+  resetChecklistHighlight();
   render();
 
   eventSource = new EventSource('/api/stream');
@@ -153,9 +215,14 @@ function connectStream() {
 }
 
 function cleanupStream() {
+  const hadHighlight = Boolean(state.highlightChecklistTarget);
   if (eventSource) {
     eventSource.close();
     eventSource = null;
+  }
+  resetChecklistHighlight();
+  if (hadHighlight) {
+    render();
   }
 }
 
@@ -231,6 +298,38 @@ function renderHud() {
     dom.hud.comms.textContent = 'Idle';
   }
 
+  const thermal = frame?.resources?.thermal;
+  if (dom.hud.ptc) {
+    const indicator = dom.hud.ptc;
+    indicator.classList.remove('active', 'warning', 'caution');
+    if (thermal) {
+      const isActive = Boolean(thermal.ptcActive);
+      const rateLabel = Number.isFinite(thermal.cryoBoiloffRatePctPerHr)
+        ? `${formatNumber(thermal.cryoBoiloffRatePctPerHr, { digits: 2 })}%/hr`
+        : null;
+      const labelParts = [isActive ? 'Active' : 'Idle'];
+      if (rateLabel) {
+        labelParts.push(rateLabel);
+      }
+      indicator.textContent = labelParts.join(' · ');
+      if (isActive) {
+        indicator.classList.add('active');
+      }
+      if (thermal.cryoBoiloffRatePctPerHr != null) {
+        const rate = Number(thermal.cryoBoiloffRatePctPerHr);
+        if (Number.isFinite(rate)) {
+          if (rate >= 2.5) {
+            indicator.classList.add('warning');
+          } else if (rate >= 1.5) {
+            indicator.classList.add('caution');
+          }
+        }
+      }
+    } else {
+      indicator.textContent = 'Idle';
+    }
+  }
+
   const score = frame?.score?.rating;
   if (score) {
     const grade = score.grade ?? '—';
@@ -243,6 +342,8 @@ function renderHud() {
     dom.hud.score.textContent = '--';
     dom.hud.scoreDetail.textContent = 'Commander score';
   }
+
+  updateChecklistChip(frame?.checklists?.chip);
 
   const statusLabel = mapStatus(state.status);
   dom.hud.status.textContent = statusLabel;
@@ -258,6 +359,48 @@ function renderHud() {
     if (dom.hud.progressBar) {
       dom.hud.progressBar.setAttribute('aria-valuenow', '0');
     }
+  }
+}
+
+function updateChecklistChip(chip) {
+  const chipButton = dom.hud.checklistChip;
+  const labelEl = dom.hud.checklistLabel;
+  const detailEl = dom.hud.checklistDetail;
+  if (!chipButton || !labelEl || !detailEl) {
+    return;
+  }
+  if (chip) {
+    chipButton.disabled = false;
+    chipButton.classList.add('active');
+    const label = chip.title ?? chip.checklistId ?? 'Checklist';
+    labelEl.textContent = label;
+    const detailParts = [];
+    if (chip.nextStepNumber != null) {
+      detailParts.push(`Step ${chip.nextStepNumber}`);
+    }
+    if (chip.nextStepAction) {
+      detailParts.push(chip.nextStepAction);
+    }
+    if (chip.pad?.tig) {
+      detailParts.push(`TIG ${chip.pad.tig}`);
+    }
+    detailEl.textContent = detailParts.join(' · ') || 'Next step ready.';
+    chipButton.dataset.checklistId = chip.checklistId ?? '';
+    chipButton.dataset.eventId = chip.eventId ?? '';
+    const ariaLabel = chip.nextStepAction
+      ? `Focus ${label}. Next: ${chip.nextStepAction}`
+      : `Focus ${label}`;
+    chipButton.setAttribute('aria-label', ariaLabel);
+    chipButton.title = chip.nextStepAction ?? label;
+  } else {
+    chipButton.disabled = true;
+    chipButton.classList.remove('active');
+    labelEl.textContent = 'Checklist idle';
+    detailEl.textContent = 'Auto crew standing by.';
+    chipButton.dataset.checklistId = '';
+    chipButton.dataset.eventId = '';
+    chipButton.removeAttribute('aria-label');
+    chipButton.removeAttribute('title');
   }
 }
 
@@ -424,9 +567,28 @@ function renderChecklists(checklists) {
     return;
   }
   const fragment = document.createDocumentFragment();
+  const highlightTarget = state.highlightChecklistTarget;
   checklists.active.forEach((entry) => {
     const card = document.createElement('div');
     card.className = 'checklist-card';
+    const checklistId = entry.checklistId ?? entry.id ?? '';
+    if (checklistId) {
+      card.dataset.checklistId = checklistId;
+    }
+    if (entry.eventId) {
+      card.dataset.eventId = entry.eventId;
+    }
+    if (highlightTarget) {
+      const matchesChecklist = highlightTarget.checklistId
+        && checklistId
+        && highlightTarget.checklistId === checklistId;
+      const matchesEvent = highlightTarget.eventId
+        && entry.eventId
+        && highlightTarget.eventId === entry.eventId;
+      if (matchesChecklist || matchesEvent) {
+        card.classList.add('highlight');
+      }
+    }
 
     const title = document.createElement('strong');
     title.textContent = entry.title ?? entry.checklistId ?? 'Checklist';
