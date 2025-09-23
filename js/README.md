@@ -90,6 +90,25 @@ Key options:
 
 The analyzer replays the mission slice with the full simulator stack, capturing actual vs. expected burn seconds, propellant draw, Δv deltas, ullage usage, and PAD metadata for each autopilot event. Runs exit non-zero when any analyzed event fails so tolerance regressions surface immediately.
 
+## Performance Analyzer
+
+Replay a mission slice and audit HUD/audio/input performance metrics with:
+
+```
+npm run analyze:performance -- --until 015:00:00 --output out/performance.json --csv out/performance.csv --pretty
+```
+
+Key options:
+
+- `--until <GET>` – Mission GET ceiling for the analysis run (default `015:00:00`).
+- `--hud-interval <seconds>` – Override the HUD render cadence when sampling metrics.
+- `--output <path>` / `--pretty` – Persist the JSON summary for dashboards or regression logs.
+- `--csv <path>` – Export a flat timeline of performance log entries for spreadsheet review.
+- `--strict` – Exit non-zero when any warning/failure threshold is breached.
+- `--verbose` – Print additional log counts alongside the console summary.
+
+The report bundles the latest `PerformanceTracker` snapshot, per-minute mission log entries tagged `logCategory: 'performance'`, and threshold evaluations. Use it to spot HUD render spikes, audio queue saturation, or elevated manual input latency before they propagate into parity failures.
+
 ## Module Overview
 - `src/index.js` – CLI entrypoint that wires the loader, scheduler, resource model, and simulation loop.
 - `src/data/missionDataLoader.js` – CSV/JSON ingestion with autopilot duration estimation and checklist/failure maps.

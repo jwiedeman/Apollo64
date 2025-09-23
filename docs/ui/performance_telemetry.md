@@ -82,8 +82,10 @@ headroom for future optimisation.
 
 ## Analysis Tooling
 
-- **`npm run analyze:performance` (planned):** Replays a mission slice,
-  writes CSV/JSON performance logs, and highlights threshold breaches.
+- **`npm run analyze:performance`:** Replays a mission slice,
+  writes CSV/JSON performance logs, and highlights threshold breaches. The CLI
+  now exports threshold evaluations, performance log timelines, and optional CSV
+  summaries so UI regressions surface before parity failures.
 - **Notebook integration:** Extend `scripts/ingest` notebooks with optional
   performance charts by reading the exported metrics from CLI runs. Useful for
   milestone reports.
