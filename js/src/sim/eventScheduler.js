@@ -16,6 +16,7 @@ export class EventScheduler {
       autopilotSummaryHandlers = null,
       onAutopilotSummary = null,
       audioBinder = null,
+      failureCascades = null,
       ...restOptions
     } = options ?? {};
     this.logger = logger;
@@ -35,6 +36,8 @@ export class EventScheduler {
     }
     this.events = events.map((event) => this.prepareEvent(event, autopilotMap));
     this.eventMap = new Map(this.events.map((event) => [event.id, event]));
+    this.failureCascades = this.#normalizeFailureCascades(failureCascades);
+    this.appliedFailureCascades = new Map();
   }
 
   registerAutopilotSummaryHandler(handler) {
@@ -63,6 +66,9 @@ export class EventScheduler {
       requiresChecklist: hasChecklist,
       lastAutopilotSummary: null,
       padId,
+      originalGetOpenSeconds: event.getOpenSeconds ?? null,
+      originalGetCloseSeconds: event.getCloseSeconds ?? null,
+      cascadeTriggers: [],
     };
   }
 
@@ -292,6 +298,41 @@ export class EventScheduler {
         activationGET: activationSeconds != null ? formatGET(activationSeconds) : null,
         completionGET: completionSeconds != null ? formatGET(completionSeconds) : null,
       };
+      if (Array.isArray(event.cascadeTriggers) && event.cascadeTriggers.length > 0) {
+        timeline[event.id].cascadeTriggers = event.cascadeTriggers.map((trigger) => ({
+          failureId: trigger.failureId ?? null,
+          sourceEventId: trigger.sourceEventId ?? null,
+          triggeredAtSeconds: trigger.triggeredAtSeconds ?? null,
+          triggeredAt: Number.isFinite(trigger.triggeredAtSeconds)
+            ? formatGET(trigger.triggeredAtSeconds)
+            : null,
+        }));
+      }
+      if (
+        Number.isFinite(event.originalGetOpenSeconds)
+        && Number.isFinite(event.getOpenSeconds)
+        && Math.abs(event.originalGetOpenSeconds - event.getOpenSeconds) > 1e-6
+      ) {
+        timeline[event.id].windowOverrides = {
+          originalOpenSeconds: event.originalGetOpenSeconds,
+          originalOpenGET: formatGET(event.originalGetOpenSeconds),
+          currentOpenSeconds: event.getOpenSeconds,
+          currentOpenGET: formatGET(event.getOpenSeconds),
+        };
+      }
+      if (
+        Number.isFinite(event.originalGetCloseSeconds)
+        && Number.isFinite(event.getCloseSeconds)
+        && Math.abs(event.originalGetCloseSeconds - event.getCloseSeconds) > 1e-6
+      ) {
+        if (!timeline[event.id].windowOverrides) {
+          timeline[event.id].windowOverrides = {};
+        }
+        timeline[event.id].windowOverrides.originalCloseSeconds = event.originalGetCloseSeconds;
+        timeline[event.id].windowOverrides.originalCloseGET = formatGET(event.originalGetCloseSeconds);
+        timeline[event.id].windowOverrides.currentCloseSeconds = event.getCloseSeconds;
+        timeline[event.id].windowOverrides.currentCloseGET = formatGET(event.getCloseSeconds);
+      }
     }
 
     const upcoming = this.events
@@ -344,6 +385,13 @@ export class EventScheduler {
       type: 'failure',
       context: failureContext,
     });
+    const failureIds = this.#extractFailureIds(event.failureEffects);
+    if (failureIds.length > 0) {
+      this.#applyFailureCascades(event, failureIds, currentGetSeconds, {
+        reason,
+        context: failureContext,
+      });
+    }
     if (event.checklistId && this.checklistManager) {
       this.checklistManager.abortEvent(event.id, currentGetSeconds, reason);
     }
@@ -505,6 +553,316 @@ export class EventScheduler {
       allowed,
       unit,
     };
+  }
+
+  #normalizeFailureCascades(raw) {
+    const cascades = new Map();
+    if (!raw) {
+      return cascades;
+    }
+    if (raw instanceof Map) {
+      for (const [id, config] of raw.entries()) {
+        const normalized = this.#normalizeCascadeConfig(id, config);
+        if (normalized) {
+          cascades.set(normalized.id, normalized);
+        }
+      }
+      return cascades;
+    }
+    if (Array.isArray(raw)) {
+      for (const entry of raw) {
+        const normalized = this.#normalizeCascadeConfig(entry?.id, entry);
+        if (normalized) {
+          cascades.set(normalized.id, normalized);
+        }
+      }
+      return cascades;
+    }
+    if (typeof raw === 'object') {
+      for (const [id, config] of Object.entries(raw)) {
+        const normalized = this.#normalizeCascadeConfig(id, config);
+        if (normalized) {
+          cascades.set(normalized.id, normalized);
+        }
+      }
+    }
+    return cascades;
+  }
+
+  #normalizeCascadeConfig(id, config) {
+    const cascadeId = typeof id === 'string' ? id.trim() : null;
+    if (!cascadeId) {
+      return null;
+    }
+    const source = config && typeof config === 'object' ? config : {};
+    const effectSource = source.resourceEffects ?? source.resource_effects ?? null;
+    const resourceEffects = effectSource && typeof effectSource === 'object'
+      ? JSON.parse(JSON.stringify(effectSource))
+      : null;
+    const repeatable = source.repeatable === true || source.repeat === true;
+    const applyOnce = source.applyOnce === true || source.apply_once === true;
+    const armRaw = source.armEvents ?? source.arm_events ?? [];
+    const armList = Array.isArray(armRaw) ? armRaw : [armRaw];
+    const armEvents = armList
+      .map((entry) => this.#normalizeCascadeArmConfig(entry))
+      .filter((entry) => entry != null);
+    const log = this.#normalizeCascadeLogConfig(source.log ?? source.logMessage ?? source.message ?? null);
+    const tagsRaw = Array.isArray(source.tags) ? source.tags : Array.isArray(source.tag) ? source.tag : null;
+    const tags = Array.isArray(tagsRaw)
+      ? tagsRaw
+        .map((tag) => (typeof tag === 'string' ? tag.trim() : null))
+        .filter((tag) => tag && tag.length > 0)
+      : [];
+    const notesSource = typeof source.notes === 'string'
+      ? source.notes.trim()
+      : typeof source.note === 'string'
+        ? source.note.trim()
+        : null;
+    const notes = notesSource && notesSource.length > 0 ? notesSource : null;
+    const metadata = source.metadata && typeof source.metadata === 'object'
+      ? JSON.parse(JSON.stringify(source.metadata))
+      : null;
+
+    return {
+      id: cascadeId,
+      resourceEffects,
+      repeatable,
+      applyOnce,
+      armEvents,
+      log,
+      tags,
+      notes,
+      metadata,
+    };
+  }
+
+  #normalizeCascadeArmConfig(entry) {
+    if (!entry) {
+      return null;
+    }
+    if (typeof entry === 'string') {
+      const eventId = entry.trim();
+      if (!eventId) {
+        return null;
+      }
+      return {
+        eventId,
+        allowBeforeWindow: false,
+        autoActivate: false,
+        offsetSeconds: null,
+        logMessage: null,
+      };
+    }
+    if (typeof entry !== 'object') {
+      return null;
+    }
+    const eventIdSource = entry.eventId ?? entry.event_id ?? entry.id ?? entry.target ?? null;
+    const eventId = typeof eventIdSource === 'string' ? eventIdSource.trim() : null;
+    if (!eventId) {
+      return null;
+    }
+    const allowBeforeWindow = entry.allowBeforeWindow ?? entry.allow_before_window ?? entry.force ?? false;
+    const autoActivate = entry.autoActivate ?? entry.auto_activate ?? false;
+    const offsetSeconds = this.#coerceNumber(
+      entry.offsetSeconds
+        ?? entry.offset_seconds
+        ?? entry.openOffsetSeconds
+        ?? entry.open_offset_seconds
+        ?? entry.delaySeconds
+        ?? entry.delay_seconds,
+    );
+    const logMessageSource = entry.logMessage ?? entry.log ?? null;
+    const logMessage = typeof logMessageSource === 'string' && logMessageSource.trim().length > 0
+      ? logMessageSource.trim()
+      : null;
+    return {
+      eventId,
+      allowBeforeWindow: allowBeforeWindow === true,
+      autoActivate: autoActivate === true,
+      offsetSeconds: Number.isFinite(offsetSeconds) ? offsetSeconds : null,
+      logMessage,
+    };
+  }
+
+  #normalizeCascadeLogConfig(value) {
+    if (!value) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? { message: trimmed, severity: 'warning' } : null;
+    }
+    if (typeof value !== 'object') {
+      return null;
+    }
+    const messageSource = value.message ?? value.text ?? value.description ?? null;
+    const message = typeof messageSource === 'string' ? messageSource.trim() : null;
+    if (!message) {
+      return null;
+    }
+    const severitySource = value.severity ?? value.level ?? null;
+    const severity = typeof severitySource === 'string' && severitySource.trim().length > 0
+      ? severitySource.trim()
+      : 'warning';
+    return { message, severity };
+  }
+
+  #extractFailureIds(effect) {
+    if (!effect || typeof effect !== 'object') {
+      return [];
+    }
+    const ids = new Set();
+    if (typeof effect.failure_id === 'string' && effect.failure_id.trim().length > 0) {
+      ids.add(effect.failure_id.trim());
+    }
+    if (Array.isArray(effect.failures)) {
+      for (const entry of effect.failures) {
+        if (typeof entry === 'string') {
+          const trimmed = entry.trim();
+          if (trimmed.length > 0) {
+            ids.add(trimmed);
+          }
+          continue;
+        }
+        if (!entry || typeof entry !== 'object') {
+          continue;
+        }
+        const candidate = typeof entry.failure_id === 'string'
+          ? entry.failure_id.trim()
+          : typeof entry.id === 'string'
+            ? entry.id.trim()
+            : null;
+        if (candidate) {
+          ids.add(candidate);
+        }
+      }
+    }
+    return Array.from(ids);
+  }
+
+  #applyFailureCascades(event, failureIds, currentGetSeconds, info = {}) {
+    if (!this.failureCascades || this.failureCascades.size === 0) {
+      return;
+    }
+    for (const failureId of failureIds) {
+      const cascade = this.failureCascades.get(failureId);
+      if (!cascade) {
+        continue;
+      }
+      const previousCount = this.appliedFailureCascades.get(failureId) ?? 0;
+      if (previousCount > 0 && (!cascade.repeatable || cascade.applyOnce)) {
+        continue;
+      }
+      this.appliedFailureCascades.set(failureId, previousCount + 1);
+      const cascadeContext = info?.context ? { ...info.context } : {};
+      cascadeContext.failureId = failureId;
+      cascadeContext.sourceEventId = event?.id ?? null;
+      if (Array.isArray(cascade.tags) && cascade.tags.length > 0) {
+        cascadeContext.cascadeTags = cascade.tags;
+      }
+      if (cascade.notes) {
+        cascadeContext.cascadeNotes = cascade.notes;
+      }
+      if (cascade.metadata) {
+        cascadeContext.cascadeMetadata = cascade.metadata;
+      }
+      if (info?.reason) {
+        cascadeContext.reason = info.reason;
+      }
+      if (cascade.resourceEffects) {
+        this.resourceSystem.applyEffect(cascade.resourceEffects, {
+          getSeconds: currentGetSeconds,
+          source: `${event?.id ?? 'cascade'}:${failureId}`,
+          type: 'failure_cascade',
+          context: cascadeContext,
+        });
+      }
+      if (cascade.log) {
+        this.logger?.log(currentGetSeconds, cascade.log.message, {
+          logSource: 'sim',
+          logCategory: 'event',
+          logSeverity: cascade.log.severity ?? 'warning',
+          eventId: event?.id ?? null,
+          failureId,
+        });
+      } else {
+        this.logger?.log(currentGetSeconds, `Failure cascade triggered for ${failureId}`, {
+          logSource: 'sim',
+          logCategory: 'event',
+          logSeverity: 'warning',
+          eventId: event?.id ?? null,
+          failureId,
+        });
+      }
+      if (Array.isArray(cascade.armEvents) && cascade.armEvents.length > 0) {
+        for (const armConfig of cascade.armEvents) {
+          this.#applyCascadeArm(event, failureId, armConfig, currentGetSeconds);
+        }
+      }
+    }
+  }
+
+  #applyCascadeArm(sourceEvent, failureId, armConfig, currentGetSeconds) {
+    if (!armConfig?.eventId) {
+      return;
+    }
+    const target = this.getEventById(armConfig.eventId);
+    if (!target) {
+      this.logger?.log(currentGetSeconds, `Failure cascade ${failureId} target event ${armConfig.eventId} not found`, {
+        logSource: 'sim',
+        logCategory: 'event',
+        logSeverity: 'warning',
+        failureId,
+        sourceEventId: sourceEvent?.id ?? null,
+      });
+      return;
+    }
+    if (!Array.isArray(target.cascadeTriggers)) {
+      target.cascadeTriggers = [];
+    }
+    target.cascadeTriggers.push({
+      failureId,
+      sourceEventId: sourceEvent?.id ?? null,
+      triggeredAtSeconds: currentGetSeconds,
+    });
+    const message = armConfig.logMessage
+      ?? `Failure cascade ${failureId} prepared event ${target.id}`;
+    this.logger?.log(currentGetSeconds, message, {
+      logSource: 'sim',
+      logCategory: 'event',
+      logSeverity: 'notice',
+      failureId,
+      eventId: target.id,
+      sourceEventId: sourceEvent?.id ?? null,
+    });
+    if (target.status === STATUS.COMPLETE || target.status === STATUS.FAILED) {
+      return;
+    }
+    if (armConfig.allowBeforeWindow) {
+      const offset = Number.isFinite(armConfig.offsetSeconds) ? armConfig.offsetSeconds : 0;
+      const candidateOpen = currentGetSeconds + offset;
+      if (!Number.isFinite(target.originalGetOpenSeconds)) {
+        target.originalGetOpenSeconds = target.originalGetOpenSeconds ?? target.getOpenSeconds ?? null;
+      }
+      if (!Number.isFinite(target.getOpenSeconds) || candidateOpen < target.getOpenSeconds) {
+        target.getOpenSeconds = candidateOpen;
+      }
+    } else if (Number.isFinite(armConfig.offsetSeconds) && Number.isFinite(target.getOpenSeconds)) {
+      target.getOpenSeconds += armConfig.offsetSeconds;
+    }
+    if (
+      Number.isFinite(target.getCloseSeconds)
+      && Number.isFinite(target.getOpenSeconds)
+      && target.getCloseSeconds < target.getOpenSeconds
+    ) {
+      target.getCloseSeconds = target.getOpenSeconds;
+    }
+    if (target.status === STATUS.PENDING) {
+      this.maybeArm(target, currentGetSeconds);
+    }
+    if (armConfig.autoActivate && target.status === STATUS.ARMED) {
+      this.maybeActivate(target, currentGetSeconds);
+    }
   }
 
   #resolveDeltaVTolerance(tolerances) {

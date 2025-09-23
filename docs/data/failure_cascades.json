@@ -1,0 +1,152 @@
+{
+  "FAIL_TLI_PAD_LATE": {
+    "resourceEffects": {
+      "delta_v_margin_mps": -10
+    },
+    "log": {
+      "message": "TLI PAD late: Δv margin reduced by 10 m/s",
+      "severity": "warning"
+    }
+  },
+  "FAIL_TLI_UNDERBURN": {
+    "resourceEffects": {
+      "delta_v": {
+        "stages": {
+          "csm_sps": {
+            "delta_mps": -25
+          }
+        }
+      }
+    },
+    "log": {
+      "message": "TLI underburn increases MCC-1 correction budget by 25 m/s",
+      "severity": "failure"
+    }
+  },
+  "FAIL_MCC1_PAD_MISSED": {
+    "resourceEffects": {
+      "delta_v_margin_mps": -15
+    },
+    "log": {
+      "message": "MCC-1 PAD missed: Δv margin reduced by 15 m/s",
+      "severity": "warning"
+    }
+  },
+  "FAIL_MCC1_SKIPPED": {
+    "resourceEffects": {
+      "delta_v": {
+        "stages": {
+          "csm_sps": {
+            "delta_mps": -25
+          }
+        }
+      }
+    },
+    "log": {
+      "message": "MCC-1 skipped: MCC-2 correction requires an extra 25 m/s",
+      "severity": "warning"
+    }
+  },
+  "FAIL_MCC2_SKIPPED": {
+    "resourceEffects": {
+      "delta_v": {
+        "stages": {
+          "csm_sps": {
+            "delta_mps": -5
+          }
+        }
+      }
+    },
+    "log": {
+      "message": "MCC-2 skipped: downstream correction budget loses 5 m/s",
+      "severity": "warning"
+    }
+  },
+  "FAIL_MCC3_SKIPPED": {
+    "resourceEffects": {
+      "delta_v": {
+        "stages": {
+          "csm_sps": {
+            "delta_mps": -0.9144
+          }
+        }
+      }
+    },
+    "log": {
+      "message": "MCC-3 skipped: MCC-4 trimming margin reduced by 0.9 m/s",
+      "severity": "warning"
+    }
+  },
+  "FAIL_MCC4_SKIPPED": {
+    "resourceEffects": {
+      "delta_v": {
+        "stages": {
+          "csm_sps": {
+            "delta_mps": -5
+          }
+        }
+      }
+    },
+    "log": {
+      "message": "MCC-4 skipped: LOI-1 Δv reserve drops by 5 m/s",
+      "severity": "warning"
+    }
+  },
+  "FAIL_DOI_SKIPPED": {
+    "resourceEffects": {
+      "delta_v": {
+        "stages": {
+          "lm_descent": {
+            "delta_mps": -61
+          }
+        }
+      }
+    },
+    "log": {
+      "message": "DOI skipped: PDI propellant reserve reduced by 61 m/s",
+      "severity": "warning"
+    }
+  },
+  "FAIL_THERMAL_PTC_LATE": {
+    "resourceEffects": {
+      "power_margin_pct": -5,
+      "cryo_boiloff_rate_pct_per_hr": 0.5
+    },
+    "log": {
+      "message": "PTC not established: power margin -5%, boiloff trending up",
+      "severity": "warning"
+    }
+  },
+  "FAIL_THERMAL_PTC_DRIFT": {
+    "resourceEffects": {
+      "power_margin_pct": -3,
+      "cryo_boiloff_rate_pct_per_hr": 0.3
+    },
+    "log": {
+      "message": "PTC drift: power margin -3%, boiloff increasing",
+      "severity": "warning"
+    }
+  },
+  "FAIL_RETURN_PTC_SKIPPED": {
+    "resourceEffects": {
+      "power_margin_pct": -4,
+      "cryo_boiloff_rate_pct_per_hr": 0.3
+    },
+    "log": {
+      "message": "Return PTC skipped: transearth thermal balance deteriorating",
+      "severity": "warning"
+    }
+  },
+  "FAIL_COMM_PASS_MISSED": {
+    "resourceEffects": {
+      "communications": {
+        "missed_passes": 1
+      }
+    },
+    "log": {
+      "message": "Communications pass missed: DSN catch-up required",
+      "severity": "warning"
+    },
+    "repeatable": true
+  }
+}

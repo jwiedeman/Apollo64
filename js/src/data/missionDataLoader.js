@@ -11,6 +11,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     readFile(path.resolve(dataDir, 'checklists.csv')),
     readFile(path.resolve(dataDir, 'autopilots.csv')),
     readFile(path.resolve(dataDir, 'failures.csv')),
+    readOptionalFile(path.resolve(dataDir, 'failure_cascades.json')),
     readFile(path.resolve(dataDir, 'pads.csv')),
     readFile(path.resolve(dataDir, 'consumables.json')),
     readFile(path.resolve(dataDir, 'thrusters.json')),
@@ -26,6 +27,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     checklistsContent,
     autopilotsContent,
     failuresContent,
+    failureCascadesContent,
     padsContent,
     consumablesContent,
     thrustersContent,
@@ -81,6 +83,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
   const checklistRecords = parseCsv(checklistsContent);
   const checklists = buildChecklists(checklistRecords);
   const failures = buildLookup(parseCsv(failuresContent), 'failure_id', normalizeFailureRecord);
+  const failureCascades = parseFailureCascades(failureCascadesContent, logger);
   const pads = parsePads(parseCsv(padsContent), logger);
   const consumables = parseConsumables(consumablesContent, logger);
   const thrusters = parseThrusters(thrustersContent, logger);
@@ -120,6 +123,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
         checklists: checklists.size,
         autopilots: autopilots.size,
         failures: failures.size,
+        failureCascades: failureCascades.size,
         pads: pads.size,
         consumables: Object.keys(consumables).length,
         thrusterCraft: thrusterCraftCount,
@@ -144,6 +148,7 @@ export async function loadMissionData(dataDir, { logger } = {}) {
     checklists,
     autopilots,
     failures,
+    failureCascades,
     pads,
     consumables,
     thrusters,
@@ -379,6 +384,234 @@ function normalizeFailureRecord(record) {
   }
 
   return normalized;
+}
+
+function parseFailureCascades(content, logger) {
+  if (!content) {
+    return new Map();
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+    return normalizeFailureCascades(parsed, logger);
+  } catch (error) {
+    logger?.log(0, 'Failed to parse failure cascades dataset', {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'failure',
+      error: error.message,
+    });
+    return new Map();
+  }
+}
+
+function normalizeFailureCascades(raw, logger) {
+  const cascades = new Map();
+  if (!raw) {
+    return cascades;
+  }
+
+  if (raw instanceof Map) {
+    for (const [id, entry] of raw.entries()) {
+      const normalized = normalizeFailureCascadeEntry(id, entry, logger);
+      if (normalized) {
+        cascades.set(normalized.id, normalized);
+      }
+    }
+    return cascades;
+  }
+
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      const id = typeof entry?.id === 'string' ? entry.id.trim() : null;
+      if (!id) {
+        continue;
+      }
+      const normalized = normalizeFailureCascadeEntry(id, entry, logger);
+      if (normalized) {
+        cascades.set(normalized.id, normalized);
+      }
+    }
+    return cascades;
+  }
+
+  if (typeof raw === 'object') {
+    for (const [id, entry] of Object.entries(raw)) {
+      if (!id) {
+        continue;
+      }
+      const normalized = normalizeFailureCascadeEntry(id, entry, logger);
+      if (normalized) {
+        cascades.set(normalized.id, normalized);
+      }
+    }
+  }
+
+  return cascades;
+}
+
+function normalizeFailureCascadeEntry(idRaw, entry, logger) {
+  const id = typeof idRaw === 'string' ? idRaw.trim() : null;
+  if (!id) {
+    return null;
+  }
+
+  if (!entry || typeof entry !== 'object') {
+    return {
+      id,
+      resourceEffects: null,
+      repeatable: false,
+      applyOnce: false,
+      armEvents: [],
+      log: null,
+      tags: [],
+      notes: null,
+      metadata: null,
+    };
+  }
+
+  const effectSource = entry.resourceEffects ?? entry.resource_effects ?? null;
+  const resourceEffects = effectSource && typeof effectSource === 'object'
+    ? JSON.parse(JSON.stringify(effectSource))
+    : null;
+
+  const repeatable = entry.repeatable === true || entry.repeat === true;
+  const applyOnce = entry.applyOnce === true || entry.apply_once === true;
+  const armEvents = normalizeCascadeArmEntries(entry.armEvents ?? entry.arm_events ?? null, logger, id);
+  const log = normalizeCascadeLog(entry.log ?? entry.logMessage ?? entry.message ?? null);
+  const notesRaw = typeof entry.notes === 'string'
+    ? entry.notes.trim()
+    : typeof entry.note === 'string'
+      ? entry.note.trim()
+      : null;
+  const notes = notesRaw && notesRaw.length > 0 ? notesRaw : null;
+  const tagsRaw = Array.isArray(entry.tags) ? entry.tags : Array.isArray(entry.tag) ? entry.tag : null;
+  const tags = Array.isArray(tagsRaw)
+    ? tagsRaw
+        .map((tag) => (typeof tag === 'string' ? tag.trim() : null))
+        .filter((tag) => tag && tag.length > 0)
+    : [];
+  const metadata = entry.metadata && typeof entry.metadata === 'object'
+    ? JSON.parse(JSON.stringify(entry.metadata))
+    : null;
+
+  return {
+    id,
+    resourceEffects,
+    repeatable,
+    applyOnce,
+    armEvents,
+    log,
+    tags,
+    notes,
+    metadata,
+  };
+}
+
+function normalizeCascadeLog(raw) {
+  if (!raw) {
+    return null;
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+    return { message: trimmed, severity: 'warning' };
+  }
+
+  if (typeof raw !== 'object') {
+    return null;
+  }
+
+  const messageSource = raw.message ?? raw.text ?? raw.description ?? null;
+  const message = typeof messageSource === 'string' ? messageSource.trim() : null;
+  if (!message) {
+    return null;
+  }
+
+  const severitySource = raw.severity ?? raw.level ?? null;
+  const severity = typeof severitySource === 'string' && severitySource.trim().length > 0
+    ? severitySource.trim()
+    : 'warning';
+
+  return { message, severity };
+}
+
+function normalizeCascadeArmEntries(raw, logger, failureId) {
+  if (!raw) {
+    return [];
+  }
+
+  const entries = Array.isArray(raw) ? raw : [raw];
+  const normalized = [];
+
+  for (const entry of entries) {
+    const resolved = normalizeCascadeArmEntry(entry, logger, failureId);
+    if (resolved) {
+      normalized.push(resolved);
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeCascadeArmEntry(entry, logger, failureId) {
+  if (!entry) {
+    return null;
+  }
+
+  if (typeof entry === 'string') {
+    const eventId = entry.trim();
+    return eventId.length > 0
+      ? {
+          eventId,
+          allowBeforeWindow: false,
+          autoActivate: false,
+          offsetSeconds: null,
+          logMessage: null,
+        }
+      : null;
+  }
+
+  if (typeof entry !== 'object') {
+    return null;
+  }
+
+  const eventIdSource = entry.eventId ?? entry.event_id ?? entry.id ?? entry.target ?? null;
+  const eventId = typeof eventIdSource === 'string' ? eventIdSource.trim() : null;
+  if (!eventId) {
+    logger?.log(0, `Failure cascade ${failureId} missing target event id`, {
+      logSource: 'sim',
+      logCategory: 'system',
+      logSeverity: 'warning',
+    });
+    return null;
+  }
+
+  const allowBeforeWindow = entry.allowBeforeWindow ?? entry.allow_before_window ?? entry.force ?? false;
+  const autoActivate = entry.autoActivate ?? entry.auto_activate ?? false;
+  const offsetSeconds = coerceNumber(
+    entry.openOffsetSeconds
+      ?? entry.open_offset_seconds
+      ?? entry.offsetSeconds
+      ?? entry.offset_seconds
+      ?? entry.delaySeconds
+      ?? entry.delay_seconds,
+  );
+  const logMessageSource = entry.logMessage ?? entry.log ?? null;
+  const logMessage = typeof logMessageSource === 'string' && logMessageSource.trim().length > 0
+    ? logMessageSource.trim()
+    : null;
+
+  return {
+    eventId,
+    allowBeforeWindow: allowBeforeWindow === true,
+    autoActivate: autoActivate === true,
+    offsetSeconds: Number.isFinite(offsetSeconds) ? offsetSeconds : null,
+    logMessage,
+  };
 }
 
 function parseConsumables(content, logger) {
