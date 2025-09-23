@@ -43,7 +43,8 @@ ingestion notebooks, and the Nintendo 64 renderer consume the same schema.
   "audio": { ... },
   "score": { ... },
   "missionLog": { ... },
-  "resourceHistory": { ... }
+  "resourceHistory": { ... },
+  "performance": { ... }
 }
 ```
 
@@ -58,6 +59,11 @@ metrics so trend widgets can consume the same telemetry as the HUD. When an
 `AgcRuntime` instance is supplied, the builder also injects an `agc` block with
 program state, annunciators, register displays, recent macro history, pending
 PRO acknowledgements, and execution metrics.
+
+`performance` captures the most recent instrumentation snapshot from the
+simulation loop. It summarizes tick durations, HUD render cadence, audio queue
+depth, input latency, and logging cadence so UI overlays and regression tooling
+can validate budgets without reprocessing mission logs.
 
 ### `time`
 
@@ -560,3 +566,15 @@ replayed for regression testing or UI development without rerunning the simulati
 | `parameters.vInfinityMetersPerSecond` | number&#124;null | Asymptotic velocity magnitude in m/s (converted when only ft/s provided). |
 | `parameters.notes` | string&#124;null | Free-form notes captured with the PAD. |
 | `parameters.raw` | object | Raw parameter payload parsed from `pads.csv`. |
+### `performance`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `generatedAtSeconds` | number&#124;null | GET when the performance snapshot was produced. |
+| `generatedAt` | string&#124;null | GET label for `generatedAtSeconds`. |
+| `tick` | object&#124;null | Average/maximum tick durations and drift (`expectedMs`, `averageMs`, `maxMs`, `minMs`, `lastMs`, plus nested `drift` with `maxAbsMs`). |
+| `hud` | object&#124;null | HUD render count, render-time statistics, drop counters, and last render timestamps. |
+| `audio` | object&#124;null | Aggregated active/queued cue counts (`lastActiveTotal`, `maxActiveTotal`, etc.). |
+| `input` | object&#124;null | Manual input latency statistics (average/max/last). |
+| `logging` | object&#124;null | Performance logging interval and last log GET. |
+| `overview` | object&#124;null | Flattened summary used by CLI/telemetry dashboards (tick/hud/input/audio highlights). |

@@ -26,6 +26,26 @@ export class MissionLogger {
     }
   }
 
+  logPerformance(getSeconds, snapshot, options = {}) {
+    if (!snapshot || typeof snapshot !== 'object') {
+      return;
+    }
+    const { message = 'UI performance snapshot', severity = 'info', extraContext = null } = options ?? {};
+    const context = {
+      logSource: 'ui',
+      logCategory: 'performance',
+      logSeverity: severity,
+      snapshot,
+    };
+    if (snapshot.overview) {
+      context.overview = snapshot.overview;
+    }
+    if (extraContext && typeof extraContext === 'object') {
+      Object.assign(context, extraContext);
+    }
+    this.log(getSeconds, message, context);
+  }
+
   getEntries(filterFn = null) {
     if (typeof filterFn !== 'function') {
       return [...this.entries];

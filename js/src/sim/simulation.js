@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { formatGET } from '../utils/time.js';
 import { SimulationClock } from './simulationClock.js';
 
@@ -20,6 +21,7 @@ export class Simulation {
     audioDispatcher = null,
     docking = null,
     panelState = null,
+    performanceTracker = null,
   }) {
     this.scheduler = scheduler;
     this.resourceSystem = resourceSystem;
@@ -39,6 +41,7 @@ export class Simulation {
     this.audioDispatcher = audioDispatcher ?? null;
     this.docking = docking ?? null;
     this.panelState = panelState ?? null;
+    this.performanceTracker = performanceTracker ?? null;
   }
 
   run({ untilGetSeconds, onTick = null } = {}) {
@@ -47,6 +50,7 @@ export class Simulation {
 
     while (this.clock.getCurrent() < untilGetSeconds) {
       const currentGet = this.clock.getCurrent();
+      const tickStart = this.performanceTracker ? performance.now() : null;
       if (this.manualActions) {
         this.manualActions.update(currentGet, dtSeconds);
       }
@@ -69,6 +73,11 @@ export class Simulation {
       }
       if (this.audioDispatcher) {
         this.audioDispatcher.update(currentGet, { binder: this.audioBinder });
+        if (this.performanceTracker && typeof this.audioDispatcher.statsSnapshot === 'function') {
+          this.performanceTracker.recordAudioStats(this.audioDispatcher.statsSnapshot(), {
+            getSeconds: currentGet,
+          });
+        }
       }
       if (this.hud) {
         this.hud.update(currentGet, {
@@ -86,6 +95,7 @@ export class Simulation {
           audioDispatcher: this.audioDispatcher,
           docking: this.docking ? this.docking.snapshot() : null,
           panelState: this.panelState,
+          performanceTracker: this.performanceTracker,
         });
       }
       if (typeof onTick === 'function') {
@@ -107,10 +117,16 @@ export class Simulation {
           audioDispatcher: this.audioDispatcher,
           docking: this.docking,
           panelState: this.panelState,
+          performanceTracker: this.performanceTracker,
         });
         if (shouldContinue === false) {
           break;
         }
+      }
+      if (this.performanceTracker && tickStart != null) {
+        const durationMs = performance.now() - tickStart;
+        this.performanceTracker.recordTick(durationMs, { getSeconds: currentGet });
+        this.performanceTracker.maybeLog(currentGet);
       }
       this.clock.advance();
       ticks += 1;
@@ -142,6 +158,10 @@ export class Simulation {
     const dockingStats = this.docking ? this.docking.stats() : null;
     const panelStats = this.panelState ? this.panelState.stats() : null;
 
+    if (this.performanceTracker) {
+      this.performanceTracker.flush(this.clock.getCurrent());
+    }
+
     this.logger.log(this.clock.getCurrent(), `Simulation halt at GET ${formatGET(this.clock.getCurrent())}`, {
       logSource: 'sim',
       logCategory: 'system',
@@ -162,6 +182,7 @@ export class Simulation {
       audio: audioStats,
       docking: dockingStats,
       panels: panelStats,
+      performance: this.performanceTracker ? this.performanceTracker.summary() : null,
     });
 
     const finalMissionLogSummary = this.missionLogAggregator
@@ -186,6 +207,7 @@ export class Simulation {
       audio: audioStats,
       docking: dockingStats,
       panels: panelSnapshot,
+      performance: this.performanceTracker ? this.performanceTracker.summary() : null,
     };
   }
 }

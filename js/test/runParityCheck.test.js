@@ -19,6 +19,15 @@ test('runParityCheck produces parity between auto and manual runs', async () => 
     'auto run should record at least one checklist action',
   );
   assert.equal(report.parity.logDiffs.length, 0, 'no log diffs should be reported');
+  assert.ok(Array.isArray(parity.performanceDiffs), 'parity should expose performance diffs');
+  assert.ok(
+    report.logs.ignoreCategories.includes('performance'),
+    'performance log entries should be ignored for parity',
+  );
+  assert.ok(
+    report.logs.ignoreContextPaths.includes('performance'),
+    'performance context should be ignored for HUD logs',
+  );
   assert.ok(report.manual.manualActions, 'manual run should expose manual action stats');
   assert.equal(parity.progression, null, 'progression parity should be disabled by default');
 });

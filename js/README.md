@@ -32,6 +32,8 @@ The `--until` flag accepts a `HHH:MM:SS` GET target; omit it to simulate the fir
 - `--record-manual-script <path>` – Capture auto crew acknowledgements into a manual action script for deterministic parity testing.
 - `--hud-interval <seconds>` – Override how often the CLI HUD snapshot is emitted (default `600`).
 - `--no-hud`/`--disable-hud` – Suppress the CLI HUD output entirely (useful for minimal logs or scripted runs).
+- `--hud-debug` – Append performance metrics to the CLI HUD output and mission logs for instrumentation passes.
+- `--profile-performance <path>` – Write the aggregated performance telemetry to a JSON file after the run (combine with `--profile-performance-pretty` for formatted output).
 
 ## Manual vs. Auto Parity Harness
 

@@ -40,9 +40,10 @@ const LOG_IGNORE_CONTEXT_PATHS = [
   'score.rating.delta',
   'score.history',
   'missionLog',
+  'performance',
 ];
 
-const LOG_IGNORE_CATEGORIES = new Set(['score']);
+const LOG_IGNORE_CATEGORIES = new Set(['score', 'performance']);
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -480,6 +481,9 @@ function compareRuns({
     tolerance,
     ignorePaths: SCORE_IGNORE_PATHS,
   });
+  const performanceDiffs = diffObjects(autoSummary.performance, manualSummary.performance, {
+    tolerance,
+  });
 
   const logResult = diffLogs(autoLogs, manualLogs, {
     tolerance,
@@ -505,6 +509,7 @@ function compareRuns({
     autopilotDiffs,
     checklistDiffs,
     scoreDiffs,
+    performanceDiffs,
     logDiffs: logResult.diffs,
     logStats: logResult.stats,
   };

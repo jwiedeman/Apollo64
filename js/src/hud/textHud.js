@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { formatGET } from '../utils/time.js';
 import { UiFrameBuilder } from './uiFrameBuilder.js';
 
@@ -21,13 +22,20 @@ const DEFAULT_OPTIONS = {
   warningPropellantPct: 15,
   cautionCryoRatePctPerHr: 1.5,
   warningCryoRatePctPerHr: 2.5,
+  debug: false,
 };
 
 export class TextHud {
-  constructor({ logger = null, frameBuilder = null, ...options } = {}) {
+  constructor({ logger = null, frameBuilder = null, performanceTracker = null, ...options } = {}) {
     this.logger = logger;
     this.options = { ...DEFAULT_OPTIONS, ...options };
-    const { enabled, renderIntervalSeconds, ...frameOptions } = this.options;
+    const {
+      enabled,
+      renderIntervalSeconds,
+      debug,
+      performanceTracker: ignoredPerformance,
+      ...frameOptions
+    } = this.options;
     this.enabled = Boolean(enabled);
     this.renderIntervalSeconds = Math.max(
       1,
@@ -37,6 +45,8 @@ export class TextHud {
     this.renderCount = 0;
     this.lastSnapshot = null;
     this.frameBuilder = frameBuilder ?? new UiFrameBuilder(frameOptions);
+    this.debug = Boolean(debug);
+    this.performanceTracker = performanceTracker ?? null;
   }
 
   update(currentGetSeconds, context = {}) {
@@ -45,14 +55,40 @@ export class TextHud {
     }
 
     if (currentGetSeconds + 1e-6 < this.nextRenderGetSeconds) {
+      if (this.performanceTracker) {
+        this.performanceTracker.recordHudSkipped({ scheduledGetSeconds: this.nextRenderGetSeconds });
+      }
       return;
     }
 
-    const frame = this.frameBuilder.build(currentGetSeconds, context);
+    const scheduledGetSeconds = this.nextRenderGetSeconds;
+    let performanceSnapshot = null;
+    let renderDurationMs = null;
+    if (this.performanceTracker) {
+      performanceSnapshot = this.performanceTracker.snapshot();
+    }
+    const buildStart = this.performanceTracker ? performance.now() : null;
+    const frame = this.frameBuilder.build(currentGetSeconds, {
+      ...context,
+      performance: performanceSnapshot,
+    });
+    if (buildStart != null) {
+      renderDurationMs = performance.now() - buildStart;
+    }
     const message = this.#formatMessage(frame);
     this.lastSnapshot = { ...frame, message };
     this.renderCount += 1;
     this.nextRenderGetSeconds = currentGetSeconds + this.renderIntervalSeconds;
+
+    if (this.performanceTracker) {
+      const dropped = this.#computeDroppedFrames(currentGetSeconds, scheduledGetSeconds);
+      this.performanceTracker.recordHudRender({
+        durationMs: renderDurationMs,
+        getSeconds: currentGetSeconds,
+        scheduledGetSeconds,
+        dropped,
+      });
+    }
 
     if (this.logger) {
       this.logger.log(currentGetSeconds, message, {
@@ -233,6 +269,13 @@ export class TextHud {
       parts.push(audioSummary);
     }
 
+    if (this.debug && snapshot.performance) {
+      const perf = this.#formatPerformanceDebug(snapshot.performance);
+      if (perf) {
+        parts.push(perf);
+      }
+    }
+
     return `HUD → ${parts.filter(Boolean).join(' | ')}`;
   }
 
@@ -381,6 +424,57 @@ export class TextHud {
     }
 
     return `RCS ${segments.join(' ')}`;
+  }
+
+  #computeDroppedFrames(currentGetSeconds, scheduledGetSeconds) {
+    if (!Number.isFinite(currentGetSeconds) || !Number.isFinite(scheduledGetSeconds)) {
+      return 0;
+    }
+    const interval = this.renderIntervalSeconds;
+    if (!Number.isFinite(interval) || interval <= 0) {
+      return 0;
+    }
+    const delta = currentGetSeconds - scheduledGetSeconds;
+    if (delta <= 1e-6) {
+      return 0;
+    }
+    const missed = Math.floor(delta / interval);
+    return missed > 0 ? missed : 0;
+  }
+
+  #formatPerformanceDebug(performanceSnapshot) {
+    if (!performanceSnapshot || typeof performanceSnapshot !== 'object') {
+      return '';
+    }
+    const overview = performanceSnapshot.overview ?? {};
+    const tickAvg = this.#formatNumber(overview.tickAvgMs, 2);
+    const tickDrift = this.#formatNumber(overview.tickDriftMaxAbsMs, 2);
+    const hudAvg = this.#formatNumber(overview.hudAvgMs, 2);
+    const hudDrops = overview.hudDrops ?? 0;
+    const hudStreak = overview.hudMaxDropStreak ?? 0;
+    const audioActive = overview.audioMaxActive ?? 0;
+    const audioQueued = overview.audioMaxQueued ?? 0;
+    const inputAvg = this.#formatNumber(overview.inputAvgMs, 2);
+
+    const segments = ['Perf'];
+    if (tickAvg !== 'n/a') {
+      segments.push(`tick ${tickAvg}ms`);
+    }
+    if (tickDrift !== 'n/a') {
+      segments.push(`drift±${tickDrift}`);
+    }
+    if (hudAvg !== 'n/a') {
+      segments.push(`hud ${hudAvg}ms`);
+    }
+    segments.push(`drop ${hudDrops}`);
+    if (hudStreak > 0) {
+      segments.push(`streak ${hudStreak}`);
+    }
+    segments.push(`audio ${audioActive}/${audioQueued}`);
+    if (inputAvg !== 'n/a') {
+      segments.push(`input ${inputAvg}ms`);
+    }
+    return segments.join(' ');
   }
 
   #formatOffset(seconds) {

@@ -51,7 +51,7 @@ async function main() {
     }
   }
 
-  const { simulation } = await createSimulationContext({
+  const { simulation, performanceTracker } = await createSimulationContext({
     dataDir: DATA_DIR,
     logger,
     tickRate: args.tickRate,
@@ -63,6 +63,7 @@ async function main() {
     hudOptions: {
       enabled: args.showHud && !args.quiet,
       renderIntervalSeconds: args.hudIntervalSeconds,
+      debug: args.hudDebug,
     },
   });
 
@@ -97,6 +98,26 @@ async function main() {
     progression: progressionResult,
     missionId: args.missionId,
   });
+
+  if (args.performanceProfilePath) {
+    const profilePath = path.resolve(args.performanceProfilePath);
+    const profileDir = path.dirname(profilePath);
+    await fs.mkdir(profileDir, { recursive: true });
+    const performanceSummary = summary.performance
+      ?? performanceTracker?.summary?.()
+      ?? null;
+    if (performanceSummary) {
+      const serialized = args.performanceProfilePretty
+        ? JSON.stringify(performanceSummary, null, 2)
+        : JSON.stringify(performanceSummary);
+      await fs.writeFile(profilePath, serialized, 'utf8');
+      if (!args.quiet) {
+        console.log(`Performance profile written to ${profilePath}`);
+      }
+    } else if (!args.quiet) {
+      console.log('No performance metrics captured; skipping performance profile export.');
+    }
+  }
 
   if (args.logFile) {
     const logPath = path.resolve(args.logFile);
@@ -134,12 +155,15 @@ function parseArgs(argv) {
     recordManualScriptPath: null,
     showHud: true,
     hudIntervalSeconds: 600,
+    hudDebug: false,
     useProfile: true,
     profilePath: null,
     resetProfile: false,
     saveProfile: true,
     missionId: 'APOLLO11',
     isFullMission: true,
+    performanceProfilePath: null,
+    performanceProfilePretty: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -234,6 +258,9 @@ function parseArgs(argv) {
         i += 1;
         break;
       }
+      case '--hud-debug':
+        args.hudDebug = true;
+        break;
       case '--profile': {
         const next = argv[i + 1];
         if (!next) {
@@ -272,6 +299,18 @@ function parseArgs(argv) {
       case '--partial-mission':
       case '--no-full-mission':
         args.isFullMission = false;
+        break;
+      case '--profile-performance': {
+        const next = argv[i + 1];
+        if (!next) {
+          throw new Error('--profile-performance requires a file path');
+        }
+        args.performanceProfilePath = next;
+        i += 1;
+        break;
+      }
+      case '--profile-performance-pretty':
+        args.performanceProfilePretty = true;
         break;
       default:
         break;
@@ -364,6 +403,16 @@ function printSummary(summary, options = {}) {
       commsHitRatePct: comms?.hitRatePct,
       manualFraction: manual?.manualFraction,
     });
+  }
+  if (summary.performance) {
+    const overview = summary.performance.overview ?? null;
+    if (overview) {
+      console.log('Performance overview:', overview);
+    }
+    const logging = summary.performance.logging ?? null;
+    if (logging) {
+      console.log('Performance logging:', logging);
+    }
   }
   if (progression) {
     const missionLabel = missionId ?? 'MISSION';
