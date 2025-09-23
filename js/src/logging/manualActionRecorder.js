@@ -16,6 +16,8 @@ export class ManualActionRecorder {
     this.dskyEntries = [];
     this.workspaceEntries = [];
     this.panelEntries = [];
+    this.audioEntries = [];
+    this.audioEntryMap = new Map();
     this.metrics = {
       checklist: {
         total: 0,
@@ -35,6 +37,9 @@ export class ManualActionRecorder {
       workspace: {
         total: 0,
         byType: new Map(),
+      },
+      audio: {
+        total: 0,
       },
       events: new Map(),
     };
@@ -177,6 +182,7 @@ export class ManualActionRecorder {
           count,
         })),
       },
+      audio: this.#summarizeAudioMetrics(),
     };
   }
 
@@ -262,6 +268,46 @@ export class ManualActionRecorder {
     this.metrics.workspace.byType.set(normalized.type, currentCount + 1);
   }
 
+  recordAudioEvent(event = {}) {
+    const normalized = this.#normalizeAudioEvent(event);
+    if (!normalized) {
+      return;
+    }
+
+    const existing = this.audioEntryMap.get(normalized.playbackId);
+    if (existing) {
+      this.#mergeAudioEntry(existing, normalized);
+      return;
+    }
+
+    const entry = this.#mergeAudioEntry({
+      playbackId: normalized.playbackId,
+      sequence: this.audioEntries.length,
+      cueId: null,
+      categoryId: null,
+      busId: null,
+      severity: null,
+      priority: null,
+      startedAtSeconds: null,
+      startedAt: null,
+      endedAtSeconds: null,
+      endedAt: null,
+      durationSeconds: null,
+      lengthSeconds: null,
+      stopReason: null,
+      status: null,
+      loop: null,
+      sourceType: null,
+      sourceId: null,
+      metadata: null,
+      ducking: [],
+    }, normalized);
+
+    this.audioEntries.push(entry);
+    this.audioEntryMap.set(entry.playbackId, entry);
+    this.metrics.audio.total += 1;
+  }
+
   workspaceSnapshot({ limit = null } = {}) {
     let entries = this.workspaceEntries;
     if (Number.isFinite(limit) && limit >= 0) {
@@ -271,6 +317,19 @@ export class ManualActionRecorder {
     return {
       total: this.workspaceEntries.length,
       entries: entries.map((entry) => this.#cloneWorkspaceEntry(entry)),
+    };
+  }
+
+  audioSnapshot({ limit = null } = {}) {
+    let entries = this.audioEntries;
+    if (Number.isFinite(limit) && limit >= 0) {
+      const start = Math.max(0, entries.length - limit);
+      entries = entries.slice(start);
+    }
+
+    return {
+      total: this.audioEntries.length,
+      entries: entries.map((entry) => this.#cloneAudioEntry(entry)),
     };
   }
 
@@ -356,6 +415,10 @@ export class ManualActionRecorder {
       snapshot.workspace = this.workspaceSnapshot({ limit });
     }
 
+    if (this.audioEntries.length > 0) {
+      snapshot.audio = this.audioSnapshot({ limit });
+    }
+
     return snapshot;
   }
 
@@ -363,6 +426,7 @@ export class ManualActionRecorder {
     const actions = this.buildScriptActions();
     const workspace = this.workspaceEntries.map((entry) => this.#workspaceEntryToJson(entry));
     const panel = this.panelEntries.map((entry) => this.#panelEntryToJson(entry));
+    const audio = this.audioEntries.map((entry) => this.#audioEntryToJson(entry));
     return {
       metadata: {
         generated_at: new Date().toISOString(),
@@ -372,11 +436,13 @@ export class ManualActionRecorder {
         dsky_entries_recorded: this.metrics.dsky.total,
         panel_controls_recorded: this.metrics.panel.total,
         workspace_events_recorded: this.metrics.workspace.total,
+        audio_events_recorded: this.metrics.audio.total,
         actions: actions.length,
       },
       actions,
       workspace,
       panel,
+      audio,
     };
   }
 
@@ -399,6 +465,7 @@ export class ManualActionRecorder {
       checklistEntries: this.metrics.checklist.total,
       workspaceEntries: this.metrics.workspace.total,
       panelEntries: this.metrics.panel.total,
+      audioEntries: this.metrics.audio.total,
     };
   }
 
@@ -690,6 +757,129 @@ export class ManualActionRecorder {
     return entry;
   }
 
+  #normalizeAudioEvent(event) {
+    if (!event || typeof event !== 'object') {
+      return null;
+    }
+
+    const source = event.ledger ?? event;
+    const rawId = source.id ?? source.playbackId ?? event.playbackId ?? null;
+    if (rawId == null) {
+      return null;
+    }
+
+    const playbackId = String(rawId);
+    const normalized = { playbackId };
+
+    if (Object.prototype.hasOwnProperty.call(source, 'cueId')) {
+      normalized.cueId = this.#normalizeString(source.cueId);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'cueId')) {
+      normalized.cueId = this.#normalizeString(event.cueId);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'categoryId')) {
+      normalized.categoryId = this.#normalizeString(source.categoryId);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'categoryId')) {
+      normalized.categoryId = this.#normalizeString(event.categoryId);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'busId')) {
+      normalized.busId = this.#normalizeString(source.busId);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'busId')) {
+      normalized.busId = this.#normalizeString(event.busId);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'severity')) {
+      const severity = this.#normalizeString(source.severity);
+      normalized.severity = severity ? severity.toLowerCase() : null;
+    } else if (Object.prototype.hasOwnProperty.call(event, 'severity')) {
+      const severity = this.#normalizeString(event.severity);
+      normalized.severity = severity ? severity.toLowerCase() : null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'priority')) {
+      normalized.priority = this.#coerceNumber(source.priority);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'priority')) {
+      normalized.priority = this.#coerceNumber(event.priority);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'loop')) {
+      normalized.loop = Boolean(source.loop);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'loop')) {
+      normalized.loop = Boolean(event.loop);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'lengthSeconds')) {
+      normalized.lengthSeconds = this.#coerceNumber(source.lengthSeconds);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'lengthSeconds')) {
+      normalized.lengthSeconds = this.#coerceNumber(event.lengthSeconds);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'sourceType')) {
+      normalized.sourceType = this.#normalizeString(source.sourceType);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'sourceType')) {
+      normalized.sourceType = this.#normalizeString(event.sourceType);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'sourceId')) {
+      normalized.sourceId = this.#normalizeString(source.sourceId);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'sourceId')) {
+      normalized.sourceId = this.#normalizeString(event.sourceId);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'status')) {
+      normalized.status = this.#normalizeString(source.status);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'status')) {
+      normalized.status = this.#normalizeString(event.status);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'stopReason')) {
+      normalized.stopReason = this.#normalizeString(source.stopReason);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'stopReason')) {
+      normalized.stopReason = this.#normalizeString(event.stopReason);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'startedAtSeconds')) {
+      const value = this.#coerceNumber(source.startedAtSeconds);
+      normalized.startedAtSeconds = value;
+      normalized.startedAt = source.startedAt ?? (Number.isFinite(value) ? formatGET(value) : null);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'startedAtSeconds')) {
+      const value = this.#coerceNumber(event.startedAtSeconds);
+      normalized.startedAtSeconds = value;
+      normalized.startedAt = event.startedAt ?? (Number.isFinite(value) ? formatGET(value) : null);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'endedAtSeconds')) {
+      const value = this.#coerceNumber(source.endedAtSeconds);
+      normalized.endedAtSeconds = value;
+      normalized.endedAt = source.endedAt ?? (Number.isFinite(value) ? formatGET(value) : null);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'endedAtSeconds')) {
+      const value = this.#coerceNumber(event.endedAtSeconds);
+      normalized.endedAtSeconds = value;
+      normalized.endedAt = event.endedAt ?? (Number.isFinite(value) ? formatGET(value) : null);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'durationSeconds')) {
+      normalized.durationSeconds = this.#coerceNumber(source.durationSeconds);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'durationSeconds')) {
+      normalized.durationSeconds = this.#coerceNumber(event.durationSeconds);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'metadata')) {
+      normalized.metadata = this.#clonePlainObject(source.metadata);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'metadata')) {
+      normalized.metadata = this.#clonePlainObject(event.metadata);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, 'ducking')) {
+      normalized.ducking = this.#cloneDucking(source.ducking);
+    } else if (Object.prototype.hasOwnProperty.call(event, 'ducking')) {
+      normalized.ducking = this.#cloneDucking(event.ducking);
+    }
+
+    return normalized;
+  }
+
   #coerceNumber(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
@@ -852,6 +1042,165 @@ export class ManualActionRecorder {
     }
 
     return payload;
+  }
+
+  #cloneAudioEntry(entry) {
+    if (!entry) {
+      return null;
+    }
+
+    return {
+      playbackId: entry.playbackId,
+      sequence: entry.sequence,
+      cueId: entry.cueId ?? null,
+      categoryId: entry.categoryId ?? null,
+      busId: entry.busId ?? null,
+      severity: entry.severity ?? null,
+      priority: entry.priority ?? null,
+      startedAtSeconds: entry.startedAtSeconds ?? null,
+      startedAt: entry.startedAt ?? null,
+      endedAtSeconds: entry.endedAtSeconds ?? null,
+      endedAt: entry.endedAt ?? null,
+      durationSeconds: entry.durationSeconds ?? null,
+      lengthSeconds: entry.lengthSeconds ?? null,
+      stopReason: entry.stopReason ?? null,
+      status: entry.status ?? null,
+      loop: entry.loop ?? null,
+      sourceType: entry.sourceType ?? null,
+      sourceId: entry.sourceId ?? null,
+      metadata: entry.metadata ? this.#clonePlainObject(entry.metadata) : null,
+      ducking: Array.isArray(entry.ducking)
+        ? entry.ducking.map((value) => ({ ...value }))
+        : [],
+    };
+  }
+
+  #summarizeAudioMetrics() {
+    const totals = {
+      total: this.audioEntries.length,
+      active: 0,
+      byStatus: new Map(),
+      bySeverity: new Map(),
+      byBus: new Map(),
+    };
+
+    for (const entry of this.audioEntries) {
+      const status = entry.status ?? 'unknown';
+      const severity = entry.severity ?? 'info';
+      const busId = entry.busId ?? 'unknown';
+      totals.byStatus.set(status, (totals.byStatus.get(status) ?? 0) + 1);
+      totals.bySeverity.set(severity, (totals.bySeverity.get(severity) ?? 0) + 1);
+      totals.byBus.set(busId, (totals.byBus.get(busId) ?? 0) + 1);
+      if (status === 'playing') {
+        totals.active += 1;
+      }
+    }
+
+    return {
+      total: totals.total,
+      active: totals.active,
+      byStatus: Array.from(totals.byStatus.entries()).map(([status, count]) => ({ status, count })),
+      bySeverity: Array.from(totals.bySeverity.entries()).map(([severity, count]) => ({ severity, count })),
+      byBus: Array.from(totals.byBus.entries()).map(([busId, count]) => ({ busId, count })),
+    };
+  }
+
+  #mergeAudioEntry(target, update) {
+    if (!update || typeof update !== 'object') {
+      return target;
+    }
+
+    for (const [key, value] of Object.entries(update)) {
+      if (key === 'playbackId' || value === undefined) {
+        continue;
+      }
+      if (key === 'metadata') {
+        target.metadata = value ? this.#clonePlainObject(value) : null;
+        continue;
+      }
+      if (key === 'ducking' && Array.isArray(value)) {
+        target.ducking = value.map((item) => ({ ...item }));
+        continue;
+      }
+      target[key] = value;
+    }
+
+    return target;
+  }
+
+  #clonePlainObject(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+    try {
+      return JSON.parse(JSON.stringify(raw));
+    } catch (error) {
+      const clone = {};
+      for (const [key, value] of Object.entries(raw)) {
+        if (value && typeof value === 'object') {
+          clone[key] = this.#clonePlainObject(value);
+        } else {
+          clone[key] = value;
+        }
+      }
+      return clone;
+    }
+  }
+
+  #cloneDucking(raw) {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+    const result = [];
+    for (const entry of raw) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const targetBusId = this.#normalizeString(entry.targetBusId ?? entry.target);
+      const gain = this.#coerceNumber(entry.gain ?? entry.gainLinear ?? entry.gain_linear);
+      const duck = {};
+      if (targetBusId) {
+        duck.targetBusId = targetBusId;
+      }
+      if (gain != null) {
+        duck.gain = gain;
+      }
+      if (Object.keys(duck).length > 0) {
+        result.push(duck);
+      }
+    }
+    return result;
+  }
+
+  #audioEntryToJson(entry) {
+    if (!entry) {
+      return null;
+    }
+
+    return {
+      playback_id: entry.playbackId,
+      sequence: entry.sequence,
+      cue_id: entry.cueId ?? null,
+      category_id: entry.categoryId ?? null,
+      bus_id: entry.busId ?? null,
+      severity: entry.severity ?? null,
+      priority: entry.priority ?? null,
+      started_at_seconds: entry.startedAtSeconds ?? null,
+      started_at: entry.startedAt ?? null,
+      ended_at_seconds: entry.endedAtSeconds ?? null,
+      ended_at: entry.endedAt ?? null,
+      duration_seconds: entry.durationSeconds ?? null,
+      length_seconds: entry.lengthSeconds ?? null,
+      stop_reason: entry.stopReason ?? null,
+      status: entry.status ?? null,
+      loop: entry.loop ?? null,
+      source_type: entry.sourceType ?? null,
+      source_id: entry.sourceId ?? null,
+      metadata: entry.metadata ? this.#clonePlainObject(entry.metadata) : null,
+      ducking: Array.isArray(entry.ducking)
+        ? entry.ducking.map((value) => ({ ...value }))
+        : [],
+    };
   }
 
   #cloneWorkspaceValue(value) {

@@ -11,19 +11,21 @@ simulation.
 
 ## Recorder Instrumentation
 
-`ManualActionRecorder` tracks four streams of inputs—checklist
-acknowledgements, panel controls, DSKY entries, and workspace mutations—while keeping
-roll-up metrics for reporting and regression
-difs.【F:js/src/logging/manualActionRecorder.js†L1-L760】 The recorder
+`ManualActionRecorder` tracks five streams of inputs—checklist
+acknowledgements, panel controls, DSKY entries, workspace mutations, and
+audio cue lifecycle events—while keeping roll-up metrics for reporting and
+regression difs.【F:js/src/logging/manualActionRecorder.js†L1-L760】 The recorder
 exposes lightweight `recordChecklistAck()`, `recordPanelControl()`,
-`recordDskyEntry()`, and `recordWorkspaceEvent()` helpers so subsystems
-can append GET-stamped
-entries without knowing about the eventual export format. Workspace
-events capture tile mutations, override toggles, and input remaps with
-GET stamps, mirroring the mission log `workspace:*` entries for parity
-tooling and CLI exports while preserving the rounded and quantized
-coordinates produced by the workspace store so N64 exporters share the
-same layout snapshots.【F:js/src/logging/manualActionRecorder.js†L201-L260】【F:js/src/hud/workspaceStore.js†L1-L740】
+`recordDskyEntry()`, `recordWorkspaceEvent()`, and `recordAudioEvent()` helpers
+so subsystems can append GET-stamped entries without knowing about the
+eventual export format. Workspace events capture tile mutations, override
+toggles, and input remaps with GET stamps, mirroring the mission log
+`workspace:*` entries for parity tooling and CLI exports while preserving the
+rounded and quantized coordinates produced by the workspace store so N64
+exporters share the same layout snapshots. Audio entries track each cue
+start/stop with severity, bus, ducking, and duration metadata so parity
+harnesses, HUD exports, and replay tooling can reconstruct the soundscape
+alongside manual actions.【F:js/src/logging/manualActionRecorder.js†L201-L401】【F:js/src/hud/workspaceStore.js†L1-L740】
 
 The recorder is wired into the simulation context at construction time,
 allowing the checklist manager and autopilot runner to inject
@@ -43,8 +45,9 @@ Because the recorder sits beside the logger, workspace store, audio
 binder, and HUD wiring inside `createSimulationContext()`, any new
 subsystem can opt into recording without changing CLI plumbing.
 Workspace history flows directly from `WorkspaceStore` into
-`recordWorkspaceEvent()`, ensuring parity harnesses capture layout
-changes alongside checklist automation.【F:js/src/sim/simulationContext.js†L24-L120】【F:js/src/hud/workspaceStore.js†L1-L740】
+`recordWorkspaceEvent()`, while the audio dispatcher forwards its ledger
+through `recordAudioEvent()`, ensuring parity harnesses capture layout and
+soundscape changes alongside checklist automation.【F:js/src/sim/simulationContext.js†L24-L120】【F:js/src/hud/workspaceStore.js†L1-L740】【F:js/src/audio/audioDispatcher.js†L350-L520】
 
 ## Script Assembly & Metrics
 
@@ -73,10 +76,12 @@ under `docs/data/manual_scripts/`, while the new `workspace[]` array
 preserves tile, override, and input changes (including `quantized`/
 `previous_quantized` snapshots) for replay tooling. A parallel `panel[]`
 array mirrors recorded switch activity so parity runs and future HUD
-prototypes can inspect panel history without rehydrating scripts. Parity
-runs can ignore the supplemental arrays when feeding actions into the
-manual queue or use them to reconstruct HUD layouts and panel states for
-deterministic UI and N64 playback.【F:js/src/logging/manualActionRecorder.js†L321-L401】
+prototypes can inspect panel history without rehydrating scripts, and the
+`audio[]` array carries the full playback ledger for deterministic audio
+diffing and replay. Parity runs can ignore the supplemental arrays when
+feeding actions into the manual queue or use them to reconstruct HUD
+layouts, panel states, and cue order for deterministic UI and N64
+playback.【F:js/src/logging/manualActionRecorder.js†L321-L420】
 
 ## CLI Workflow
 

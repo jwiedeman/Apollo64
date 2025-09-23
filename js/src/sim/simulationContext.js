@@ -67,6 +67,7 @@ export async function createSimulationContext({
   const audioDispatcher = new AudioDispatcher(missionData.audioCues, audioMixer, {
     logger,
     binder: audioBinder,
+    recorder: manualActionRecorder,
   });
 
   const checklistManager = new ChecklistManager(missionData.checklists, logger, {
