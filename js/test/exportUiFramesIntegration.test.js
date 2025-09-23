@@ -49,5 +49,19 @@ describe('exportUiFrames CLI', () => {
     const frameWithMissionLog = data.frames.find((frame) => frame?.missionLog?.entries?.length > 0);
     assert.ok(frameWithMissionLog, 'Expected mission log entries in exported frames');
     assert.ok(Array.isArray(data.missionLog?.entries), 'Top-level mission log snapshot should be exported');
+
+    assert.ok(Array.isArray(data.manualActions?.timeline?.checklist), 'Manual action checklist timeline should be present');
+    assert.ok(
+      data.manualActions?.timeline?.summary?.checklist?.total >= 0,
+      'Manual action summary should include checklist totals',
+    );
+    assert.ok(Array.isArray(data.manualActions?.script?.actions), 'Manual action script should include actions array');
+    assert.ok(Array.isArray(data.manualActions?.queueHistory), 'Manual action queue history should be exported');
+
+    assert.ok(Array.isArray(data.audioCues), 'Audio cue ledger should be exported');
+    assert.ok(data.audioCues.length > 0, 'Expected at least one audio cue in ledger export');
+
+    assert.ok(data.workspace?.state, 'Workspace state should be exported');
+    assert.ok(Array.isArray(data.workspace?.events?.entries), 'Workspace events should be included in export');
   });
 });

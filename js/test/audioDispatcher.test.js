@@ -107,4 +107,32 @@ describe('AudioDispatcher', () => {
 
     assert.equal(mixer.playCalls.length, 2, 'queued cue eventually played');
   });
+
+  test('records playback ledger entries with start and stop metadata', () => {
+    const binder = new AudioCueBinder(TEST_CATALOG);
+    const mixer = new NullAudioMixer();
+    const dispatcher = new AudioDispatcher(TEST_CATALOG, mixer, { binder });
+
+    binder.recordEvent(
+      { id: 'EVT_LEDGER', audioCueId: 'callouts.go', audioChannel: 'dialogue' },
+      { getSeconds: 12, status: 'active', severity: 'notice' },
+    );
+
+    dispatcher.update(12);
+
+    let ledger = dispatcher.ledgerSnapshot();
+    assert.equal(ledger.length, 1);
+    assert.equal(ledger[0].cueId, 'callouts.go');
+    assert.equal(ledger[0].sourceType, 'event');
+    assert.equal(ledger[0].status, 'playing');
+    assert.equal(ledger[0].startedAtSeconds, 12);
+
+    dispatcher.stopAll('export_complete', 15);
+
+    ledger = dispatcher.ledgerSnapshot();
+    assert.equal(ledger[0].status, 'stopped');
+    assert.equal(ledger[0].stopReason, 'export_complete');
+    assert.equal(ledger[0].endedAtSeconds, 15);
+    assert.ok(ledger[0].durationSeconds > 0);
+  });
 });

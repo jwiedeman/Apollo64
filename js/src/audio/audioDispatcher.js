@@ -8,6 +8,7 @@ const DEFAULT_OPTIONS = {
   defaultMaxConcurrent: 1,
   defaultCueDurationSeconds: 2,
   maxPendingPerBus: 48,
+  maxLedgerEntries: 1024,
   severityWeights: {
     failure: 60,
     warning: 30,
@@ -133,6 +134,7 @@ export class AudioDispatcher {
       lastCueId: null,
       lastStartedAtSeconds: null,
     };
+    this.ledger = [];
 
     this.#indexCatalog();
   }
@@ -377,6 +379,7 @@ export class AudioDispatcher {
       loop: Boolean(cueMeta?.loop ?? trigger.cue?.loop ?? false),
       trigger,
       duckTargets: [],
+      ledgerEntry: null,
     };
 
     const lengthSeconds = cueMeta?.lengthSeconds ?? trigger.cue?.lengthSeconds ?? null;
@@ -398,6 +401,31 @@ export class AudioDispatcher {
     });
 
     this.#applyDucking(busConfig.ducking, record);
+
+    const ledgerEntry = {
+      id: record.playbackId,
+      cueId: record.cueId,
+      categoryId: record.categoryId ?? null,
+      busId: record.busId ?? busId,
+      severity: trigger.severity ?? 'info',
+      priority: record.priority ?? null,
+      startedAtSeconds: Number.isFinite(startSeconds) ? startSeconds : null,
+      startedAt: Number.isFinite(startSeconds) ? formatGET(startSeconds) : null,
+      endedAtSeconds: null,
+      endedAt: null,
+      durationSeconds: null,
+      stopReason: null,
+      status: 'playing',
+      sourceType: trigger.sourceType ?? null,
+      sourceId: trigger.sourceId ?? null,
+      metadata: trigger.metadata ? clone(trigger.metadata) : null,
+      ducking: record.duckTargets.map((entry) => ({ targetBusId: entry.targetBusId, gain: entry.gain })),
+      lengthSeconds: Number.isFinite(record.endsAtSeconds) && Number.isFinite(startSeconds)
+        ? Math.max(0, record.endsAtSeconds - startSeconds)
+        : null,
+    };
+    record.ledgerEntry = ledgerEntry;
+    this.#appendLedgerEntry(ledgerEntry);
 
     const state = this.#ensureBusState(busId);
     state.active.push(record);
@@ -450,6 +478,23 @@ export class AudioDispatcher {
       busId: record.busId,
       reason,
     });
+
+    if (record.ledgerEntry) {
+      const entry = record.ledgerEntry;
+      if (Number.isFinite(timestamp)) {
+        entry.endedAtSeconds = timestamp;
+        entry.endedAt = formatGET(timestamp);
+        if (Number.isFinite(entry.startedAtSeconds)) {
+          entry.durationSeconds = Math.max(0, timestamp - entry.startedAtSeconds);
+        }
+      }
+      entry.stopReason = reason;
+      entry.status = reason === 'complete'
+        ? 'completed'
+        : reason === 'preempted'
+          ? 'preempted'
+          : 'stopped';
+    }
   }
 
   #normalizeTrigger(rawTrigger, currentGetSeconds) {
@@ -472,6 +517,12 @@ export class AudioDispatcher {
     const severity = typeof rawTrigger.severity === 'string' ? rawTrigger.severity.toLowerCase() : 'info';
     const priority = this.#resolvePriority(rawTrigger, cueMeta, categoryMeta, severity);
     const triggeredAtSeconds = coerceFinite(rawTrigger.triggeredAtSeconds ?? rawTrigger.getSeconds ?? null, currentGetSeconds);
+    const sourceType = typeof rawTrigger.sourceType === 'string'
+      ? rawTrigger.sourceType
+      : typeof rawTrigger.source_type === 'string'
+        ? rawTrigger.source_type
+        : null;
+    const sourceId = normalizeId(rawTrigger.sourceId ?? rawTrigger.source_id ?? null);
 
     return {
       cueId,
@@ -491,6 +542,8 @@ export class AudioDispatcher {
         loop: cueMeta.loop,
       } : { id: cueId, categoryId, busId },
       sequence: this.sequence += 1,
+      sourceType,
+      sourceId,
     };
   }
 
@@ -675,5 +728,34 @@ export class AudioDispatcher {
     if (typeof this.mixer.setGain === 'function') {
       this.mixer.setGain(busId, targetGain, { rampSeconds: this.options.duckingRampSeconds });
     }
+  }
+
+  #appendLedgerEntry(entry) {
+    this.ledger.push(entry);
+    const limit = this.options.maxLedgerEntries;
+    if (Number.isFinite(limit) && limit > 0 && this.ledger.length > limit) {
+      const excess = this.ledger.length - limit;
+      if (excess > 0) {
+        this.ledger.splice(0, excess);
+      }
+    }
+  }
+
+  ledgerSnapshot({ limit = null } = {}) {
+    let entries = this.ledger;
+    if (Number.isFinite(limit) && limit >= 0) {
+      const start = Math.max(0, entries.length - limit);
+      entries = entries.slice(start);
+    } else {
+      entries = entries.slice();
+    }
+
+    return entries.map((entry) => ({
+      ...entry,
+      metadata: entry.metadata ? clone(entry.metadata) : null,
+      ducking: Array.isArray(entry.ducking)
+        ? entry.ducking.map((duck) => ({ ...duck }))
+        : [],
+    }));
   }
 }

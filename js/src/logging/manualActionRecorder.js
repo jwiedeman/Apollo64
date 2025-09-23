@@ -222,6 +222,68 @@ export class ManualActionRecorder {
     };
   }
 
+  timelineSnapshot({ limit = null, includeWorkspace = false } = {}) {
+    const clamp = (list) => {
+      if (!Array.isArray(list)) {
+        return [];
+      }
+      if (!Number.isFinite(limit) || limit < 0) {
+        return list.slice();
+      }
+      const start = Math.max(0, list.length - limit);
+      return list.slice(start);
+    };
+
+    const summarizeChecklist = () => {
+      const entries = clamp(this.checklistEntries);
+      const offset = this.checklistEntries.length - entries.length;
+      return entries.map((entry, index) => ({
+        id: `checklist_${offset + index + 1}`,
+        sequence: offset + index,
+        eventId: entry.eventId ?? null,
+        checklistId: entry.checklistId ?? null,
+        stepNumber: entry.stepNumber ?? null,
+        getSeconds: entry.getSeconds,
+        get: Number.isFinite(entry.getSeconds) ? formatGET(entry.getSeconds) : null,
+        actor: entry.actor ?? null,
+        note: entry.note ?? null,
+      }));
+    };
+
+    const summarizeDsky = () => {
+      const entries = clamp(this.dskyEntries);
+      const offset = this.dskyEntries.length - entries.length;
+      return entries.map((entry, index) => ({
+        id: entry.id ?? `dsky_${offset + index + 1}`,
+        sequence: offset + index,
+        getSeconds: entry.getSeconds,
+        get: Number.isFinite(entry.getSeconds) ? formatGET(entry.getSeconds) : null,
+        eventId: entry.eventId ?? null,
+        autopilotId: entry.autopilotId ?? null,
+        macroId: entry.macroId ?? null,
+        verb: entry.verb ?? null,
+        noun: entry.noun ?? null,
+        program: entry.program ?? null,
+        registers: this.#cloneRegisters(entry.registers),
+        sequenceData: this.#cloneSequence(entry.sequence),
+        actor: entry.actor ?? 'AUTO_CREW',
+        note: entry.note ?? null,
+      }));
+    };
+
+    const snapshot = {
+      summary: this.stats(),
+      checklist: summarizeChecklist(),
+      dsky: summarizeDsky(),
+    };
+
+    if (includeWorkspace) {
+      snapshot.workspace = this.workspaceSnapshot({ limit });
+    }
+
+    return snapshot;
+  }
+
   toJSON() {
     const actions = this.buildScriptActions();
     const workspace = this.workspaceEntries.map((entry) => this.#workspaceEntryToJson(entry));

@@ -41,4 +41,54 @@ describe('ManualActionRecorder workspace integration', () => {
     assert.equal(exported.mutation.width, 0.35);
     assert.ok(exported.quantized);
   });
+
+  test('produces timeline snapshots with checklist and DSKY history', () => {
+    const recorder = new ManualActionRecorder();
+
+    recorder.recordChecklistAck({
+      eventId: 'EVT_A',
+      checklistId: 'CHK_A',
+      stepNumber: 1,
+      getSeconds: 120,
+      actor: 'AUTO_CREW',
+      note: 'Auto complete',
+    });
+
+    recorder.recordChecklistAck({
+      eventId: 'EVT_A',
+      checklistId: 'CHK_A',
+      stepNumber: 2,
+      getSeconds: 125,
+      actor: 'MANUAL_CREW',
+      note: 'Manual assist',
+    });
+
+    recorder.recordDskyEntry({
+      id: 'DSKY_CUSTOM',
+      eventId: 'EVT_A',
+      getSeconds: 126,
+      verb: 37,
+      noun: 62,
+      program: 'P37',
+      registers: { r1: '12345' },
+      sequence: ['VERB 37', 'NOUN 62'],
+      actor: 'AUTO_CREW',
+    });
+
+    const snapshot = recorder.timelineSnapshot();
+
+    assert.ok(snapshot.summary);
+    assert.equal(snapshot.summary.checklist.total, 2);
+    assert.equal(snapshot.summary.dsky.total, 1);
+
+    assert.equal(snapshot.checklist.length, 2);
+    assert.equal(snapshot.checklist[0].eventId, 'EVT_A');
+    assert.equal(snapshot.checklist[1].actor, 'MANUAL_CREW');
+    assert.equal(snapshot.checklist[0].get, '000:02:00');
+
+    assert.equal(snapshot.dsky.length, 1);
+    assert.equal(snapshot.dsky[0].id, 'DSKY_CUSTOM');
+    assert.equal(snapshot.dsky[0].verb, 37);
+    assert.equal(snapshot.dsky[0].sequenceData.length, 2);
+  });
 });
