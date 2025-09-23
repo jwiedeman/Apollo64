@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Apollo 11 Mission HUD</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hud" aria-live="polite">
+        <div class="hud-col">
+          <div class="hud-label">GET</div>
+          <div class="hud-value" id="hud-get">--:--:--</div>
+          <div class="hud-subvalue" id="hud-met">MET --:--:--</div>
+        </div>
+        <div class="hud-col">
+          <div class="hud-label">Next Event</div>
+          <div class="hud-value" id="hud-next">Initializing…</div>
+          <div class="hud-subvalue" id="hud-next-pad"></div>
+        </div>
+        <div class="hud-col">
+          <div class="hud-label">Resources</div>
+          <div class="hud-metrics">
+            <div class="metric">
+              <span class="metric-label">Power</span>
+              <span class="metric-value" id="hud-power">--%</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Δv</span>
+              <span class="metric-value" id="hud-delta-v">-- m/s</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Comms</span>
+              <span class="metric-value" id="hud-comms">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="hud-col">
+          <div class="hud-label">Score</div>
+          <div class="hud-value" id="hud-score">--</div>
+          <div class="hud-subvalue" id="hud-score-detail">Commander score</div>
+        </div>
+        <div class="hud-col">
+          <div class="hud-label">Status</div>
+          <div class="hud-value" id="hud-status">Waiting</div>
+          <div
+            class="progress-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-label="Mission progress"
+          >
+            <div class="progress-fill" id="hud-progress"></div>
+          </div>
+        </div>
+      </header>
+
+      <section class="alert-banner" id="alert-banner" aria-live="assertive"></section>
+
+      <nav class="view-tabs" aria-label="Mission views">
+        <button type="button" class="tab-button active" data-view="navigation">Navigation</button>
+        <button type="button" class="tab-button" data-view="controls">Controls</button>
+        <button type="button" class="tab-button" data-view="systems">Systems</button>
+      </nav>
+
+      <main class="view-container">
+        <section class="view active" id="view-navigation" aria-labelledby="tab-navigation">
+          <div class="panel">
+            <h2 id="tab-navigation">Trajectory &amp; Timeline</h2>
+            <div class="panel-body" id="nav-trajectory">No trajectory data yet.</div>
+          </div>
+          <div class="panel">
+            <h3>Upcoming Events</h3>
+            <ul class="list" id="nav-upcoming"></ul>
+          </div>
+          <div class="panel">
+            <h3>Autopilot</h3>
+            <div class="panel-body" id="nav-autopilot">Autopilot idle.</div>
+          </div>
+        </section>
+
+        <section class="view" id="view-controls" aria-labelledby="tab-controls">
+          <div class="panel">
+            <h2 id="tab-controls">Active Checklists</h2>
+            <div class="panel-body" id="controls-checklists">No active checklists.</div>
+          </div>
+          <div class="panel">
+            <h3>AGC Program</h3>
+            <div class="panel-body" id="controls-agc">Awaiting AGC state…</div>
+          </div>
+          <div class="panel">
+            <h3>Manual Queue</h3>
+            <div class="panel-body" id="controls-manual">No manual actions queued.</div>
+          </div>
+        </section>
+
+        <section class="view" id="view-systems" aria-labelledby="tab-systems">
+          <div class="panel">
+            <h2 id="tab-systems">Resource Overview</h2>
+            <div class="panel-body" id="systems-resources">No resource data.</div>
+          </div>
+          <div class="panel">
+            <h3>Thermal &amp; Communications</h3>
+            <div class="panel-body" id="systems-thermal">No telemetry yet.</div>
+          </div>
+          <div class="panel">
+            <h3>Audio &amp; Performance</h3>
+            <div class="panel-body" id="systems-performance">Performance data unavailable.</div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="log-panel" aria-live="polite">
+        <h2>Mission Log</h2>
+        <ul class="log-list" id="mission-log"></ul>
+      </aside>
+
+      <footer class="footer">
+        <div class="summary" id="summary-panel">Mission summary will appear here.</div>
+        <button type="button" class="restart-button" id="restart-button">Restart Simulation</button>
+      </footer>
+    </div>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

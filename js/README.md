@@ -73,6 +73,22 @@ Key options:
 
 The exporter writes a JSON payload containing metadata, the simulation summary, and an ordered array of `ui_frame` objects that follow the schema documented in [`docs/ui/ui_frame_reference.md`](../docs/ui/ui_frame_reference.md).
 
+## Mission HUD Web Demo
+
+Launch the browser-based mission HUD with:
+
+```
+npm run dev
+```
+
+The server streams simulation frames to the UI via Server-Sent Events. Visit [`http://localhost:3000`](http://localhost:3000) to watch the mission progress in real time. The visual MVP includes:
+
+- A persistent HUD with GET/MET, next event countdown, resource bars, comms status, and live commander score.
+- Three views—Navigation, Controls, and Systems—mirroring the project plan's layout. Tabs toggle between trajectory/timeline context, checklist & AGC details, and resource/performance telemetry.
+- Mission log feed and alert banner reacting to warnings, cautions, and failures surfaced by the simulator.
+
+Use the “Restart Simulation” button to trigger a fresh full-mission run without reloading the page. The CLI simulator remains available through `npm start` for text HUD and data exports.
+
 ## Autopilot Burn Analyzer
 
 Inspect autopilot execution metrics against historical PADs and tolerance envelopes with:
