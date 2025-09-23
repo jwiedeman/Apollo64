@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { DATA_DIR } from '../config/paths.js';
 import { MissionLogger } from '../logging/missionLogger.js';
+import { ManualActionRecorder } from '../logging/manualActionRecorder.js';
 import { createSimulationContext } from '../sim/simulationContext.js';
 import { formatGET, parseGET } from '../utils/time.js';
 
@@ -35,6 +36,7 @@ async function main() {
   }
 
   const logger = new MissionLogger({ silent: args.quiet });
+  const manualActionRecorder = new ManualActionRecorder();
   const context = await createSimulationContext({
     dataDir: args.dataDir,
     logger,
@@ -43,6 +45,7 @@ async function main() {
     autoAdvanceChecklists: args.autoChecklists,
     checklistStepSeconds: args.checklistStepSeconds,
     manualActionScriptPath: args.manualScriptPath,
+    manualActionRecorder,
     hudOptions: { enabled: false, includeResourceHistory: args.includeHistory },
   });
 
@@ -130,6 +133,9 @@ async function main() {
   const summary = simulation.run({ untilGetSeconds: args.untilSeconds, onTick });
 
   const finalGetSeconds = summary.finalGetSeconds ?? simulation.clock?.getCurrent?.() ?? args.untilSeconds;
+  if (context.audioDispatcher?.stopAll) {
+    context.audioDispatcher.stopAll('export_complete', finalGetSeconds);
+  }
   const lastFrameSeconds = frames.length > 0 ? frames[frames.length - 1].generatedAtSeconds : null;
   if (lastFrameSeconds == null || lastFrameSeconds + eps < finalGetSeconds) {
     const finalFrame = uiFrameBuilder.build(finalGetSeconds, {
@@ -148,6 +154,27 @@ async function main() {
     });
     frames.push(finalFrame);
   }
+
+  const manualTimeline = manualActionRecorder.timelineSnapshot({ includeWorkspace: false });
+  const { metadata: scriptMetadata, actions: scriptActions } = manualActionRecorder.toJSON();
+  const manualQueueHistory = context.manualActionQueue?.historySnapshot?.() ?? [];
+  const manualActions = {
+    timeline: manualTimeline,
+    script: {
+      metadata: scriptMetadata,
+      actions: scriptActions,
+    },
+    queueHistory: manualQueueHistory,
+  };
+
+  const workspaceState = context.workspaceStore?.serialize?.({ includeHistory: true }) ?? null;
+  const workspaceEvents = manualActionRecorder.workspaceSnapshot();
+  const workspace = {
+    state: workspaceState,
+    events: workspaceEvents,
+  };
+
+  const audioCues = context.audioDispatcher?.ledgerSnapshot?.() ?? [];
 
   const metadata = {
     generatedAt: new Date().toISOString(),
@@ -176,6 +203,9 @@ async function main() {
     },
     frames,
     missionLog: missionLogAggregator?.snapshot?.({ limit: null }) ?? null,
+    manualActions,
+    audioCues,
+    workspace,
   };
 
   const outPath = path.resolve(args.outputPath);
