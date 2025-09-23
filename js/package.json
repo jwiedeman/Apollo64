@@ -9,6 +9,7 @@
     "test": "node --test \"./test/*.test.js\"",
     "parity": "node ./src/tools/runParityCheck.js",
     "analyze:autopilots": "node ./src/tools/analyzeAutopilots.js",
+    "analyze:performance": "node ./src/tools/analyzePerformance.js",
     "export:ui-frames": "node ./src/tools/exportUiFrames.js",
     "export:workspace": "node ./src/tools/exportWorkspace.js",
     "validate:data": "node ./src/tools/validateMissionData.js",
