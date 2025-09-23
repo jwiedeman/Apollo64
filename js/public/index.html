@@ -34,12 +34,24 @@
               <span class="metric-label">Comms</span>
               <span class="metric-value" id="hud-comms">—</span>
             </div>
+            <div class="metric">
+              <span class="metric-label">PTC</span>
+              <span class="metric-value ptc-indicator" id="hud-ptc">Idle</span>
+            </div>
           </div>
         </div>
         <div class="hud-col">
           <div class="hud-label">Score</div>
           <div class="hud-value" id="hud-score">--</div>
           <div class="hud-subvalue" id="hud-score-detail">Commander score</div>
+        </div>
+        <div class="hud-col hud-col-checklist">
+          <div class="hud-label">Checklist</div>
+          <button type="button" class="hud-chip" id="hud-checklist-chip" disabled>
+            <span class="chip-dot" aria-hidden="true"></span>
+            <span class="chip-label" id="hud-checklist-label">Checklist idle</span>
+          </button>
+          <div class="hud-subvalue" id="hud-checklist-detail">Auto crew standing by.</div>
         </div>
         <div class="hud-col">
           <div class="hud-label">Status</div>
