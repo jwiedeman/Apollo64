@@ -8,7 +8,7 @@ Scripts are UTF-8 JSON files. The root can either be an array of action objects 
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `type` | ✔️ | `"checklist_ack"`, `"resource_delta"`, `"propellant_burn"`, or `"dsky_entry"`. |
+| `type` | ✔️ | `"checklist_ack"`, `"resource_delta"`, `"propellant_burn"`, `"panel_control"`, or `"dsky_entry"`. |
 | `get` / `time` / `get_seconds` | ✔️ | Mission time to execute. Accepts `HHH:MM:SS` or seconds. |
 | `id` |  | Optional label for log output; defaults to `<type>_<index>`. |
 | `retry_window_seconds` / `retry_until` |  | Optional retry window if prerequisites are not yet met (e.g., event still arming). |
@@ -64,6 +64,22 @@ Logs a DSKY macro or manual keypad entry for upcoming AGC integration. Fields:
 - `program` (optional) – AGC program label for logging.
 - `note` (optional) – Freeform annotation recorded alongside the log entry.
 
+- `note` (optional) – Freeform annotation recorded alongside the log entry.
+
+#### `panel_control`
+
+Sets a specific panel control through the `PanelState` subsystem so scripted
+runs mirror switch manipulations. Fields:
+
+- `panel_id` (required) – Panel identifier from [`docs/ui/panels.json`](../../ui/panels.json).
+- `control_id` (required) – Control identifier within the panel definition.
+- `state_id` (required) – Target state identifier (e.g., `"OPEN"`, `"ON"`).
+- `actor` (optional, default `"MANUAL_CREW"`) – Logged actor string.
+- `note` (optional) – Annotation stored alongside the mission log entry.
+
+Scripts may also supply `retry_window_seconds` if the control should retry until
+the desired state becomes valid (e.g., waiting for a panel bundle to load).
+
 ## Example
 
 ```json
@@ -96,6 +112,15 @@ Logs a DSKY macro or manual keypad entry for upcoming AGC integration. Fields:
     },
     "source": "manual_script",
     "note": "Load shed after consumables review"
+  },
+  {
+    "id": "SET_PANEL_SWITCH",
+    "type": "panel_control",
+    "get": "012:12:30",
+    "panel_id": "MAIN_PANEL",
+    "control_id": "SWITCH_A",
+    "state_id": "OPEN",
+    "note": "Arm SPS gimbal"
   },
   {
     "id": "LOAD_MCC1_PAD",

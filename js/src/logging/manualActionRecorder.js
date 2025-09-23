@@ -15,6 +15,7 @@ export class ManualActionRecorder {
     this.checklistEntries = [];
     this.dskyEntries = [];
     this.workspaceEntries = [];
+    this.panelEntries = [];
     this.metrics = {
       checklist: {
         total: 0,
@@ -22,6 +23,11 @@ export class ManualActionRecorder {
         manual: 0,
       },
       dsky: {
+        total: 0,
+        auto: 0,
+        manual: 0,
+      },
+      panel: {
         total: 0,
         auto: 0,
         manual: 0,
@@ -112,12 +118,54 @@ export class ManualActionRecorder {
     }
   }
 
+  recordPanelControl({
+    panelId,
+    controlId,
+    stateId,
+    stateLabel = null,
+    previousStateId = null,
+    previousStateLabel = null,
+    getSeconds,
+    actor = 'AUTO_CREW',
+    note = null,
+  } = {}) {
+    if (!panelId || !controlId || !stateId || !Number.isFinite(getSeconds)) {
+      return;
+    }
+
+    const entryId = this.#generatePanelId();
+    const normalizedActor = actor ?? 'AUTO_CREW';
+    const normalizedStateLabel = this.#normalizeString(stateLabel) ?? this.#normalizeString(stateId);
+
+    this.panelEntries.push({
+      id: entryId,
+      panelId: this.#normalizeString(panelId),
+      controlId: this.#normalizeString(controlId),
+      stateId: this.#normalizeString(stateId),
+      stateLabel: normalizedStateLabel,
+      previousStateId: this.#normalizeString(previousStateId),
+      previousStateLabel: this.#normalizeString(previousStateLabel),
+      getSeconds,
+      actor: normalizedActor,
+      note: this.#normalizeString(note),
+      sequence: this.panelEntries.length,
+    });
+
+    this.metrics.panel.total += 1;
+    if (normalizedActor === 'AUTO_CREW') {
+      this.metrics.panel.auto += 1;
+    } else {
+      this.metrics.panel.manual += 1;
+    }
+  }
+
   stats() {
     return {
       checklist: {
         ...this.metrics.checklist,
       },
       dsky: { ...this.metrics.dsky },
+      panel: { ...this.metrics.panel },
       events: Array.from(this.metrics.events.entries()).map(([eventId, count]) => ({
         eventId,
         count,
@@ -187,7 +235,11 @@ export class ManualActionRecorder {
       .filter((entry) => !autoOnly || entry.actor === 'AUTO_CREW')
       .map((entry) => this.#dskyEntryToAction(entry));
 
-    const combined = [...checklistActions, ...dskyActions];
+    const panelActions = this.panelEntries
+      .filter((entry) => !autoOnly || entry.actor === 'AUTO_CREW')
+      .map((entry) => this.#panelEntryToAction(entry));
+
+    const combined = [...checklistActions, ...dskyActions, ...panelActions];
     combined.sort((a, b) => {
       if (a.get_seconds !== b.get_seconds) {
         return a.get_seconds - b.get_seconds;
@@ -222,7 +274,7 @@ export class ManualActionRecorder {
     };
   }
 
-  timelineSnapshot({ limit = null, includeWorkspace = false } = {}) {
+  timelineSnapshot({ limit = null, includeWorkspace = false, includePanels = true } = {}) {
     const clamp = (list) => {
       if (!Array.isArray(list)) {
         return [];
@@ -271,11 +323,34 @@ export class ManualActionRecorder {
       }));
     };
 
+    const summarizePanels = () => {
+      const entries = clamp(this.panelEntries);
+      const offset = this.panelEntries.length - entries.length;
+      return entries.map((entry, index) => ({
+        id: entry.id ?? `panel_${offset + index + 1}`,
+        sequence: offset + index,
+        panelId: entry.panelId ?? null,
+        controlId: entry.controlId ?? null,
+        stateId: entry.stateId ?? null,
+        stateLabel: entry.stateLabel ?? null,
+        previousStateId: entry.previousStateId ?? null,
+        previousStateLabel: entry.previousStateLabel ?? null,
+        getSeconds: entry.getSeconds,
+        get: Number.isFinite(entry.getSeconds) ? formatGET(entry.getSeconds) : null,
+        actor: entry.actor ?? 'AUTO_CREW',
+        note: entry.note ?? null,
+      }));
+    };
+
     const snapshot = {
       summary: this.stats(),
       checklist: summarizeChecklist(),
       dsky: summarizeDsky(),
     };
+
+    if (includePanels) {
+      snapshot.panels = summarizePanels();
+    }
 
     if (includeWorkspace) {
       snapshot.workspace = this.workspaceSnapshot({ limit });
@@ -287,6 +362,7 @@ export class ManualActionRecorder {
   toJSON() {
     const actions = this.buildScriptActions();
     const workspace = this.workspaceEntries.map((entry) => this.#workspaceEntryToJson(entry));
+    const panel = this.panelEntries.map((entry) => this.#panelEntryToJson(entry));
     return {
       metadata: {
         generated_at: new Date().toISOString(),
@@ -294,11 +370,13 @@ export class ManualActionRecorder {
         script_actor: this.options.scriptActor,
         checklist_entries_recorded: this.metrics.checklist.total,
         dsky_entries_recorded: this.metrics.dsky.total,
+        panel_controls_recorded: this.metrics.panel.total,
         workspace_events_recorded: this.metrics.workspace.total,
         actions: actions.length,
       },
       actions,
       workspace,
+      panel,
     };
   }
 
@@ -320,6 +398,7 @@ export class ManualActionRecorder {
       actions: payload.actions.length,
       checklistEntries: this.metrics.checklist.total,
       workspaceEntries: this.metrics.workspace.total,
+      panelEntries: this.metrics.panel.total,
     };
   }
 
@@ -365,6 +444,10 @@ export class ManualActionRecorder {
 
   #generateDskyId() {
     return `DSKY_${this.dskyEntries.length + 1}`;
+  }
+
+  #generatePanelId() {
+    return `PANEL_${this.panelEntries.length + 1}`;
   }
 
   #normalizeString(value) {
@@ -505,6 +588,35 @@ export class ManualActionRecorder {
       action.sequence = sequence;
     }
     if (entry.note) {
+      action.note = entry.note;
+    }
+
+    return action;
+  }
+
+  #panelEntryToAction(entry) {
+    const formattedGet = formatGET(entry.getSeconds);
+    const action = {
+      id: entry.id ?? this.#generatePanelId(),
+      type: 'panel_control',
+      panel_id: entry.panelId,
+      control_id: entry.controlId,
+      state_id: entry.stateId,
+      get_seconds: Number(entry.getSeconds.toFixed(3)),
+      display_get: formattedGet,
+      actor: this.options.scriptActor,
+    };
+
+    if (entry.stateLabel) {
+      action.state_label = entry.stateLabel;
+    }
+    if (entry.previousStateId) {
+      action.previous_state_id = entry.previousStateId;
+    }
+    if (entry.previousStateLabel) {
+      action.previous_state_label = entry.previousStateLabel;
+    }
+    if (this.options.includeNotes && entry.note) {
       action.note = entry.note;
     }
 
@@ -708,6 +820,35 @@ export class ManualActionRecorder {
     }
     if (entry.previousQuantized) {
       payload.previous_quantized = this.#cloneWorkspaceValue(entry.previousQuantized);
+    }
+
+    return payload;
+  }
+
+  #panelEntryToJson(entry) {
+    if (!entry) {
+      return null;
+    }
+
+    const payload = {
+      id: entry.id,
+      panel_id: entry.panelId,
+      control_id: entry.controlId,
+      state_id: entry.stateId,
+      state_label: entry.stateLabel ?? null,
+      get_seconds: Number(entry.getSeconds.toFixed(3)),
+      display_get: formatGET(entry.getSeconds),
+      actor: entry.actor ?? 'AUTO_CREW',
+    };
+
+    if (entry.previousStateId) {
+      payload.previous_state_id = entry.previousStateId;
+    }
+    if (entry.previousStateLabel) {
+      payload.previous_state_label = entry.previousStateLabel;
+    }
+    if (entry.note) {
+      payload.note = entry.note;
     }
 
     return payload;

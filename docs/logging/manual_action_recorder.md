@@ -1,21 +1,23 @@
 # Manual Action Recorder & Replay Pipeline
 
-The manual action recorder captures every checklist acknowledgement and
-DSKY macro executed during a run so the simulator can replay the same
-mission slice deterministically in parity tests, UI prototypes, and
-future training modes. It complements the manual action queue data
-contract and the mission log architecture by exporting the exact actions
-that the auto crew performed (or that a tester entered manually) as a
-JSON script ready to feed back into the simulation.
+The manual action recorder captures every checklist acknowledgement,
+panel control change, and DSKY macro executed during a run so the
+simulator can replay the same mission slice deterministically in parity
+tests, UI prototypes, and future training modes. It complements the
+manual action queue data contract and the mission log architecture by
+exporting the exact actions that the auto crew performed (or that a
+tester entered manually) as a JSON script ready to feed back into the
+simulation.
 
 ## Recorder Instrumentation
 
-`ManualActionRecorder` tracks three streams of inputs—checklist
-acknowledgements, DSKY entries, and workspace mutations—while keeping
+`ManualActionRecorder` tracks four streams of inputs—checklist
+acknowledgements, panel controls, DSKY entries, and workspace mutations—while keeping
 roll-up metrics for reporting and regression
-diffs.【F:js/src/logging/manualActionRecorder.js†L1-L656】 The recorder
-exposes lightweight `recordChecklistAck()`, `recordDskyEntry()`, and
-`recordWorkspaceEvent()` helpers so subsystems can append GET-stamped
+difs.【F:js/src/logging/manualActionRecorder.js†L1-L760】 The recorder
+exposes lightweight `recordChecklistAck()`, `recordPanelControl()`,
+`recordDskyEntry()`, and `recordWorkspaceEvent()` helpers so subsystems
+can append GET-stamped
 entries without knowing about the eventual export format. Workspace
 events capture tile mutations, override toggles, and input remaps with
 GET stamps, mirroring the mission log `workspace:*` entries for parity
@@ -29,6 +31,10 @@ observations as soon as they happen.【F:js/src/sim/simulationContext.js†L57-L
 - The checklist manager calls `recordChecklistAck()` whenever a step is
   marked complete, capturing the event ID, checklist ID, step number,
   actor, GET timestamp, and optional note used for parity diagnostics.【F:js/src/sim/checklistManager.js†L326-L344】
+- `PanelState` calls `recordPanelControl()` whenever a switch, guard,
+  or indicator transitions, capturing actor metadata, previous state,
+  and the exact GET so scripted replays can reproduce HUD and panel
+  state transitions.【F:js/src/sim/panelState.js†L129-L248】
 - The autopilot runner calls `recordDskyEntry()` for every scripted AGC
   command so replayed runs can mirror Verb/Noun pairs, registers, and key
   sequences exactly—even when automation triggered the macro.【F:js/src/sim/autopilotRunner.js†L432-L504】
@@ -51,21 +57,26 @@ metrics (auto vs. manual counts, per-event totals). When callers request
 2. Sorts checklist acknowledgements by GET and event, grouping steps that
    fired within the same 1/20-second tick so a cluster of auto advances
    becomes a single `checklist_ack` action with a `count` field.
-3. Converts DSKY entries into deterministic `dsky_entry` actions that
+3. Converts panel controls into deterministic `panel_control` actions so
+   recorded switch activity feeds directly into the manual action
+   queue.【F:js/src/logging/manualActionRecorder.js†L221-L260】
+4. Converts DSKY entries into deterministic `dsky_entry` actions that
    preserve macro IDs, Verb/Noun labels, register values, and keypress
    sequences.
-4. Merges both streams, sorts them chronologically, and emits metadata
+5. Merges all streams, sorts them chronologically, and emits metadata
    summarising how many actions were recorded, when the script was
    generated, and which actor label the replay should attribute to the
-   actions.【F:js/src/logging/manualActionRecorder.js†L123-L221】
+   actions.【F:js/src/logging/manualActionRecorder.js†L123-L260】
 
 The resulting JSON matches the manual action script contract documented
 under `docs/data/manual_scripts/`, while the new `workspace[]` array
 preserves tile, override, and input changes (including `quantized`/
-`previous_quantized` snapshots) for replay tooling. Parity runs can
-ignore the supplemental array when feeding actions into the manual
-queue or use it to reconstruct HUD layouts for deterministic UI and N64
-playback.【F:js/src/logging/manualActionRecorder.js†L225-L260】
+`previous_quantized` snapshots) for replay tooling. A parallel `panel[]`
+array mirrors recorded switch activity so parity runs and future HUD
+prototypes can inspect panel history without rehydrating scripts. Parity
+runs can ignore the supplemental arrays when feeding actions into the
+manual queue or use them to reconstruct HUD layouts and panel states for
+deterministic UI and N64 playback.【F:js/src/logging/manualActionRecorder.js†L321-L401】
 
 ## CLI Workflow
 

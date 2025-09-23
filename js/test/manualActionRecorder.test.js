@@ -91,4 +91,58 @@ describe('ManualActionRecorder workspace integration', () => {
     assert.equal(snapshot.dsky[0].verb, 37);
     assert.equal(snapshot.dsky[0].sequenceData.length, 2);
   });
+
+  test('records panel control entries and exports them to scripts and snapshots', () => {
+    const recorder = new ManualActionRecorder({ includeNotes: true });
+
+    recorder.recordPanelControl({
+      panelId: 'MAIN_PANEL',
+      controlId: 'SWITCH_A',
+      stateId: 'OPEN',
+      stateLabel: 'Open',
+      previousStateId: 'CLOSED',
+      previousStateLabel: 'Closed',
+      getSeconds: 210,
+      actor: 'AUTO_CREW',
+      note: 'Auto toggled',
+    });
+
+    recorder.recordPanelControl({
+      panelId: 'AUX_PANEL',
+      controlId: 'SWITCH_B',
+      stateId: 'ON',
+      getSeconds: 215,
+      actor: 'MANUAL_CREW',
+    });
+
+    const stats = recorder.stats();
+    assert.equal(stats.panel.total, 2);
+    assert.equal(stats.panel.auto, 1);
+    assert.equal(stats.panel.manual, 1);
+
+    const script = recorder.buildScriptActions();
+    const panelActions = script.filter((action) => action.type === 'panel_control');
+    assert.equal(panelActions.length, 1);
+    const [autoPanelAction] = panelActions;
+    assert.equal(autoPanelAction.panel_id, 'MAIN_PANEL');
+    assert.equal(autoPanelAction.control_id, 'SWITCH_A');
+    assert.equal(autoPanelAction.state_id, 'OPEN');
+    assert.equal(autoPanelAction.previous_state_id, 'CLOSED');
+    assert.equal(autoPanelAction.state_label, 'Open');
+    assert.equal(autoPanelAction.note, 'Auto toggled');
+
+    const timeline = recorder.timelineSnapshot({ includePanels: true });
+    assert.ok(Array.isArray(timeline.panels));
+    assert.equal(timeline.panels.length, 2);
+    assert.equal(timeline.panels[0].panelId, 'MAIN_PANEL');
+    assert.equal(timeline.panels[0].stateLabel, 'Open');
+    assert.equal(timeline.panels[1].actor, 'MANUAL_CREW');
+
+    const json = recorder.toJSON();
+    assert.equal(json.metadata.panel_controls_recorded, 2);
+    assert.ok(Array.isArray(json.panel));
+    assert.equal(json.panel.length, 2);
+    assert.equal(json.panel[0].panel_id, 'MAIN_PANEL');
+    assert.equal(json.panel[0].state_label, 'Open');
+  });
 });
