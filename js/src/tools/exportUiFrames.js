@@ -58,6 +58,7 @@ async function main() {
     missionLogAggregator,
     audioBinder,
     audioDispatcher,
+    performanceTracker,
   } = context;
   const startSeconds = Math.max(0, args.startSeconds);
   const intervalSeconds = args.intervalSeconds;
@@ -74,6 +75,7 @@ async function main() {
     manualQueue,
     rcsController,
     scoreSystem: tickScoreSystem,
+    performanceTracker: tickPerformanceTracker,
   }) => {
     if (getSeconds + eps < startSeconds) {
       return true;
@@ -81,6 +83,7 @@ async function main() {
 
     let captured = false;
     while (getSeconds + eps >= nextSampleSeconds) {
+      const performanceSnapshot = (tickPerformanceTracker ?? performanceTracker)?.snapshot?.() ?? null;
       const frame = uiFrameBuilder.build(getSeconds, {
         scheduler,
         resourceSystem,
@@ -93,6 +96,7 @@ async function main() {
         missionLog: missionLogAggregator,
         audioBinder,
         audioDispatcher,
+        performance: performanceSnapshot,
       });
       frames.push(frame);
       captured = true;
@@ -107,6 +111,7 @@ async function main() {
     }
 
     if (!captured && args.captureOnChanges) {
+      const performanceSnapshot = (tickPerformanceTracker ?? performanceTracker)?.snapshot?.() ?? null;
       const frame = uiFrameBuilder.build(getSeconds, {
         scheduler,
         resourceSystem,
@@ -119,6 +124,7 @@ async function main() {
         missionLog: missionLogAggregator,
         audioBinder,
         audioDispatcher,
+        performance: performanceSnapshot,
       });
       frames.push(frame);
       if (frames.length >= args.maxFrames) {
@@ -138,6 +144,7 @@ async function main() {
   }
   const lastFrameSeconds = frames.length > 0 ? frames[frames.length - 1].generatedAtSeconds : null;
   if (lastFrameSeconds == null || lastFrameSeconds + eps < finalGetSeconds) {
+    const finalPerformance = performanceTracker?.snapshot?.() ?? null;
     const finalFrame = uiFrameBuilder.build(finalGetSeconds, {
       scheduler: context.scheduler,
       resourceSystem: context.resourceSystem,
@@ -151,6 +158,7 @@ async function main() {
       missionLog: missionLogAggregator,
       audioBinder,
       audioDispatcher,
+      performance: finalPerformance,
     });
     frames.push(finalFrame);
   }
@@ -190,6 +198,7 @@ async function main() {
     checklistStepSeconds: args.checklistStepSeconds,
     autoChecklists: args.autoChecklists,
     manualScript: args.manualScriptPath ? path.resolve(args.manualScriptPath) : null,
+    performance: performanceTracker ? performanceTracker.summary() : null,
     haltReason,
   };
 

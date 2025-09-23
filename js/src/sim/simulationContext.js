@@ -20,6 +20,7 @@ import { AgcRuntime } from './agcRuntime.js';
 import { WorkspaceStore } from '../hud/workspaceStore.js';
 import { DockingContext } from './dockingContext.js';
 import { PanelState } from './panelState.js';
+import { PerformanceTracker } from './performanceTracker.js';
 
 const DEFAULT_OPTIONS = {
   tickRate: 20,
@@ -120,9 +121,15 @@ export async function createSimulationContext({
     ...(hudOptions ?? {}),
   };
   const uiFrameBuilder = new UiFrameBuilder(hudConfig);
+  const performanceTracker = new PerformanceTracker({
+    logger,
+    tickRate,
+    hudIntervalSeconds: hudConfig.renderIntervalSeconds,
+  });
   const hud = new TextHud({
     logger,
     frameBuilder: uiFrameBuilder,
+    performanceTracker,
     ...hudConfig,
   });
 
@@ -211,6 +218,7 @@ export async function createSimulationContext({
     audioDispatcher,
     docking: dockingContext,
     panelState,
+    performanceTracker,
   });
 
   workspaceStore.setTimeProvider(() => simulation?.clock?.getCurrent?.() ?? 0);
@@ -219,6 +227,7 @@ export async function createSimulationContext({
   return {
     missionData,
     simulation,
+    performanceTracker,
     scheduler,
     checklistManager,
     resourceSystem,

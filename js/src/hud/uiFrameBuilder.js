@@ -191,6 +191,11 @@ export class UiFrameBuilder {
       frame.audio = audio;
     }
 
+    const performance = this.#summarizePerformance(context.performance ?? null);
+    if (performance) {
+      frame.performance = performance;
+    }
+
     const uiSummary = this.#summarizeUiDefinitions();
     if (uiSummary) {
       frame.ui = uiSummary;
@@ -614,6 +619,156 @@ export class UiFrameBuilder {
     }
 
     return Object.keys(summary).length > 0 ? summary : null;
+  }
+
+  #summarizePerformance(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') {
+      return null;
+    }
+
+    const summary = {};
+
+    const generatedSeconds = this.#coerceNumber(snapshot.generatedAtSeconds ?? snapshot.generated_at_seconds);
+    if (Number.isFinite(generatedSeconds)) {
+      summary.generatedAtSeconds = generatedSeconds;
+      summary.generatedAt = formatGET(Math.round(generatedSeconds));
+    } else if (typeof snapshot.generatedAt === 'string' && snapshot.generatedAt.trim().length > 0) {
+      summary.generatedAt = snapshot.generatedAt.trim();
+    }
+
+    if (snapshot.tick && typeof snapshot.tick === 'object') {
+      const tickSummary = {
+        count: this.#coerceNumber(snapshot.tick.count),
+        expectedMs: this.#roundNullable(snapshot.tick.expectedMs, 3),
+        averageMs: this.#roundNullable(snapshot.tick.averageMs, 3),
+        maxMs: this.#roundNullable(snapshot.tick.maxMs, 3),
+        minMs: this.#roundNullable(snapshot.tick.minMs, 3),
+        lastMs: this.#roundNullable(snapshot.tick.lastMs, 3),
+      };
+      if (snapshot.tick.drift && typeof snapshot.tick.drift === 'object') {
+        const driftSummary = {
+          averageMs: this.#roundNullable(snapshot.tick.drift.averageMs, 3),
+          maxMs: this.#roundNullable(snapshot.tick.drift.maxMs, 3),
+          minMs: this.#roundNullable(snapshot.tick.drift.minMs, 3),
+          lastMs: this.#roundNullable(snapshot.tick.drift.lastMs, 3),
+          maxAbsMs: this.#roundNullable(snapshot.tick.drift.maxAbsMs ?? snapshot.tick.drift.maxAbs, 3),
+        };
+        if (Object.values(driftSummary).some((value) => value != null)) {
+          tickSummary.drift = driftSummary;
+        }
+      }
+      summary.tick = tickSummary;
+    }
+
+    if (snapshot.hud && typeof snapshot.hud === 'object') {
+      const hudSummary = {
+        renderCount: this.#coerceNumber(snapshot.hud.renderCount),
+        renderMs: {
+          average: this.#roundNullable(snapshot.hud.renderMs?.average, 3),
+          max: this.#roundNullable(snapshot.hud.renderMs?.max, 3),
+          min: this.#roundNullable(snapshot.hud.renderMs?.min, 3),
+          last: this.#roundNullable(snapshot.hud.renderMs?.last, 3),
+        },
+      };
+      if (snapshot.hud.drop && typeof snapshot.hud.drop === 'object') {
+        hudSummary.drop = {
+          total: this.#coerceNumber(snapshot.hud.drop.total),
+          consecutive: this.#coerceNumber(snapshot.hud.drop.consecutive),
+          maxConsecutive: this.#coerceNumber(snapshot.hud.drop.maxConsecutive),
+          last: this.#coerceNumber(snapshot.hud.drop.last),
+          lastDroppedAtSeconds: this.#coerceNumber(snapshot.hud.drop.lastDroppedAtSeconds),
+          lastDroppedAt: snapshot.hud.drop.lastDroppedAt ?? null,
+        };
+        if (!hudSummary.drop.lastDroppedAt && Number.isFinite(hudSummary.drop.lastDroppedAtSeconds)) {
+          hudSummary.drop.lastDroppedAt = formatGET(Math.round(hudSummary.drop.lastDroppedAtSeconds));
+        }
+      }
+      const lastRenderSeconds = this.#coerceNumber(snapshot.hud.lastRenderGetSeconds);
+      if (Number.isFinite(lastRenderSeconds)) {
+        hudSummary.lastRenderGetSeconds = lastRenderSeconds;
+        hudSummary.lastRenderGet = formatGET(Math.round(lastRenderSeconds));
+      } else if (typeof snapshot.hud.lastRenderGet === 'string') {
+        hudSummary.lastRenderGet = snapshot.hud.lastRenderGet;
+      }
+      const scheduledSeconds = this.#coerceNumber(snapshot.hud.lastScheduledGetSeconds);
+      if (Number.isFinite(scheduledSeconds)) {
+        hudSummary.lastScheduledGetSeconds = scheduledSeconds;
+        hudSummary.lastScheduledGet = formatGET(Math.round(scheduledSeconds));
+      } else if (typeof snapshot.hud.lastScheduledGet === 'string') {
+        hudSummary.lastScheduledGet = snapshot.hud.lastScheduledGet;
+      }
+      const intervalSeconds = this.#coerceNumber(snapshot.hud.intervalSeconds);
+      if (Number.isFinite(intervalSeconds)) {
+        hudSummary.intervalSeconds = intervalSeconds;
+      }
+      summary.hud = hudSummary;
+    }
+
+    if (snapshot.audio && typeof snapshot.audio === 'object') {
+      const audioSummary = {
+        lastActiveTotal: this.#coerceNumber(snapshot.audio.lastActiveTotal),
+        lastQueuedTotal: this.#coerceNumber(snapshot.audio.lastQueuedTotal),
+        maxActiveTotal: this.#coerceNumber(snapshot.audio.maxActiveTotal),
+        maxQueuedTotal: this.#coerceNumber(snapshot.audio.maxQueuedTotal),
+        lastSampledAtSeconds: this.#coerceNumber(snapshot.audio.lastSampledAtSeconds),
+        lastSampledAt: typeof snapshot.audio.lastSampledAt === 'string' ? snapshot.audio.lastSampledAt : null,
+      };
+      if (!audioSummary.lastSampledAt && Number.isFinite(audioSummary.lastSampledAtSeconds)) {
+        audioSummary.lastSampledAt = formatGET(Math.round(audioSummary.lastSampledAtSeconds));
+      }
+      summary.audio = audioSummary;
+    }
+
+    if (snapshot.input && typeof snapshot.input === 'object') {
+      const inputSummary = {
+        count: this.#coerceNumber(snapshot.input.count),
+        averageLatencyMs: this.#roundNullable(snapshot.input.averageLatencyMs ?? snapshot.input.average, 3),
+        maxLatencyMs: this.#roundNullable(snapshot.input.maxLatencyMs ?? snapshot.input.max, 3),
+        minLatencyMs: this.#roundNullable(snapshot.input.minLatencyMs ?? snapshot.input.min, 3),
+        lastLatencyMs: this.#roundNullable(snapshot.input.lastLatencyMs ?? snapshot.input.last, 3),
+        lastLatencyGetSeconds: this.#coerceNumber(snapshot.input.lastLatencyGetSeconds),
+        lastLatencyGet: typeof snapshot.input.lastLatencyGet === 'string' ? snapshot.input.lastLatencyGet : null,
+      };
+      if (!inputSummary.lastLatencyGet && Number.isFinite(inputSummary.lastLatencyGetSeconds)) {
+        inputSummary.lastLatencyGet = formatGET(Math.round(inputSummary.lastLatencyGetSeconds));
+      }
+      summary.input = inputSummary;
+    }
+
+    if (snapshot.logging && typeof snapshot.logging === 'object') {
+      const loggingSummary = {
+        intervalSeconds: this.#coerceNumber(snapshot.logging.intervalSeconds),
+        lastLogGetSeconds: this.#coerceNumber(snapshot.logging.lastLogGetSeconds),
+        lastLogGet: typeof snapshot.logging.lastLogGet === 'string' ? snapshot.logging.lastLogGet : null,
+      };
+      if (!loggingSummary.lastLogGet && Number.isFinite(loggingSummary.lastLogGetSeconds)) {
+        loggingSummary.lastLogGet = formatGET(Math.round(loggingSummary.lastLogGetSeconds));
+      }
+      summary.logging = loggingSummary;
+    }
+
+    if (snapshot.overview && typeof snapshot.overview === 'object') {
+      summary.overview = {
+        tickAvgMs: this.#roundNullable(snapshot.overview.tickAvgMs ?? snapshot.overview.tick_avg_ms, 3),
+        tickMaxMs: this.#roundNullable(snapshot.overview.tickMaxMs ?? snapshot.overview.tick_max_ms, 3),
+        tickDriftMaxAbsMs: this.#roundNullable(
+          snapshot.overview.tickDriftMaxAbsMs ?? snapshot.overview.tick_drift_max_abs_ms,
+          3,
+        ),
+        hudAvgMs: this.#roundNullable(snapshot.overview.hudAvgMs ?? snapshot.overview.hud_avg_ms, 3),
+        hudMaxMs: this.#roundNullable(snapshot.overview.hudMaxMs ?? snapshot.overview.hud_max_ms, 3),
+        hudDrops: this.#coerceNumber(snapshot.overview.hudDrops ?? snapshot.overview.hud_drops),
+        hudMaxDropStreak: this.#coerceNumber(
+          snapshot.overview.hudMaxDropStreak ?? snapshot.overview.hud_max_drop_streak,
+        ),
+        audioMaxActive: this.#coerceNumber(snapshot.overview.audioMaxActive ?? snapshot.overview.audio_max_active),
+        audioMaxQueued: this.#coerceNumber(snapshot.overview.audioMaxQueued ?? snapshot.overview.audio_max_queued),
+        inputAvgMs: this.#roundNullable(snapshot.overview.inputAvgMs ?? snapshot.overview.input_avg_ms, 3),
+        inputMaxMs: this.#roundNullable(snapshot.overview.inputMaxMs ?? snapshot.overview.input_max_ms, 3),
+      };
+    }
+
+    return summary;
   }
 
   #summarizeAudioBinder(stats) {
@@ -2205,6 +2360,13 @@ export class UiFrameBuilder {
     }
     const factor = 10 ** digits;
     return Math.round(value * factor) / factor;
+  }
+
+  #roundNullable(value, digits = 1) {
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    return this.#roundNumber(value, digits);
   }
 
   #formatGetSeconds(value) {

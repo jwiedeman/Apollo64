@@ -49,4 +49,16 @@ describe('MissionLogAggregator', () => {
     assert.equal(snapshot.categories.autopilot, 5);
     assert.equal(snapshot.filteredCategories.autopilot, 3);
   });
+
+  test('captures performance log entries with explicit category', () => {
+    const logger = new MissionLogger({ silent: true });
+    const aggregator = new MissionLogAggregator(logger, { maxEntries: 10 });
+
+    logger.logPerformance(120, { overview: { tickAvgMs: 50 } });
+
+    const snapshot = aggregator.snapshot();
+    assert.equal(snapshot.totalCount, 1);
+    assert.equal(snapshot.entries[0].category, 'performance');
+    assert.equal(snapshot.entries[0].context.overview.tickAvgMs, 50);
+  });
 });

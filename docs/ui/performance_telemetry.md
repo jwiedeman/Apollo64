@@ -107,7 +107,9 @@ headroom for future optimisation.
 2. Extend `MissionLogger` helpers to standardize `ui_performance` entries and
    update `MissionLogAggregator` so the new category inherits filter metadata.
 3. Implement optional CLI flags (`--hud-debug`, `--profile-performance`) that
-   enable overlays or CSV output without affecting default runs.
+   enable overlays or CSV output without affecting default runs. The JS CLI now
+   surfaces both switches so developers can capture performance logs and export
+   aggregated metrics alongside standard mission artefacts.
 4. Update `exportUiFrames` to persist performance metrics in metadata and each
    frame entry when the builder provides them.
 5. Mirror the metric definitions in the N64 build, writing profiles to
