@@ -20,8 +20,9 @@ const CONTENT_TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-export function startServer({ port = null } = {}) {
+export function startServer({ port = null, host = null } = {}) {
   const resolvedPort = resolvePort(port);
+  const resolvedHost = resolveHost(host);
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -46,10 +47,19 @@ export function startServer({ port = null } = {}) {
   });
 
   return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(resolvedPort, () => {
-      resolve({ server, port: resolvedPort });
-    });
+    const handleError = (error) => {
+      server.removeListener('listening', handleListening);
+      reject(error);
+    };
+
+    const handleListening = () => {
+      server.removeListener('error', handleError);
+      resolve({ server, port: resolvedPort, host: resolvedHost });
+    };
+
+    server.once('error', handleError);
+    server.once('listening', handleListening);
+    server.listen(resolvedPort, resolvedHost);
   });
 }
 
@@ -106,4 +116,15 @@ function resolvePort(port) {
     return envPort;
   }
   return 3000;
+}
+
+function resolveHost(host) {
+  if (typeof host === 'string' && host.trim().length > 0) {
+    return host.trim();
+  }
+  const envHost = process.env.HOST ?? process.env.HOSTNAME ?? process.env.BIND_HOST;
+  if (typeof envHost === 'string' && envHost.trim().length > 0) {
+    return envHost.trim();
+  }
+  return '0.0.0.0';
 }

@@ -91,6 +91,10 @@ The server streams simulation frames to the UI via Server-Sent Events. Visit [`h
 
 Use the “Restart Simulation” button to trigger a fresh full-mission run without reloading the page. The CLI simulator remains available through `npm start` for text HUD and data exports.
 
+> **Tip:** pass `--host 0.0.0.0` (or set the `HOST` environment variable) if you need to reach the HUD from another machine or a
+> browser running outside the container. Combine with `--port` to override the default `3000` binding when required by your
+> environment.
+
 ## Autopilot Burn Analyzer
 
 Inspect autopilot execution metrics against historical PADs and tolerance envelopes with:
