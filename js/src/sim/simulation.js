@@ -49,89 +49,164 @@ export class Simulation {
     let ticks = 0;
 
     while (this.clock.getCurrent() < untilGetSeconds) {
-      const currentGet = this.clock.getCurrent();
-      const tickStart = this.performanceTracker ? performance.now() : null;
-      if (this.manualActions) {
-        this.manualActions.update(currentGet, dtSeconds);
+      const { advanced } = this.#processTick(dtSeconds, onTick);
+      if (!advanced) {
+        break;
       }
-      this.scheduler.update(currentGet, dtSeconds);
-      if (this.orbitPropagator) {
-        this.orbitPropagator.update(dtSeconds, { getSeconds: currentGet + dtSeconds });
-      }
-      if (this.docking) {
-        this.docking.update(currentGet, { scheduler: this.scheduler });
-      }
-      this.resourceSystem.update(dtSeconds, currentGet);
-      if (this.scoreSystem) {
-        this.scoreSystem.update(currentGet, dtSeconds, {
-          scheduler: this.scheduler,
-          resourceSystem: this.resourceSystem,
-          autopilotRunner: this.autopilotRunner,
-          checklistManager: this.checklistManager,
-          manualQueue: this.manualActions,
-        });
-      }
-      if (this.audioDispatcher) {
-        this.audioDispatcher.update(currentGet, { binder: this.audioBinder });
-        if (this.performanceTracker && typeof this.audioDispatcher.statsSnapshot === 'function') {
-          this.performanceTracker.recordAudioStats(this.audioDispatcher.statsSnapshot(), {
-            getSeconds: currentGet,
-          });
-        }
-      }
-      if (this.hud) {
-        this.hud.update(currentGet, {
-          scheduler: this.scheduler,
-          resourceSystem: this.resourceSystem,
-          autopilotRunner: this.autopilotRunner,
-          checklistManager: this.checklistManager,
-          manualQueue: this.manualActions,
-          rcsController: this.rcsController,
-          agcRuntime: this.agcRuntime,
-          scoreSystem: this.scoreSystem,
-          orbit: this.orbitPropagator,
-          missionLog: this.missionLogAggregator,
-          audioBinder: this.audioBinder,
-          audioDispatcher: this.audioDispatcher,
-          docking: this.docking ? this.docking.snapshot() : null,
-          panelState: this.panelState,
-          performanceTracker: this.performanceTracker,
-        });
-      }
-      if (typeof onTick === 'function') {
-        const shouldContinue = onTick({
-          getSeconds: currentGet,
-          dtSeconds,
-          scheduler: this.scheduler,
-          resourceSystem: this.resourceSystem,
-          autopilotRunner: this.autopilotRunner,
-          checklistManager: this.checklistManager,
-          manualQueue: this.manualActions,
-          rcsController: this.rcsController,
-          agcRuntime: this.agcRuntime,
-          hud: this.hud,
-          scoreSystem: this.scoreSystem,
-          orbit: this.orbitPropagator,
-          missionLog: this.missionLogAggregator,
-          audioBinder: this.audioBinder,
-          audioDispatcher: this.audioDispatcher,
-          docking: this.docking,
-          panelState: this.panelState,
-          performanceTracker: this.performanceTracker,
-        });
-        if (shouldContinue === false) {
-          break;
-        }
-      }
-      if (this.performanceTracker && tickStart != null) {
-        const durationMs = performance.now() - tickStart;
-        this.performanceTracker.recordTick(durationMs, { getSeconds: currentGet });
-        this.performanceTracker.maybeLog(currentGet);
-      }
-      this.clock.advance();
       ticks += 1;
     }
 
+    return this.#collectSummary({ ticks });
+  }
+
+  async runAsync({
+    untilGetSeconds,
+    onTick = null,
+    shouldAbort = null,
+    yieldEvery = Math.max(1, Math.round(this.tickRate / 2)),
+  } = {}) {
+    const dtSeconds = 1 / this.tickRate;
+    let ticks = 0;
+    let ticksSinceYield = 0;
+    const abortFn = typeof shouldAbort === 'function' ? shouldAbort : () => false;
+
+    while (this.clock.getCurrent() < untilGetSeconds) {
+      if (abortFn()) {
+        break;
+      }
+
+      const { advanced, requestYield } = this.#processTick(dtSeconds, onTick);
+      if (!advanced) {
+        break;
+      }
+
+      ticks += 1;
+      ticksSinceYield += 1;
+
+      if (requestYield) {
+        ticksSinceYield = 0;
+        await new Promise((resolve) => setImmediate(resolve));
+        continue;
+      }
+
+      if (ticksSinceYield >= yieldEvery) {
+        ticksSinceYield = 0;
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    }
+
+    return this.#collectSummary({ ticks });
+  }
+
+  #processTick(dtSeconds, onTick) {
+    const currentGet = this.clock.getCurrent();
+    const tickStart = this.performanceTracker ? performance.now() : null;
+
+    if (this.manualActions) {
+      this.manualActions.update(currentGet, dtSeconds);
+    }
+
+    this.scheduler.update(currentGet, dtSeconds);
+
+    if (this.orbitPropagator) {
+      this.orbitPropagator.update(dtSeconds, { getSeconds: currentGet + dtSeconds });
+    }
+
+    if (this.docking) {
+      this.docking.update(currentGet, { scheduler: this.scheduler });
+    }
+
+    this.resourceSystem.update(dtSeconds, currentGet);
+
+    if (this.scoreSystem) {
+      this.scoreSystem.update(currentGet, dtSeconds, {
+        scheduler: this.scheduler,
+        resourceSystem: this.resourceSystem,
+        autopilotRunner: this.autopilotRunner,
+        checklistManager: this.checklistManager,
+        manualQueue: this.manualActions,
+      });
+    }
+
+    if (this.audioDispatcher) {
+      this.audioDispatcher.update(currentGet, { binder: this.audioBinder });
+      if (this.performanceTracker && typeof this.audioDispatcher.statsSnapshot === 'function') {
+        this.performanceTracker.recordAudioStats(this.audioDispatcher.statsSnapshot(), {
+          getSeconds: currentGet,
+        });
+      }
+    }
+
+    if (this.hud) {
+      this.hud.update(currentGet, {
+        scheduler: this.scheduler,
+        resourceSystem: this.resourceSystem,
+        autopilotRunner: this.autopilotRunner,
+        checklistManager: this.checklistManager,
+        manualQueue: this.manualActions,
+        rcsController: this.rcsController,
+        agcRuntime: this.agcRuntime,
+        scoreSystem: this.scoreSystem,
+        orbit: this.orbitPropagator,
+        missionLog: this.missionLogAggregator,
+        audioBinder: this.audioBinder,
+        audioDispatcher: this.audioDispatcher,
+        docking: this.docking ? this.docking.snapshot() : null,
+        panelState: this.panelState,
+        performanceTracker: this.performanceTracker,
+      });
+    }
+
+    let requestYield = false;
+    if (typeof onTick === 'function') {
+      const tickResult = onTick({
+        getSeconds: currentGet,
+        dtSeconds,
+        scheduler: this.scheduler,
+        resourceSystem: this.resourceSystem,
+        autopilotRunner: this.autopilotRunner,
+        checklistManager: this.checklistManager,
+        manualQueue: this.manualActions,
+        rcsController: this.rcsController,
+        agcRuntime: this.agcRuntime,
+        hud: this.hud,
+        scoreSystem: this.scoreSystem,
+        orbit: this.orbitPropagator,
+        missionLog: this.missionLogAggregator,
+        audioBinder: this.audioBinder,
+        audioDispatcher: this.audioDispatcher,
+        docking: this.docking,
+        panelState: this.panelState,
+        performanceTracker: this.performanceTracker,
+      });
+
+      const shouldContinue = typeof tickResult === 'object' && tickResult !== null
+        ? tickResult.continue !== false
+        : tickResult !== false;
+
+      if (!shouldContinue) {
+        return { advanced: false, requestYield: false };
+      }
+
+      requestYield = Boolean(
+        tickResult
+        && typeof tickResult === 'object'
+        && tickResult.yield,
+      );
+    }
+
+    if (this.performanceTracker && tickStart != null) {
+      const durationMs = performance.now() - tickStart;
+      this.performanceTracker.recordTick(durationMs, { getSeconds: currentGet });
+      this.performanceTracker.maybeLog(currentGet);
+    }
+
+    this.clock.advance();
+
+    return { advanced: true, requestYield };
+  }
+
+  #collectSummary({ ticks }) {
     const stats = this.scheduler.stats();
     const finalState = this.resourceSystem.snapshot();
     const checklistStats = this.checklistManager ? this.checklistManager.stats() : null;
@@ -206,8 +281,10 @@ export class Simulation {
       missionLog: finalMissionLogSummary,
       audio: audioStats,
       docking: dockingStats,
-      panels: panelSnapshot,
+      panels: panelStats,
       performance: this.performanceTracker ? this.performanceTracker.summary() : null,
+      panelState: panelSnapshot,
     };
   }
+
 }

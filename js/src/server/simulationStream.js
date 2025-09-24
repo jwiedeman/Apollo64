@@ -63,15 +63,20 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         includeHistory,
       })}\n\n`,
     );
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
 
     let lastFrameSeconds = Number.NEGATIVE_INFINITY;
 
-    const result = simulation.run({
+    const result = await simulation.runAsync({
       untilGetSeconds: untilSeconds,
+      shouldAbort: () => aborted,
       onTick: (tick) => {
         if (aborted) {
-          return false;
+          return { continue: false };
         }
+
         const { getSeconds } = tick;
         const shouldEmit = getSeconds - lastFrameSeconds >= sampleSeconds - 1e-6;
         if (!shouldEmit && lastFrameSeconds !== Number.NEGATIVE_INFINITY) {
@@ -106,7 +111,7 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         const payload = createClientFrame(frame);
         res.write(`event: frame\ndata: ${JSON.stringify(payload)}\n\n`);
         lastFrameSeconds = getSeconds;
-        return true;
+        return { yield: true };
       },
     });
 
