@@ -11,41 +11,42 @@ const SPEED_PRESETS = {
   real: {
     key: 'real',
     label: '1× (baseline)',
-    intervalMs: 100,
+    missionRate: 1,
     sampleSeconds: 1.5,
     aliases: ['real', 'real-time', 'real_time', '1', '1x', '1×'],
   },
   '2x': {
     key: '2x',
     label: '2×',
-    intervalMs: 100,
+    missionRate: 2,
     sampleSeconds: 3,
     aliases: ['2', '2x', '2×'],
   },
   '4x': {
     key: '4x',
     label: '4×',
-    intervalMs: 100,
+    missionRate: 4,
     sampleSeconds: 6,
     aliases: ['4', '4x', '4×'],
   },
   '8x': {
     key: '8x',
     label: '8×',
-    intervalMs: 100,
+    missionRate: 8,
     sampleSeconds: 12,
     aliases: ['8', '8x', '8×'],
   },
   '16x': {
     key: '16x',
     label: '16×',
-    intervalMs: 100,
+    missionRate: 16,
     sampleSeconds: 24,
     aliases: ['16', '16x', '16×'],
   },
   fast: {
     key: 'fast',
     label: 'Fast',
+    missionRate: null,
     intervalMs: 0,
     sampleSeconds: 12,
     aliases: ['fast', 'max', 'maxspeed', 'unlimited', 'off', '0', 'instant'],
@@ -99,6 +100,72 @@ class FramePacer {
   }
 }
 
+class MissionPacer {
+  constructor(missionRate) {
+    this.missionRate = Number.isFinite(missionRate) && missionRate > 0 ? missionRate : null;
+    this.startGetSeconds = null;
+    this.startTimestamp = null;
+  }
+
+  consume(currentGetSeconds) {
+    if (!this.missionRate) {
+      return 0;
+    }
+    const now = performance.now();
+    if (!Number.isFinite(currentGetSeconds)) {
+      return 0;
+    }
+    if (this.startGetSeconds == null || this.startTimestamp == null) {
+      this.startGetSeconds = currentGetSeconds;
+      this.startTimestamp = now;
+      return 0;
+    }
+
+    const elapsedMissionSeconds = currentGetSeconds - this.startGetSeconds;
+    if (elapsedMissionSeconds <= 0) {
+      return 0;
+    }
+
+    const expectedElapsedMs = (elapsedMissionSeconds / this.missionRate) * 1000;
+    const actualElapsedMs = now - this.startTimestamp;
+    const waitMs = expectedElapsedMs - actualElapsedMs;
+    if (waitMs <= 0) {
+      return 0;
+    }
+    return waitMs;
+  }
+}
+
+function computeFrameInterval(preset, sampleSeconds) {
+  if (preset && preset.intervalMs != null && Number.isFinite(preset.intervalMs)) {
+    return Math.max(0, preset.intervalMs);
+  }
+  const missionRate = Number.isFinite(preset?.missionRate) && preset.missionRate > 0
+    ? preset.missionRate
+    : null;
+  if (!missionRate) {
+    return 0;
+  }
+  if (!Number.isFinite(sampleSeconds) || sampleSeconds <= 0) {
+    return 0;
+  }
+  const interval = (sampleSeconds / missionRate) * 1000;
+  return interval > 0 ? interval : 0;
+}
+
+function resolveMissionRate(preset, sampleSeconds, frameIntervalMs) {
+  if (Number.isFinite(preset?.missionRate) && preset.missionRate > 0) {
+    return preset.missionRate;
+  }
+  if (!Number.isFinite(sampleSeconds) || sampleSeconds <= 0) {
+    return null;
+  }
+  if (!Number.isFinite(frameIntervalMs) || frameIntervalMs <= 0) {
+    return null;
+  }
+  return (sampleSeconds * 1000) / frameIntervalMs;
+}
+
 export async function handleSimulationStream(req, res, { searchParams } = {}) {
   const params = searchParams ?? new URLSearchParams();
   const untilParam = params.get('until');
@@ -116,7 +183,10 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
     : Number.isFinite(speed.sampleSeconds) && speed.sampleSeconds > 0
       ? speed.sampleSeconds
       : DEFAULT_SAMPLE_SECONDS;
-  const pacer = new FramePacer(speed.intervalMs);
+  const frameIntervalMs = computeFrameInterval(speed, sampleSeconds);
+  const missionRate = resolveMissionRate(speed, sampleSeconds, frameIntervalMs);
+  const pacer = new FramePacer(frameIntervalMs);
+  const missionPacer = new MissionPacer(missionRate);
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -162,6 +232,7 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         speed: speed.key,
         frameIntervalMs: pacer.intervalMs,
         presetSampleSeconds: speed.sampleSeconds,
+        missionRate,
       })}\n\n`,
     );
     if (typeof res.flushHeaders === 'function') {
@@ -179,8 +250,13 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         }
 
         const { getSeconds } = tick;
+        const missionWait = missionPacer.consume(getSeconds);
+
         const shouldEmit = getSeconds - lastFrameSeconds >= sampleSeconds - 1e-6;
         if (!shouldEmit && lastFrameSeconds !== Number.NEGATIVE_INFINITY) {
+          if (missionWait > 0) {
+            return { yield: true, sleepMs: missionWait };
+          }
           return true;
         }
 
@@ -212,7 +288,8 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         const payload = createClientFrame(frame);
         res.write(`event: frame\ndata: ${JSON.stringify(payload)}\n\n`);
         lastFrameSeconds = getSeconds;
-        const waitMs = pacer.consume();
+        const frameWait = pacer.consume();
+        const waitMs = Math.max(frameWait ?? 0, missionWait ?? 0);
         if (waitMs > 0) {
           return { yield: true, sleepMs: waitMs };
         }
