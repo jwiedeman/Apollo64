@@ -20,6 +20,11 @@
           <div class="hud-subvalue" id="hud-next-pad"></div>
         </div>
         <div class="hud-col">
+          <div class="hud-label">Maneuver</div>
+          <div class="hud-value" id="hud-maneuver">Coast</div>
+          <div class="hud-subvalue" id="hud-maneuver-detail">No programs active.</div>
+        </div>
+        <div class="hud-col">
           <div class="hud-label">Resources</div>
           <div class="hud-metrics">
             <div class="metric">
@@ -91,6 +96,14 @@
             <h3>Autopilot</h3>
             <div class="panel-body" id="nav-autopilot">Autopilot idle.</div>
           </div>
+          <div class="panel">
+            <h3>Docking</h3>
+            <div class="panel-body" id="nav-docking">Docking monitor idle.</div>
+          </div>
+          <div class="panel">
+            <h3>Entry Corridor</h3>
+            <div class="panel-body" id="nav-entry">Entry monitoring idle.</div>
+          </div>
         </section>
 
         <section class="view" id="view-controls" aria-labelledby="tab-controls">
@@ -114,12 +127,20 @@
             <div class="panel-body" id="systems-resources">No resource data.</div>
           </div>
           <div class="panel">
+            <h3>Commander Scorecard</h3>
+            <div class="panel-body" id="systems-score">Score data unavailable.</div>
+          </div>
+          <div class="panel">
             <h3>Thermal &amp; Communications</h3>
             <div class="panel-body" id="systems-thermal">No telemetry yet.</div>
           </div>
           <div class="panel">
             <h3>Audio &amp; Performance</h3>
             <div class="panel-body" id="systems-performance">Performance data unavailable.</div>
+          </div>
+          <div class="panel">
+            <h3>Resource Trends</h3>
+            <div class="panel-body" id="systems-trends">Resource history disabled.</div>
           </div>
         </section>
       </main>

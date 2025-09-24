@@ -23,6 +23,8 @@ const dom = {
     comms: document.getElementById('hud-comms'),
     score: document.getElementById('hud-score'),
     scoreDetail: document.getElementById('hud-score-detail'),
+    maneuver: document.getElementById('hud-maneuver'),
+    maneuverDetail: document.getElementById('hud-maneuver-detail'),
     status: document.getElementById('hud-status'),
     progress: document.getElementById('hud-progress'),
     progressBar: document.querySelector('.progress-bar'),
@@ -36,6 +38,8 @@ const dom = {
     trajectory: document.getElementById('nav-trajectory'),
     upcoming: document.getElementById('nav-upcoming'),
     autopilot: document.getElementById('nav-autopilot'),
+    docking: document.getElementById('nav-docking'),
+    entry: document.getElementById('nav-entry'),
   },
   controls: {
     checklists: document.getElementById('controls-checklists'),
@@ -46,6 +50,8 @@ const dom = {
     resources: document.getElementById('systems-resources'),
     thermal: document.getElementById('systems-thermal'),
     performance: document.getElementById('systems-performance'),
+    score: document.getElementById('systems-score'),
+    trends: document.getElementById('systems-trends'),
   },
   missionLog: document.getElementById('mission-log'),
   summary: document.getElementById('summary-panel'),
@@ -166,7 +172,8 @@ function connectStream() {
   resetChecklistHighlight();
   render();
 
-  eventSource = new EventSource('/api/stream');
+  const streamUrl = '/api/stream?history=1';
+  eventSource = new EventSource(streamUrl);
   eventSource.addEventListener('status', (event) => {
     const payload = safeParse(event.data);
     if (!payload) {
@@ -344,6 +351,7 @@ function renderHud() {
   }
 
   updateChecklistChip(frame?.checklists?.chip);
+  renderManeuver(frame);
 
   const statusLabel = mapStatus(state.status);
   dom.hud.status.textContent = statusLabel;
@@ -404,6 +412,129 @@ function updateChecklistChip(chip) {
   }
 }
 
+function renderManeuver(frame) {
+  const labelEl = dom.hud.maneuver;
+  const detailEl = dom.hud.maneuverDetail;
+  if (!labelEl || !detailEl) {
+    return;
+  }
+
+  let label = 'Coast';
+  let detail = 'No programs active.';
+  let handled = false;
+
+  const autopilot = frame?.autopilot;
+  if (autopilot?.primary) {
+    const primary = autopilot.primary;
+    label = primary.label ?? primary.id ?? 'Autopilot';
+    const parts = [];
+    if (primary.status) {
+      parts.push(capitalize(primary.status));
+    }
+    if (primary.progress != null) {
+      parts.push(`${formatNumber(primary.progress * 100, { digits: 0 })}%`);
+    }
+    if (primary.timeRemainingLabel) {
+      parts.push(primary.timeRemainingLabel);
+    } else if (primary.pad?.tig) {
+      parts.push(`TIG ${primary.pad.tig}`);
+    }
+    detail = parts.join(' · ') || 'Autopilot active.';
+    handled = true;
+  } else if (autopilot?.counts?.active > 0) {
+    const activeCount = autopilot.counts.active;
+    label = 'Autopilot';
+    const parts = [`${activeCount} program${activeCount === 1 ? '' : 's'} active`];
+    if (autopilot.counts?.completed != null) {
+      parts.push(`${autopilot.counts.completed} complete`);
+    }
+    detail = parts.join(' · ');
+    handled = true;
+  }
+
+  const docking = frame?.docking;
+  if (!handled && docking && (docking.activeGateId || Number.isFinite(docking?.rangeMeters))) {
+    label = 'Docking';
+    const parts = [];
+    if (docking.activeGateId) {
+      parts.push(docking.activeGateId);
+    }
+    const rangeLabel = formatRangeMeters(docking.rangeMeters);
+    if (rangeLabel !== '—') {
+      parts.push(rangeLabel);
+    }
+    const closing = describeClosingRate(docking.closingRateMps);
+    if (closing) {
+      parts.push(closing);
+    }
+    detail = parts.join(' · ') || 'Rendezvous in progress.';
+    handled = true;
+  }
+
+  const entry = frame?.entry;
+  if (!handled && entry?.entryInterfaceGet) {
+    label = 'Entry Prep';
+    const parts = [`Interface ${entry.entryInterfaceGet}`];
+    const blackout = entry.blackout;
+    if (blackout?.status) {
+      const status = capitalize(blackout.status);
+      if (Number.isFinite(blackout.remainingSeconds)) {
+        const remaining = Math.max(0, blackout.remainingSeconds);
+        parts.push(`${status} in ${formatDuration(remaining)}`);
+      } else if (blackout.startsAtGet) {
+        parts.push(`${status} ${blackout.startsAtGet}`);
+      } else {
+        parts.push(status);
+      }
+    }
+    if (entry.ems?.predictedSplashdownGet) {
+      parts.push(`Splash ${entry.ems.predictedSplashdownGet}`);
+    }
+    detail = parts.join(' · ') || 'Entry monitoring active.';
+    handled = true;
+  }
+
+  const thermal = frame?.resources?.thermal;
+  if (!handled && thermal?.ptcActive) {
+    label = 'PTC';
+    const parts = [];
+    if (thermal.cryoBoiloffRatePctPerHr != null) {
+      parts.push(`${formatNumber(thermal.cryoBoiloffRatePctPerHr, { digits: 2 })}%/hr boil-off`);
+    }
+    const powerMargin = frame?.resources?.power?.marginPct;
+    if (powerMargin != null) {
+      parts.push(`Power ${formatNumber(powerMargin, { digits: 1 })}%`);
+    }
+    detail = parts.join(' · ') || 'Thermal roll active.';
+    handled = true;
+  }
+
+  const manualQueue = frame?.manualQueue;
+  if (!handled && manualQueue?.pending > 0) {
+    label = 'Manual Ops';
+    detail = `${manualQueue.pending} queued action${manualQueue.pending === 1 ? '' : 's'}`;
+    handled = true;
+  }
+
+  if (!handled) {
+    const nextEvent = frame?.events?.next;
+    if (nextEvent?.id) {
+      label = nextEvent.id;
+      const parts = [];
+      if (nextEvent.status) {
+        parts.push(capitalize(nextEvent.status));
+      }
+      if (nextEvent.tMinusLabel) {
+        parts.push(`T${nextEvent.tMinusLabel}`);
+      }
+      detail = parts.join(' · ') || 'Mission coasting.';
+    }
+  }
+
+  labelEl.textContent = label;
+  detailEl.textContent = detail;
+}
+
 function renderAlertBanner() {
   const banner = dom.alertBanner;
   if (!banner) {
@@ -442,6 +573,8 @@ function renderNavigationView() {
   renderTrajectory(frame?.trajectory);
   renderUpcoming(frame?.events?.upcoming);
   renderAutopilot(frame?.autopilot);
+  renderDocking(frame?.docking);
+  renderEntrySummary(frame?.entry);
 }
 
 function renderTrajectory(trajectory) {
@@ -540,6 +673,16 @@ function renderAutopilot(autopilot) {
       const title = document.createElement('strong');
       title.textContent = entry.id ?? entry.label ?? 'Autopilot';
       li.appendChild(title);
+      const metaParts = [];
+      if (entry.progress != null) {
+        metaParts.push(`${formatNumber(entry.progress * 100, { digits: 0 })}%`);
+      }
+      if (entry.timeRemainingLabel) {
+        metaParts.push(entry.timeRemainingLabel);
+      }
+      if (metaParts.length > 0) {
+        li.appendChild(createParagraph(metaParts.join(' · ')));
+      }
       if (entry.pad?.tig) {
         li.appendChild(createParagraph(`TIG ${entry.pad.tig}`));
       }
@@ -547,6 +690,173 @@ function renderAutopilot(autopilot) {
     });
     container.appendChild(list);
   }
+
+  const totals = autopilot.totals ?? {};
+  const totalsParts = [];
+  if (totals.burnSeconds != null) {
+    totalsParts.push(`Burn ${formatNumber(totals.burnSeconds, { digits: 0 })} s`);
+  }
+  if (totals.ullageSeconds != null) {
+    totalsParts.push(`Ullage ${formatNumber(totals.ullageSeconds, { digits: 0 })} s`);
+  }
+  if (totals.rcsImpulseNs != null) {
+    totalsParts.push(`RCS ${formatNumber(totals.rcsImpulseNs, { digits: 0 })} Ns`);
+  }
+  if (totalsParts.length > 0) {
+    container.appendChild(createParagraph(totalsParts.join(' · ')));
+  }
+}
+
+function renderDocking(docking) {
+  const container = dom.navigation.docking;
+  if (!container) {
+    return;
+  }
+  container.textContent = '';
+  if (!docking) {
+    container.textContent = 'Docking monitor idle.';
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  if (docking.eventId) {
+    fragment.appendChild(createParagraph(`Event ${docking.eventId}`));
+  }
+  const stats = document.createElement('div');
+  stats.className = 'progress-grid';
+  stats.appendChild(createTile('Progress', docking.progress != null ? `${formatNumber(docking.progress * 100, { digits: 0 })}%` : '—'));
+  stats.appendChild(createTile('Range', formatRangeMeters(docking.rangeMeters)));
+  stats.appendChild(createTile('Closing rate', describeClosingRate(docking.closingRateMps) ?? '—'));
+  if (docking.lateralRateMps != null) {
+    const lateralDigits = Math.abs(docking.lateralRateMps) >= 1 ? 2 : 3;
+    stats.appendChild(createTile('Lateral', `${formatNumber(docking.lateralRateMps, { digits: lateralDigits })} m/s`));
+  }
+  fragment.appendChild(stats);
+
+  if (Array.isArray(docking.gates) && docking.gates.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'mini-list';
+    docking.gates.slice(0, 3).forEach((gate) => {
+      const metaParts = [];
+      if (gate.rangeMeters != null) {
+        metaParts.push(formatRangeMeters(gate.rangeMeters));
+      }
+      if (gate.targetRateMps != null) {
+        const targetDigits = Math.abs(gate.targetRateMps) >= 1 ? 2 : 3;
+        metaParts.push(`${formatNumber(gate.targetRateMps, { digits: targetDigits })} m/s target`);
+      }
+      if (gate.status) {
+        metaParts.push(capitalize(gate.status));
+      }
+      let detail = '';
+      if (Number.isFinite(gate.timeRemainingSeconds)) {
+        detail = `T-${formatDuration(Math.max(gate.timeRemainingSeconds, 0))}`;
+      } else if (gate.deadlineGet) {
+        detail = `Deadline ${gate.deadlineGet}`;
+      }
+      const title = gate.label ?? gate.id ?? 'Gate';
+      list.appendChild(createMiniListItem(title, metaParts.join(' · '), detail));
+    });
+    fragment.appendChild(list);
+  }
+
+  container.appendChild(fragment);
+}
+
+function renderEntrySummary(entry) {
+  const container = dom.navigation.entry;
+  if (!container) {
+    return;
+  }
+  container.textContent = '';
+  if (!entry) {
+    container.textContent = 'Entry monitoring idle.';
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  const stats = document.createElement('div');
+  stats.className = 'progress-grid';
+  stats.appendChild(createTile('Interface', entry.entryInterfaceGet ?? '—'));
+  if (entry.corridor) {
+    const corridor = entry.corridor;
+    const angleParts = [];
+    if (corridor.currentDegrees != null) {
+      angleParts.push(`γ ${formatNumber(corridor.currentDegrees, { digits: 2 })}°`);
+    }
+    if (corridor.targetDegrees != null) {
+      angleParts.push(`Target ${formatNumber(corridor.targetDegrees, { digits: 2 })}°`);
+    }
+    stats.appendChild(createTile('Corridor', angleParts.join(' · ') || '—'));
+  }
+  if (entry.blackout) {
+    const blackout = entry.blackout;
+    let label = 'Idle';
+    if (blackout.status) {
+      label = capitalize(blackout.status);
+    }
+    if (Number.isFinite(blackout.remainingSeconds)) {
+      label += ` · ${formatDuration(Math.max(blackout.remainingSeconds, 0))}`;
+    } else if (blackout.startsAtGet && blackout.status === 'pending') {
+      label += ` · ${blackout.startsAtGet}`;
+    }
+    stats.appendChild(createTile('Blackout', label));
+  }
+  if (entry.ems) {
+    const ems = entry.ems;
+    const emsParts = [];
+    if (ems.velocityFtPerSec != null) {
+      emsParts.push(`${formatNumber(ems.velocityFtPerSec, { digits: 0 })} ft/s`);
+    }
+    if (ems.altitudeFt != null) {
+      emsParts.push(`${formatNumber(ems.altitudeFt, { digits: 0 })} ft`);
+    }
+    if (ems.predictedSplashdownGet) {
+      emsParts.push(`Splash ${ems.predictedSplashdownGet}`);
+    }
+    stats.appendChild(createTile('EMS', emsParts.join(' · ') || 'Standby'));
+  }
+  if (entry.gLoad) {
+    const gLoad = entry.gLoad;
+    const gParts = [];
+    if (gLoad.current != null) {
+      gParts.push(`${formatNumber(gLoad.current, { digits: 2 })} g`);
+    }
+    if (gLoad.max != null) {
+      gParts.push(`Max ${formatNumber(gLoad.max, { digits: 1 })} g`);
+    }
+    stats.appendChild(createTile('G-load', gParts.join(' · ') || '—'));
+  }
+  fragment.appendChild(stats);
+
+  if (entry.corridor && (entry.corridor.downrangeErrorKm != null || entry.corridor.crossrangeErrorKm != null)) {
+    const driftParts = [];
+    if (entry.corridor.downrangeErrorKm != null) {
+      driftParts.push(`Downrange ${formatNumber(entry.corridor.downrangeErrorKm, { digits: 1 })} km`);
+    }
+    if (entry.corridor.crossrangeErrorKm != null) {
+      driftParts.push(`Crossrange ${formatNumber(entry.corridor.crossrangeErrorKm, { digits: 1 })} km`);
+    }
+    if (driftParts.length > 0) {
+      fragment.appendChild(createParagraph(driftParts.join(' · ')));
+    }
+  }
+
+  if (Array.isArray(entry.recovery) && entry.recovery.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'mini-list';
+    entry.recovery.slice(0, 4).forEach((step) => {
+      const metaParts = [];
+      if (step.get) {
+        metaParts.push(step.get);
+      }
+      if (step.status) {
+        metaParts.push(capitalize(step.status));
+      }
+      list.appendChild(createMiniListItem(step.label ?? step.id ?? 'Milestone', metaParts.join(' · ')));
+    });
+    fragment.appendChild(list);
+  }
+
+  container.appendChild(fragment);
 }
 
 function renderControlsView() {
@@ -676,12 +986,28 @@ function renderManualQueue(queue) {
     `Failed ${queue.failed ?? 0}`,
   ];
   container.appendChild(createParagraph(metrics.join(' · ')));
+
+  const extras = [];
+  if (queue.acknowledgedSteps != null) {
+    extras.push(`Steps ${queue.acknowledgedSteps}`);
+  }
+  if (queue.dskyEntries != null) {
+    extras.push(`DSKY ${queue.dskyEntries}`);
+  }
+  if (queue.panelControls != null) {
+    extras.push(`Panel cmds ${queue.panelControls}`);
+  }
+  if (extras.length > 0) {
+    container.appendChild(createParagraph(extras.join(' · ')));
+  }
 }
 
 function renderSystemsView() {
   const frame = state.currentFrame;
   renderResourceOverview(frame?.resources);
+  renderScorecard(frame?.score);
   renderThermalComms(frame?.resources, frame?.entry);
+  renderResourceTrends(frame?.resourceHistory);
   renderPerformance(frame?.performance, frame?.audio);
 }
 
@@ -715,6 +1041,303 @@ function renderResourceOverview(resources) {
     grid.appendChild(createTile(label, value));
   });
   container.appendChild(grid);
+
+  const stages = resources.deltaV?.stages ?? {};
+  const stageValues = Object.values(stages).filter((entry) => entry);
+  if (stageValues.length > 0) {
+    const stageList = document.createElement('ul');
+    stageList.className = 'inline-list';
+    stageValues.forEach((stage) => {
+      const chip = document.createElement('li');
+      chip.className = 'chip';
+      const parts = [];
+      parts.push(stage.label ?? stage.id ?? 'Stage');
+      if (stage.remainingMps != null) {
+        parts.push(`${formatNumber(stage.remainingMps, { digits: 0 })} m/s`);
+      }
+      if (stage.percentRemaining != null) {
+        parts.push(`${formatNumber(stage.percentRemaining, { digits: 0 })}%`);
+      }
+      if (stage.status) {
+        parts.push(capitalize(stage.status));
+      }
+      chip.textContent = parts.join(' · ');
+      stageList.appendChild(chip);
+    });
+    container.appendChild(stageList);
+  }
+}
+
+function renderScorecard(score) {
+  const container = dom.systems.score;
+  if (!container) {
+    return;
+  }
+  container.textContent = '';
+  if (!score) {
+    container.textContent = 'Score data unavailable.';
+    return;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'scorecard';
+
+  const rating = score.rating ?? {};
+  const grade = rating.grade ?? '—';
+  const commanderScore = rating.commanderScore != null
+    ? formatNumber(rating.commanderScore, { digits: 1 })
+    : '—';
+
+  const gradeLabel = document.createElement('div');
+  gradeLabel.className = 'score-grade';
+  gradeLabel.textContent = `Grade ${grade}`;
+  wrapper.appendChild(gradeLabel);
+
+  const metrics = document.createElement('div');
+  metrics.className = 'score-metrics';
+
+  const commanderDetail = [];
+  if (rating.baseScore != null) {
+    commanderDetail.push(`Base ${formatNumber(rating.baseScore, { digits: 1 })}`);
+  }
+  if (rating.manualBonus != null) {
+    commanderDetail.push(`Bonus ${formatNumber(rating.manualBonus, { digits: 1 })}`);
+  }
+  metrics.appendChild(createScoreMetric('Commander', commanderScore, commanderDetail.join(' · ') || null));
+
+  const events = score.events ?? {};
+  if (events.completed != null || events.total != null || events.completionRatePct != null) {
+    const value = events.completed != null && events.total != null
+      ? `${formatNumber(events.completed, { digits: 0 })}/${formatNumber(events.total, { digits: 0 })}`
+      : events.completed != null
+        ? formatNumber(events.completed, { digits: 0 })
+        : '—';
+    const detail = events.completionRatePct != null
+      ? `Completion ${formatNumber(events.completionRatePct, { digits: 0 })}%`
+      : null;
+    metrics.appendChild(createScoreMetric('Events', value, detail));
+  }
+
+  const manual = score.manual ?? {};
+  if (manual.manualSteps != null || manual.totalSteps != null || manual.manualFraction != null) {
+    const value = manual.manualSteps != null && manual.totalSteps != null
+      ? `${formatNumber(manual.manualSteps, { digits: 0 })}/${formatNumber(manual.totalSteps, { digits: 0 })}`
+      : manual.manualSteps != null
+        ? formatNumber(manual.manualSteps, { digits: 0 })
+        : '—';
+    const detail = manual.manualFraction != null
+      ? `Manual ${formatNumber(manual.manualFraction * 100, { digits: 0 })}%`
+      : null;
+    metrics.appendChild(createScoreMetric('Manual', value, detail));
+  }
+
+  const faults = score.faults ?? {};
+  if (faults.totalFaults != null || faults.eventFailures != null || faults.resourceFailures != null) {
+    const value = faults.totalFaults != null
+      ? formatNumber(faults.totalFaults, { digits: 0 })
+      : '0';
+    const detailParts = [];
+    if (faults.eventFailures != null) {
+      detailParts.push(`Events ${formatNumber(faults.eventFailures, { digits: 0 })}`);
+    }
+    if (faults.resourceFailures != null) {
+      detailParts.push(`Resources ${formatNumber(faults.resourceFailures, { digits: 0 })}`);
+    }
+    metrics.appendChild(createScoreMetric('Faults', value, detailParts.join(' · ') || null));
+  }
+
+  const resources = score.resources ?? {};
+  if (resources.minPowerMarginPct != null || resources.minDeltaVMarginMps != null) {
+    const detailParts = [];
+    if (resources.minPowerMarginPct != null) {
+      detailParts.push(`Power min ${formatNumber(resources.minPowerMarginPct, { digits: 1 })}%`);
+    }
+    if (resources.minDeltaVMarginMps != null) {
+      detailParts.push(`Δv min ${formatNumber(resources.minDeltaVMarginMps, { digits: 1 })} m/s`);
+    }
+    const marginValue = detailParts.length > 0 ? 'Tracked' : '—';
+    metrics.appendChild(createScoreMetric('Margins', marginValue, detailParts.join(' · ') || null));
+  }
+
+  wrapper.appendChild(metrics);
+
+  const breakdownEntries = Object.entries(rating.breakdown ?? {})
+    .filter(([, value]) => value && (value.score != null || value.weight != null));
+  if (breakdownEntries.length > 0) {
+    const breakdownEl = document.createElement('div');
+    breakdownEl.className = 'score-breakdown';
+    breakdownEntries.forEach(([key, value]) => {
+      if (!value) {
+        return;
+      }
+      const row = document.createElement('div');
+      row.className = 'breakdown-row';
+      const labelEl = document.createElement('span');
+      labelEl.className = 'label';
+      labelEl.textContent = formatBreakdownLabel(key);
+      const valueEl = document.createElement('span');
+      valueEl.className = 'value';
+      const valueParts = [];
+      if (value.score != null) {
+        valueParts.push(formatNumber(value.score, { digits: 1 }));
+      }
+      if (value.weight != null) {
+        valueParts.push(`${formatNumber(value.weight * 100, { digits: 0 })}%`);
+      }
+      valueEl.textContent = valueParts.join(' · ') || '—';
+      row.appendChild(labelEl);
+      row.appendChild(valueEl);
+      breakdownEl.appendChild(row);
+    });
+    wrapper.appendChild(breakdownEl);
+  }
+
+  const historyEntries = Array.isArray(score.history) ? score.history.slice(-4) : [];
+  if (historyEntries.length > 0) {
+    const historyEl = document.createElement('div');
+    historyEl.className = 'score-history';
+    historyEntries.forEach((entry) => {
+      const item = document.createElement('div');
+      item.className = 'history-entry';
+      const timestamp = document.createElement('strong');
+      timestamp.textContent = entry.get ?? '--:--:--';
+      item.appendChild(timestamp);
+      const detailParts = [];
+      if (entry.grade) {
+        detailParts.push(`Grade ${entry.grade}`);
+      }
+      if (entry.commanderScore != null) {
+        detailParts.push(`${formatNumber(entry.commanderScore, { digits: 1 })}`);
+      }
+      const deltaScore = entry.delta?.commanderScore;
+      if (deltaScore != null && deltaScore !== 0) {
+        const sign = deltaScore > 0 ? '+' : '';
+        detailParts.push(`Δ ${sign}${formatNumber(deltaScore, { digits: 1 })}`);
+      }
+      if (detailParts.length > 0) {
+        const detail = document.createElement('span');
+        detail.textContent = ` – ${detailParts.join(' · ')}`;
+        item.appendChild(detail);
+      }
+      historyEl.appendChild(item);
+    });
+    wrapper.appendChild(historyEl);
+  }
+
+  container.appendChild(wrapper);
+}
+
+function renderResourceTrends(history) {
+  const container = dom.systems.trends;
+  if (!container) {
+    return;
+  }
+  container.textContent = '';
+  if (!history || history.meta?.enabled === false) {
+    container.textContent = 'Resource history disabled.';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const metaParts = [];
+  const sampleInterval = history.meta?.sampleIntervalSeconds;
+  if (Number.isFinite(sampleInterval) && sampleInterval > 0) {
+    metaParts.push(`Δt ${formatDuration(sampleInterval)}`);
+  }
+  const duration = history.meta?.durationSeconds;
+  if (Number.isFinite(duration) && duration > 0) {
+    metaParts.push(`Window ${formatDuration(duration)}`);
+  }
+  if (metaParts.length > 0) {
+    const meta = document.createElement('div');
+    meta.className = 'item-meta';
+    meta.textContent = metaParts.join(' · ');
+    fragment.appendChild(meta);
+  }
+
+  const list = document.createElement('ul');
+  list.className = 'mini-list';
+
+  const powerSample = getLast(history.power);
+  if (powerSample) {
+    const detailParts = [];
+    if (powerSample.powerMarginPct != null) {
+      detailParts.push(`Margin ${formatNumber(powerSample.powerMarginPct, { digits: 1 })}%`);
+    }
+    if (powerSample.fuelCellLoadKw != null) {
+      detailParts.push(`Load ${formatNumber(powerSample.fuelCellLoadKw, { digits: 1 })} kW`);
+    }
+    if (powerSample.fuelCellOutputKw != null) {
+      detailParts.push(`Output ${formatNumber(powerSample.fuelCellOutputKw, { digits: 1 })} kW`);
+    }
+    const meta = formatGetFromSeconds(powerSample.timeSeconds);
+    list.appendChild(createMiniListItem('Power', meta, detailParts.join(' · ') || null));
+  }
+
+  const thermalSample = getLast(history.thermal);
+  if (thermalSample) {
+    const detailParts = [];
+    if (thermalSample.cryoBoiloffRatePctPerHr != null) {
+      detailParts.push(`${formatNumber(thermalSample.cryoBoiloffRatePctPerHr, { digits: 2 })}%/hr boil-off`);
+    }
+    if (thermalSample.thermalState) {
+      detailParts.push(capitalize(thermalSample.thermalState));
+    }
+    if (thermalSample.ptcActive != null) {
+      detailParts.push(thermalSample.ptcActive ? 'PTC active' : 'PTC idle');
+    }
+    const meta = formatGetFromSeconds(thermalSample.timeSeconds);
+    list.appendChild(createMiniListItem('Thermal', meta, detailParts.join(' · ') || null));
+  }
+
+  const commSample = getLast(history.communications);
+  if (commSample) {
+    const metaParts = [];
+    if (commSample.timeSeconds != null) {
+      metaParts.push(formatGetFromSeconds(commSample.timeSeconds));
+    }
+    if (commSample.currentStation) {
+      metaParts.push(commSample.currentStation);
+    }
+    const detailParts = [];
+    if (commSample.active != null) {
+      detailParts.push(commSample.active ? 'Pass active' : 'Idle');
+    }
+    if (commSample.signalStrengthDb != null) {
+      detailParts.push(`${formatNumber(commSample.signalStrengthDb, { digits: 1 })} dB`);
+    }
+    if (commSample.timeRemainingSeconds != null) {
+      const remaining = Math.abs(commSample.timeRemainingSeconds);
+      if (remaining > 0) {
+        detailParts.push(`${formatDuration(remaining)} remaining`);
+      }
+    }
+    list.appendChild(createMiniListItem('Comms', metaParts.join(' · '), detailParts.join(' · ') || null));
+  }
+
+  const propellantHistory = history.propellant ?? {};
+  const tankEntries = Object.entries(propellantHistory)
+    .map(([tankId, samples]) => ({ tankId, sample: getLast(samples) }))
+    .filter(({ sample }) => sample);
+  tankEntries.slice(0, 2).forEach(({ tankId, sample }) => {
+    const meta = formatGetFromSeconds(sample.timeSeconds);
+    const detailParts = [];
+    if (sample.percentRemaining != null) {
+      detailParts.push(`${formatNumber(sample.percentRemaining, { digits: 0 })}%`);
+    }
+    if (sample.remainingKg != null) {
+      detailParts.push(`${formatNumber(sample.remainingKg, { digits: 0 })} kg`);
+    }
+    list.appendChild(createMiniListItem(formatTankLabel(tankId), meta, detailParts.join(' · ') || null));
+  });
+
+  if (list.children.length > 0) {
+    fragment.appendChild(list);
+  } else {
+    fragment.appendChild(createParagraph('No telemetry samples yet.'));
+  }
+
+  container.appendChild(fragment);
 }
 
 function renderThermalComms(resources, entry) {
@@ -858,6 +1481,152 @@ function createListItem(text) {
   item.className = 'list-item';
   item.textContent = text;
   return item;
+}
+
+function createScoreMetric(label, value, detail = null) {
+  const card = document.createElement('div');
+  card.className = 'score-metric';
+  const labelEl = document.createElement('span');
+  labelEl.className = 'label';
+  labelEl.textContent = label;
+  const valueEl = document.createElement('span');
+  valueEl.className = 'value';
+  valueEl.textContent = value ?? '—';
+  card.appendChild(labelEl);
+  card.appendChild(valueEl);
+  if (detail && detail.trim().length > 0) {
+    const detailEl = document.createElement('span');
+    detailEl.className = 'detail';
+    detailEl.textContent = detail;
+    card.appendChild(detailEl);
+  }
+  return card;
+}
+
+function createMiniListItem(title, meta = '', detail = null) {
+  const item = document.createElement('li');
+  const heading = document.createElement('strong');
+  heading.textContent = title;
+  item.appendChild(heading);
+  if (meta && meta.trim().length > 0) {
+    const metaEl = document.createElement('span');
+    metaEl.className = 'item-meta';
+    metaEl.textContent = meta;
+    item.appendChild(metaEl);
+  }
+  if (detail && detail.trim().length > 0) {
+    item.appendChild(createParagraph(detail));
+  }
+  return item;
+}
+
+function getLast(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    return null;
+  }
+  return list[list.length - 1];
+}
+
+function formatGetFromSeconds(seconds) {
+  if (!Number.isFinite(seconds)) {
+    return '';
+  }
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return `${String(hours).padStart(3, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds)) {
+    return '';
+  }
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const parts = [];
+  if (hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes}m`);
+  }
+  if (parts.length === 0 || (parts.length === 1 && hours > 0 && minutes === 0 && secs > 0)) {
+    parts.push(`${secs}s`);
+  } else if (parts.length === 1 && minutes > 0 && secs > 0) {
+    parts.push(`${secs}s`);
+  }
+  return parts.join(' ');
+}
+
+function formatRangeMeters(value) {
+  if (!Number.isFinite(value)) {
+    return '—';
+  }
+  const abs = Math.abs(value);
+  if (abs >= 1000) {
+    const digits = abs >= 10000 ? 0 : 2;
+    return `${formatNumber(abs / 1000, { digits })} km`;
+  }
+  if (abs >= 1) {
+    const digits = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+    return `${formatNumber(abs, { digits })} m`;
+  }
+  return `${formatNumber(abs * 100, { digits: 1 })} cm`;
+}
+
+function describeClosingRate(rate) {
+  if (!Number.isFinite(rate)) {
+    return null;
+  }
+  const magnitude = Math.abs(rate);
+  const digits = magnitude >= 1 ? 2 : 3;
+  const value = formatNumber(magnitude, { digits });
+  if (rate < -1e-3) {
+    return `${value} m/s closing`;
+  }
+  if (rate > 1e-3) {
+    return `${value} m/s opening`;
+  }
+  return `${value} m/s steady`;
+}
+
+function capitalize(value) {
+  if (value == null) {
+    return '';
+  }
+  const str = String(value);
+  if (str.length === 0) {
+    return '';
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function formatBreakdownLabel(key) {
+  if (!key) {
+    return '';
+  }
+  const spaced = String(key).replace(/_/g, ' ');
+  return spaced.replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function formatTankLabel(id) {
+  switch (id) {
+    case 'csm_sps':
+      return 'SPS';
+    case 'csm_rcs':
+      return 'CSM RCS';
+    case 'lm_descent':
+      return 'LM DPS';
+    case 'lm_ascent':
+      return 'LM APS';
+    case 'lm_rcs':
+      return 'LM RCS';
+    default:
+      return capitalize(String(id).replace(/_/g, ' '));
+  }
 }
 
 function setText(element, value) {

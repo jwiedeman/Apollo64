@@ -83,8 +83,10 @@ npm run dev
 
 The server streams simulation frames to the UI via Server-Sent Events. Visit [`http://localhost:3000`](http://localhost:3000) to watch the mission progress in real time. The visual MVP includes:
 
-- A persistent HUD with GET/MET, next event countdown, resource bars, comms status, and live commander score.
+- A persistent HUD with GET/MET, next event countdown, resource bars, comms status, maneuver status, and live commander score.
 - Three views—Navigation, Controls, and Systems—mirroring the project plan's layout. Tabs toggle between trajectory/timeline context, checklist & AGC details, and resource/performance telemetry.
+- Navigation view panels for docking progress and the entry corridor summarize rendezvous gates, blackout timing, and recovery milestones as the mission advances.
+- Systems view adds a commander scorecard and resource trend snapshots sourced from the simulator's history buffers.
 - Mission log feed and alert banner reacting to warnings, cautions, and failures surfaced by the simulator.
 
 Use the “Restart Simulation” button to trigger a fresh full-mission run without reloading the page. The CLI simulator remains available through `npm start` for text HUD and data exports.
