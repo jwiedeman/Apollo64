@@ -4,49 +4,52 @@ const SPEED_OPTIONS = [
   {
     key: 'real',
     label: '1× (baseline)',
-    intervalMs: 100,
     sampleSeconds: 1.5,
-    description: 'Nominal pacing with 10 Hz UI refresh (≈13 h full mission).',
+    missionRate: 1,
+    description: 'Historical pacing – matches real GET (≈8.2 day mission).',
   },
   {
     key: '2x',
     label: '2×',
-    intervalMs: 100,
     sampleSeconds: 3,
-    description: 'Double-speed playback (≈6.5 h full mission).',
+    missionRate: 2,
+    description: 'Twice real time (≈4.1 day mission).',
   },
   {
     key: '4x',
     label: '4×',
-    intervalMs: 100,
     sampleSeconds: 6,
-    description: 'Mission tour in about 3¼ hours.',
+    missionRate: 4,
+    description: 'Four times real time (≈49 hour mission).',
   },
   {
     key: '8x',
     label: '8×',
-    intervalMs: 100,
     sampleSeconds: 12,
-    description: 'Full mission in roughly 98 minutes.',
+    missionRate: 8,
+    description: 'Eight times real time (≈24½ hour mission).',
   },
   {
     key: '16x',
     label: '16×',
-    intervalMs: 100,
     sampleSeconds: 24,
-    description: 'Sprint through the mission in ~49 minutes.',
+    missionRate: 16,
+    description: 'Sixteen times real time (≈12¼ hour mission).',
   },
   {
     key: 'fast',
     label: 'Fast (dev)',
-    intervalMs: 0,
     sampleSeconds: 12,
+    missionRate: null,
+    frameIntervalMs: 0,
     description: 'Uncapped simulation speed for regression sweeps.',
   },
 ];
 
 const SPEED_MAP = new Map(SPEED_OPTIONS.map((option) => [option.key, option]));
 const DEFAULT_SAMPLE_SECONDS = SPEED_OPTIONS.find((option) => option.key === DEFAULT_SPEED_KEY)?.sampleSeconds ?? 60;
+const DEFAULT_FRAME_INTERVAL_MS = computeOptionFrameInterval(SPEED_MAP.get(DEFAULT_SPEED_KEY));
+const DEFAULT_MISSION_RATE = SPEED_MAP.get(DEFAULT_SPEED_KEY)?.missionRate ?? null;
 const HUD_TICK_INTERVAL_MS = 50;
 const FRAME_HISTORY_LIMIT = 900;
 
@@ -65,7 +68,8 @@ const state = {
   },
   activeSpeed: DEFAULT_SPEED_KEY,
   pacing: {
-    frameIntervalMs: SPEED_MAP.get(DEFAULT_SPEED_KEY)?.intervalMs ?? 0,
+    frameIntervalMs: DEFAULT_FRAME_INTERVAL_MS ?? 0,
+    missionRate: DEFAULT_MISSION_RATE,
   },
   dynamicTime: {
     displayGetSeconds: null,
@@ -449,10 +453,22 @@ function updateSpeedMetadata(payload = null) {
     state.requestedSampleSeconds = DEFAULT_SAMPLE_SECONDS;
   }
 
+  let frameInterval = null;
   if (payload && Number.isFinite(Number(payload.frameIntervalMs)) && Number(payload.frameIntervalMs) >= 0) {
-    state.pacing.frameIntervalMs = Number(payload.frameIntervalMs);
+    frameInterval = Number(payload.frameIntervalMs);
   } else {
-    state.pacing.frameIntervalMs = activeConfig.intervalMs;
+    frameInterval = computeOptionFrameInterval(activeConfig);
+  }
+  state.pacing.frameIntervalMs = frameInterval ?? 0;
+
+  if (payload && Number.isFinite(Number(payload.missionRate)) && Number(payload.missionRate) > 0) {
+    state.pacing.missionRate = Number(payload.missionRate);
+  } else if (Number.isFinite(activeConfig?.missionRate) && activeConfig.missionRate > 0) {
+    state.pacing.missionRate = activeConfig.missionRate;
+  } else if (Number.isFinite(state.sampleSeconds) && Number.isFinite(state.pacing.frameIntervalMs) && state.pacing.frameIntervalMs > 0) {
+    state.pacing.missionRate = computeMissionRate(state.sampleSeconds, state.pacing.frameIntervalMs);
+  } else {
+    state.pacing.missionRate = null;
   }
 
   updateSpeedHint(activeConfig);
@@ -491,9 +507,16 @@ function updateSpeedHint(config = null) {
     }
   }
 
-  const missionRate = computeMissionRate(missionSample, interval);
+  const missionRate = Number.isFinite(state.pacing.missionRate)
+    ? state.pacing.missionRate
+    : computeMissionRate(missionSample, interval);
   if (missionRate != null) {
     const rateLabel = formatMissionRateLabel(missionRate);
+    if (rateLabel) {
+      parts.push(rateLabel);
+    }
+  } else if (Number.isFinite(activeConfig?.missionRate) && activeConfig.missionRate > 0) {
+    const rateLabel = formatMissionRateLabel(activeConfig.missionRate);
     if (rateLabel) {
       parts.push(rateLabel);
     }
@@ -504,6 +527,20 @@ function updateSpeedHint(config = null) {
   }
 
   dom.speedHint.textContent = `${activeConfig.label} · ${parts.join(' · ')}`;
+}
+
+function computeOptionFrameInterval(option) {
+  if (!option) {
+    return null;
+  }
+  if (Number.isFinite(option.frameIntervalMs) && option.frameIntervalMs >= 0) {
+    return option.frameIntervalMs;
+  }
+  if (Number.isFinite(option.sampleSeconds) && Number.isFinite(option.missionRate) && option.missionRate > 0) {
+    const interval = (option.sampleSeconds / option.missionRate) * 1000;
+    return interval > 0 ? interval : null;
+  }
+  return null;
 }
 
 function refreshDynamicEstimate() {
