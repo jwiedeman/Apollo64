@@ -1,16 +1,54 @@
+const DEFAULT_SPEED_KEY = 'real';
+
 const SPEED_OPTIONS = [
-  { key: 'real', label: '1× (real time)', intervalMs: 1000, description: 'Frames paced every second.' },
-  { key: '2x', label: '2×', intervalMs: 500, description: 'Frames paced every 0.5 s.' },
-  { key: '4x', label: '4×', intervalMs: 250, description: 'Frames paced every 0.25 s.' },
-  { key: '8x', label: '8×', intervalMs: 125, description: 'Frames paced every 0.125 s.' },
-  { key: '16x', label: '16×', intervalMs: 62.5, description: 'Frames paced every 0.063 s.' },
-  { key: 'fast', label: 'Fast (dev)', intervalMs: 0, description: 'No pacing; runs as fast as possible.' },
+  {
+    key: 'real',
+    label: '1× (real time)',
+    intervalMs: 1000,
+    sampleSeconds: 30,
+    description: 'Full-fidelity real-time pacing.',
+  },
+  {
+    key: '2x',
+    label: '2×',
+    intervalMs: 500,
+    sampleSeconds: 20,
+    description: 'Comfortable time compression for reviews.',
+  },
+  {
+    key: '4x',
+    label: '4×',
+    intervalMs: 250,
+    sampleSeconds: 12,
+    description: 'Great for mission overviews.',
+  },
+  {
+    key: '8x',
+    label: '8×',
+    intervalMs: 125,
+    sampleSeconds: 8,
+    description: 'Rapid scrubbing through coast phases.',
+  },
+  {
+    key: '16x',
+    label: '16×',
+    intervalMs: 62.5,
+    sampleSeconds: 4,
+    description: 'High-speed review of long coast arcs.',
+  },
+  {
+    key: 'fast',
+    label: 'Fast (dev)',
+    intervalMs: 0,
+    sampleSeconds: 8,
+    description: 'Uncapped simulation speed for regression runs.',
+  },
 ];
 
 const SPEED_MAP = new Map(SPEED_OPTIONS.map((option) => [option.key, option]));
-const DEFAULT_SPEED_KEY = 'real';
-const DEFAULT_SAMPLE_SECONDS = 60;
-const HUD_TICK_INTERVAL_MS = 100;
+const DEFAULT_SAMPLE_SECONDS = SPEED_OPTIONS.find((option) => option.key === DEFAULT_SPEED_KEY)?.sampleSeconds ?? 60;
+const HUD_TICK_INTERVAL_MS = 50;
+const FRAME_HISTORY_LIMIT = 900;
 
 const state = {
   status: 'idle',
@@ -241,6 +279,12 @@ function connectStream() {
   state.summary = null;
   state.targetSeconds = null;
   state.activeSpeed = state.settings.speed;
+  const activeConfig = getSpeedConfig(state.activeSpeed);
+  const configSample = Number(activeConfig?.sampleSeconds);
+  state.requestedSampleSeconds = Number.isFinite(configSample) && configSample > 0
+    ? configSample
+    : DEFAULT_SAMPLE_SECONDS;
+  state.sampleSeconds = state.requestedSampleSeconds;
   resetDynamicClock();
   resetChecklistHighlight();
   render();
@@ -250,8 +294,9 @@ function connectStream() {
   if (state.settings.speed) {
     params.set('speed', state.settings.speed);
   }
-  if (Number.isFinite(state.requestedSampleSeconds) && state.requestedSampleSeconds > 0) {
-    params.set('sample', String(state.requestedSampleSeconds));
+  const requestedSample = Number(state.requestedSampleSeconds);
+  if (Number.isFinite(requestedSample) && requestedSample > 0) {
+    params.set('sample', String(requestedSample));
   }
   const streamUrl = `/api/stream?${params.toString()}`;
   eventSource = new EventSource(streamUrl);
@@ -337,6 +382,9 @@ function appendFrame(frame) {
     state.frames[state.frames.length - 1] = frame;
   } else {
     state.frames.push(frame);
+    if (state.frames.length > FRAME_HISTORY_LIMIT) {
+      state.frames.splice(0, state.frames.length - FRAME_HISTORY_LIMIT);
+    }
   }
   state.currentFrame = frame;
   updateDynamicClock(frame);
@@ -394,6 +442,12 @@ function updateSpeedMetadata(payload = null) {
 
   state.activeSpeed = activeKey;
   const activeConfig = getSpeedConfig(activeKey);
+  const configSample = Number(activeConfig?.sampleSeconds);
+  if (Number.isFinite(configSample) && configSample > 0) {
+    state.requestedSampleSeconds = configSample;
+  } else if (!Number.isFinite(state.requestedSampleSeconds) || state.requestedSampleSeconds <= 0) {
+    state.requestedSampleSeconds = DEFAULT_SAMPLE_SECONDS;
+  }
 
   if (payload && Number.isFinite(Number(payload.frameIntervalMs)) && Number(payload.frameIntervalMs) >= 0) {
     state.pacing.frameIntervalMs = Number(payload.frameIntervalMs);
@@ -410,18 +464,38 @@ function updateSpeedHint(config = null) {
   }
   const activeConfig = config ?? getSpeedConfig(state.activeSpeed);
   const interval = Number(state.pacing.frameIntervalMs);
+  const parts = [];
   if (!Number.isFinite(interval) || interval <= 0) {
-    dom.speedHint.textContent = `${activeConfig.label} · Running at maximum speed.`;
-    return;
-  }
-  if (interval >= 1000) {
+    parts.push('Running at maximum speed');
+  } else if (interval >= 1000) {
     const seconds = interval / 1000;
     const digits = seconds >= 10 ? 0 : 1;
-    dom.speedHint.textContent = `${activeConfig.label} · ${formatNumber(seconds, { digits })} s between frames`;
-    return;
+    parts.push(`${formatNumber(seconds, { digits })} s between frames`);
+  } else {
+    const digits = interval >= 100 ? 0 : interval >= 10 ? 0 : 1;
+    parts.push(`${formatNumber(interval, { digits })} ms between frames`);
   }
-  const digits = interval >= 100 ? 0 : interval >= 10 ? 0 : 1;
-  dom.speedHint.textContent = `${activeConfig.label} · ${formatNumber(interval, { digits })} ms between frames`;
+
+  const sampleSource = Number(state.sampleSeconds);
+  const missionSample = Number.isFinite(sampleSource) && sampleSource > 0
+    ? sampleSource
+    : Number(activeConfig?.sampleSeconds);
+  if (Number.isFinite(missionSample) && missionSample > 0) {
+    if (missionSample >= 60) {
+      parts.push(`~${formatDuration(missionSample)} GET per frame`);
+    } else if (missionSample >= 1) {
+      const digits = missionSample >= 10 ? 0 : 1;
+      parts.push(`~${formatNumber(missionSample, { digits })} s GET per frame`);
+    } else {
+      parts.push(`~${formatNumber(missionSample, { digits: 2 })} s GET per frame`);
+    }
+  }
+
+  if (activeConfig?.description) {
+    parts.push(activeConfig.description);
+  }
+
+  dom.speedHint.textContent = `${activeConfig.label} · ${parts.join(' · ')}`;
 }
 
 function refreshDynamicEstimate() {

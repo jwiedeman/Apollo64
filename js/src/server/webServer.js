@@ -27,17 +27,33 @@ export function startServer({ port = null, host = null } = {}) {
   const server = http.createServer(async (req, res) => {
     try {
       const requestUrl = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
-      if (req.method === 'GET' && requestUrl.pathname === '/api/stream') {
-        await handleSimulationStream(req, res, { searchParams: requestUrl.searchParams });
+      const method = (req.method ?? 'GET').toUpperCase();
+
+      if (requestUrl.pathname === '/api/stream') {
+        if (method === 'HEAD') {
+          res.writeHead(405, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            Allow: 'GET',
+          });
+          res.end('Method Not Allowed');
+          return;
+        }
+
+        if (method === 'GET') {
+          await handleSimulationStream(req, res, { searchParams: requestUrl.searchParams });
+          return;
+        }
+      }
+
+      if (method === 'GET' || method === 'HEAD') {
+        await serveStatic(requestUrl.pathname, res, { isHead: method === 'HEAD' });
         return;
       }
 
-      if (req.method === 'GET') {
-        await serveStatic(requestUrl.pathname, res);
-        return;
-      }
-
-      res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.writeHead(405, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        Allow: 'GET, HEAD',
+      });
       res.end('Method Not Allowed');
     } catch (error) {
       res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -63,7 +79,7 @@ export function startServer({ port = null, host = null } = {}) {
   });
 }
 
-async function serveStatic(requestPath, res) {
+async function serveStatic(requestPath, res, { isHead = false } = {}) {
   let relativePath = requestPath;
   if (relativePath === '/' || relativePath === '') {
     relativePath = '/index.html';
@@ -76,7 +92,11 @@ async function serveStatic(requestPath, res) {
   const filePath = path.join(PUBLIC_DIR, normalized);
   if (!filePath.startsWith(PUBLIC_DIR)) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Forbidden');
+    if (isHead) {
+      res.end();
+    } else {
+      res.end('Forbidden');
+    }
     return;
   }
 
@@ -87,15 +107,28 @@ async function serveStatic(requestPath, res) {
     res.writeHead(200, {
       'Content-Type': contentType,
       'Cache-Control': 'no-cache',
+      'Content-Length': data.length,
     });
-    res.end(data);
+    if (isHead) {
+      res.end();
+    } else {
+      res.end(data);
+    }
   } catch (error) {
     if (error && error.code === 'ENOENT') {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Not Found');
+      if (isHead) {
+        res.end();
+      } else {
+        res.end('Not Found');
+      }
     } else {
       res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Internal Server Error');
+      if (isHead) {
+        res.end();
+      } else {
+        res.end('Internal Server Error');
+      }
       if (error) {
         console.error('Static file error', error);
       }
