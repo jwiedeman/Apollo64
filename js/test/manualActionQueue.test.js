@@ -76,6 +76,11 @@ describe('ManualActionQueue', () => {
     assert.equal(stats.acknowledgedSteps, 2);
     assert.equal(stats.propellantBurns, 1);
     assert.equal(stats.resourceDeltas, 1);
+    assert.ok(Array.isArray(stats.pendingActions));
+    assert.equal(stats.pendingActions.length, 0);
+    assert.ok(Array.isArray(stats.history));
+    assert.equal(stats.history.length, 3);
+    assert.equal(stats.history[0].status, 'success');
 
     assert.equal(propellantUpdates.length, 1);
     assert.deepEqual(propellantUpdates[0], {
@@ -171,5 +176,8 @@ describe('ManualActionQueue', () => {
     const stats = queue.stats();
     assert.equal(stats.panelControls, 1);
     assert.equal(stats.executed, 1);
+    assert.ok(Array.isArray(stats.history));
+    assert.equal(stats.history.length, 1);
+    assert.equal(stats.history[0].details.stateLabel, 'OPEN');
   });
 });

@@ -458,6 +458,25 @@ describe('UiFrameBuilder', () => {
               nextStepNumber: 4,
               nextStepAction: 'SCS to AUTO',
               autoAdvancePending: false,
+              steps: [
+                {
+                  stepNumber: 3,
+                  action: 'Verify guidance align',
+                  acknowledged: true,
+                  acknowledgedAtSeconds: 80,
+                  actor: 'AUTO_CREW',
+                  note: null,
+                },
+                {
+                  stepNumber: 4,
+                  action: 'SCS to AUTO',
+                  acknowledged: false,
+                  acknowledgedAtSeconds: null,
+                  actor: null,
+                  note: null,
+                  isNext: true,
+                },
+              ],
             },
             {
               eventId: 'EVT2',
@@ -469,6 +488,23 @@ describe('UiFrameBuilder', () => {
               nextStepNumber: 2,
               nextStepAction: 'Enable PTC',
               autoAdvancePending: true,
+              steps: [
+                {
+                  stepNumber: 1,
+                  action: 'Configure attitude',
+                  acknowledged: true,
+                  acknowledgedAtSeconds: 60,
+                  actor: 'AUTO_CREW',
+                },
+                {
+                  stepNumber: 2,
+                  action: 'Enable PTC',
+                  acknowledged: false,
+                  acknowledgedAtSeconds: null,
+                  actor: null,
+                  isNext: true,
+                },
+              ],
             },
           ],
         }),
@@ -571,6 +607,8 @@ describe('UiFrameBuilder', () => {
     assert.equal(frame.checklists.chip.eventId, 'EVT1');
     assert.equal(frame.checklists.active[0].pad.id, 'PAD_EVT1');
     assert.equal(frame.checklists.chip.pad.id, 'PAD_EVT1');
+    assert.equal(frame.checklists.active[0].steps.length, 2);
+    assert.equal(frame.checklists.active[0].steps[0].acknowledged, true);
 
     assert.ok(frame.resourceHistory);
     assert.equal(frame.resourceHistory.meta.enabled, true);
@@ -1051,6 +1089,14 @@ describe('UiFrameBuilder', () => {
               nextStepNumber: 1,
               nextStepAction: 'Test callout',
               autoAdvancePending: false,
+              steps: [
+                {
+                  stepNumber: 1,
+                  action: 'Test callout',
+                  acknowledged: false,
+                  isNext: true,
+                },
+              ],
             },
           ],
         }),
@@ -1063,6 +1109,9 @@ describe('UiFrameBuilder', () => {
     assert.equal(active.nextStepDefinition.controls[0].targetStateLabel, 'On');
     assert.equal(active.nextStepDefinition.controls[0].control.hotspot.width, 30);
     assert.deepEqual(active.nextStepDefinition.prerequisites, ['event:TEST']);
+    assert.equal(active.steps.length, 1);
+    assert.equal(active.steps[0].action, 'Test callout');
+    assert.equal(active.steps[0].isNext, true);
 
     const chip = frame.checklists.chip;
     assert.ok(chip.definition);

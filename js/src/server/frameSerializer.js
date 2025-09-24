@@ -360,35 +360,15 @@ function simplifyChecklists(checklists) {
   if (!checklists || typeof checklists !== 'object') {
     return null;
   }
+
   const active = Array.isArray(checklists.active)
-    ? checklists.active.map((entry) => ({
-        checklistId: entry.checklistId ?? entry.id ?? null,
-        title: entry.title ?? entry.checklistId ?? null,
-        eventId: entry.eventId ?? null,
-        crewRole: entry.crewRole ?? null,
-        completedSteps: entry.completedSteps ?? 0,
-        totalSteps: entry.totalSteps ?? null,
-        nextStepNumber: entry.nextStepNumber ?? null,
-        nextStepAction: entry.nextStepAction
-          ?? entry.nextStepDefinition?.callout
-          ?? entry.nextStepDefinition?.notes
-          ?? null,
-        autoAdvancePending: entry.autoAdvancePending ?? null,
-        pad: simplifyPad(entry.pad),
-        tags: Array.isArray(entry.definition?.tags) ? entry.definition.tags.slice(0, 6) : undefined,
-      }))
+    ? checklists.active
+        .map((entry) => simplifyChecklistEntry(entry))
+        .filter(Boolean)
     : [];
-  const chip = checklists.chip
-    ? {
-        checklistId: checklists.chip.checklistId ?? null,
-        eventId: checklists.chip.eventId ?? null,
-        title: checklists.chip.title ?? null,
-        nextStepNumber: checklists.chip.nextStepNumber ?? null,
-        nextStepAction: checklists.chip.nextStepAction ?? null,
-        stepsRemaining: checklists.chip.stepsRemaining ?? null,
-        pad: simplifyPad(checklists.chip.pad),
-      }
-    : null;
+
+  const chip = simplifyChecklistChip(checklists.chip);
+
   return {
     totals: checklists.totals ?? null,
     active,
@@ -396,19 +376,353 @@ function simplifyChecklists(checklists) {
   };
 }
 
+function simplifyChecklistEntry(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const definition = simplifyChecklistDefinition(entry.definition);
+  const nextStepDefinition = entry.nextStepDefinition
+    ? simplifyChecklistStepDefinition(entry.nextStepDefinition)
+    : null;
+  const steps = Array.isArray(entry.steps)
+    ? entry.steps.map((step) => simplifyChecklistStep(step)).filter(Boolean)
+    : [];
+
+  const nextStepAction = entry.nextStepAction
+    ?? nextStepDefinition?.callout
+    ?? nextStepDefinition?.notes
+    ?? null;
+
+  const tags = Array.isArray(entry.tags) && entry.tags.length > 0
+    ? entry.tags.slice(0, 6)
+    : definition?.tags ?? undefined;
+
+  return {
+    checklistId: entry.checklistId ?? entry.id ?? null,
+    title: entry.title ?? entry.checklistId ?? null,
+    eventId: entry.eventId ?? null,
+    crewRole: entry.crewRole ?? null,
+    completedSteps: entry.completedSteps ?? 0,
+    totalSteps: entry.totalSteps ?? null,
+    nextStepNumber: entry.nextStepNumber ?? null,
+    nextStepAction,
+    autoAdvancePending: entry.autoAdvancePending ?? null,
+    stepDurationSeconds: coerceNumber(entry.stepDurationSeconds),
+    pad: simplifyPad(entry.pad),
+    tags,
+    definition,
+    nextStepDefinition,
+    steps,
+  };
+}
+
+function simplifyChecklistChip(chip) {
+  if (!chip || typeof chip !== 'object') {
+    return null;
+  }
+
+  const definition = simplifyChecklistDefinition(chip.definition);
+  const nextStepDefinition = chip.nextStepDefinition
+    ? simplifyChecklistStepDefinition(chip.nextStepDefinition)
+    : null;
+  const nextStepAction = chip.nextStepAction
+    ?? nextStepDefinition?.callout
+    ?? nextStepDefinition?.notes
+    ?? null;
+
+  return {
+    checklistId: chip.checklistId ?? null,
+    eventId: chip.eventId ?? null,
+    title: chip.title ?? null,
+    nextStepNumber: chip.nextStepNumber ?? null,
+    nextStepAction,
+    stepsRemaining: chip.stepsRemaining ?? null,
+    pad: simplifyPad(chip.pad),
+    definition,
+    nextStepDefinition,
+  };
+}
+
+function simplifyChecklistDefinition(definition) {
+  if (!definition || typeof definition !== 'object') {
+    return null;
+  }
+
+  const summary = {
+    id: definition.id ?? null,
+    title: definition.title ?? null,
+    phase: definition.phase ?? null,
+    role: definition.role ?? null,
+    nominalGet: definition.nominalGet ?? null,
+    nominalGetSeconds: coerceNumber(definition.nominalGetSeconds),
+    totalSteps: coerceNumber(definition.totalSteps),
+  };
+
+  if (definition.source) {
+    summary.source = cloneShallow(definition.source);
+  }
+  if (Array.isArray(definition.tags) && definition.tags.length > 0) {
+    summary.tags = definition.tags.slice(0, 6);
+  }
+
+  return summary;
+}
+
+function simplifyChecklistStepDefinition(definition) {
+  if (!definition || typeof definition !== 'object') {
+    return null;
+  }
+
+  const controls = Array.isArray(definition.controls)
+    ? definition.controls.map((control) => simplifyChecklistControl(control)).filter(Boolean)
+    : [];
+
+  const effects = Array.isArray(definition.effects)
+    ? definition.effects.map((effect) => (effect && typeof effect === 'object' ? { ...effect } : null)).filter(Boolean)
+    : [];
+
+  return {
+    id: definition.id ?? null,
+    order: coerceNumber(definition.order),
+    callout: definition.callout ?? null,
+    panelId: definition.panelId ?? null,
+    panel: definition.panel ? cloneShallow(definition.panel) : null,
+    dskyMacro: definition.dskyMacro ?? null,
+    manualOnly: definition.manualOnly != null ? Boolean(definition.manualOnly) : null,
+    notes: definition.notes ?? null,
+    prerequisites: Array.isArray(definition.prerequisites)
+      ? definition.prerequisites.slice(0, 8)
+      : [],
+    tags: Array.isArray(definition.tags) ? definition.tags.slice(0, 6) : [],
+    controls,
+    effects,
+  };
+}
+
+function simplifyChecklistControl(control) {
+  if (!control || typeof control !== 'object') {
+    return null;
+  }
+
+  const summary = {
+    controlId: control.controlId ?? null,
+    targetState: control.targetState ?? null,
+    targetStateLabel: control.targetStateLabel ?? null,
+    verification: control.verification ?? null,
+    tolerance: coerceNumber(control.tolerance),
+    label: control.label ?? null,
+    notes: control.notes ?? null,
+    prerequisites: Array.isArray(control.prerequisites)
+      ? control.prerequisites.slice(0, 6)
+      : [],
+    metadata: control.metadata ? { ...control.metadata } : null,
+    targetStateDeltas: control.targetStateDeltas ? { ...control.targetStateDeltas } : null,
+  };
+
+  if (control.control) {
+    summary.control = simplifyChecklistControlDefinition(control.control);
+  }
+
+  return summary;
+}
+
+function simplifyChecklistControlDefinition(control) {
+  if (!control || typeof control !== 'object') {
+    return null;
+  }
+
+  const summary = {
+    id: control.id ?? null,
+    label: control.label ?? null,
+    type: control.type ?? null,
+    defaultState: control.defaultState ?? null,
+  };
+
+  if (Array.isArray(control.states)) {
+    summary.states = control.states
+      .map((state) => (state && typeof state === 'object'
+        ? { id: state.id ?? null, label: state.label ?? null }
+        : null))
+      .filter(Boolean);
+  }
+
+  if (control.hotspot && typeof control.hotspot === 'object') {
+    summary.hotspot = { ...control.hotspot };
+  }
+
+  if (control.craft) {
+    summary.craft = control.craft;
+  }
+
+  return summary;
+}
+
+function simplifyChecklistStep(step) {
+  if (!step || typeof step !== 'object') {
+    return null;
+  }
+
+  const definition = step.definition
+    ? simplifyChecklistStepDefinition(step.definition)
+    : null;
+  const acknowledgedSeconds = coerceNumber(step.acknowledgedAtSeconds ?? step.acknowledgedAt);
+
+  const tags = Array.isArray(step.tags) && step.tags.length > 0
+    ? step.tags.slice(0, 6)
+    : definition?.tags ?? [];
+
+  return {
+    stepNumber: coerceNumber(step.stepNumber ?? step.order),
+    action: step.action ?? definition?.callout ?? null,
+    expectedResponse: step.expectedResponse ?? null,
+    reference: step.reference ?? definition?.notes ?? null,
+    acknowledged: Boolean(step.acknowledged),
+    acknowledgedAtSeconds: acknowledgedSeconds,
+    acknowledgedAt: Number.isFinite(acknowledgedSeconds) ? formatGET(acknowledgedSeconds) : null,
+    actor: step.actor ?? null,
+    note: step.note ?? null,
+    audioCueComplete: step.audioCueComplete ?? null,
+    manualOnly: step.manualOnly != null ? Boolean(step.manualOnly) : definition?.manualOnly ?? null,
+    isNext: Boolean(step.isNext),
+    tags,
+    dskyMacro: step.dskyMacro ?? definition?.dskyMacro ?? null,
+    panel: definition?.panel ?? null,
+    controls: definition?.controls ?? [],
+    effects: definition?.effects ?? [],
+    definition,
+  };
+}
+
 function simplifyManualQueue(queue) {
   if (!queue || typeof queue !== 'object') {
     return null;
   }
-  return {
+
+  const counts = {
     pending: queue.pending ?? 0,
     scheduled: queue.scheduled ?? null,
     executed: queue.executed ?? null,
     failed: queue.failed ?? null,
     retried: queue.retried ?? null,
     acknowledgedSteps: queue.acknowledgedSteps ?? null,
+    resourceDeltas: queue.resourceDeltas ?? null,
+    propellantBurns: queue.propellantBurns ?? null,
     dskyEntries: queue.dskyEntries ?? null,
     panelControls: queue.panelControls ?? null,
+  };
+
+  const pendingActions = Array.isArray(queue.pendingActions)
+    ? queue.pendingActions.map((action) => simplifyManualAction(action)).filter(Boolean)
+    : [];
+
+  const history = Array.isArray(queue.history)
+    ? queue.history.map((entry) => simplifyManualHistoryEntry(entry)).filter(Boolean)
+    : [];
+
+  return {
+    pending: counts.pending,
+    scheduled: counts.scheduled,
+    executed: counts.executed,
+    failed: counts.failed,
+    retried: counts.retried,
+    acknowledgedSteps: counts.acknowledgedSteps,
+    resourceDeltas: counts.resourceDeltas,
+    propellantBurns: counts.propellantBurns,
+    dskyEntries: counts.dskyEntries,
+    panelControls: counts.panelControls,
+    counts,
+    pendingActions,
+    history,
+  };
+}
+
+function simplifyManualAction(action) {
+  if (!action || typeof action !== 'object') {
+    return null;
+  }
+
+  const getSeconds = coerceNumber(action.getSeconds);
+  const retryUntilSeconds = coerceNumber(action.retryUntilSeconds);
+
+  const base = {
+    id: action.id ?? null,
+    type: action.type ?? null,
+    getSeconds,
+    get: action.get ?? (Number.isFinite(getSeconds) ? formatGET(getSeconds) : null),
+    retryUntilSeconds,
+    retryUntil: action.retryUntil ?? (Number.isFinite(retryUntilSeconds) ? formatGET(retryUntilSeconds) : null),
+    source: action.source ?? null,
+  };
+
+  switch (action.type) {
+    case 'checklist_ack':
+      return {
+        ...base,
+        eventId: action.eventId ?? null,
+        count: coerceNumber(action.count),
+        actor: action.actor ?? null,
+        note: action.note ?? null,
+      };
+    case 'resource_delta':
+      return {
+        ...base,
+        effect: action.effect && typeof action.effect === 'object' ? { ...action.effect } : null,
+        note: action.note ?? null,
+      };
+    case 'propellant_burn':
+      return {
+        ...base,
+        tankKey: action.tankKey ?? null,
+        amountKg: coerceNumber(action.amountKg),
+        note: action.note ?? null,
+      };
+    case 'dsky_entry': {
+      const registers = action.registers && typeof action.registers === 'object'
+        ? { ...action.registers }
+        : {};
+      const sequence = Array.isArray(action.sequence) ? [...action.sequence] : [];
+      return {
+        ...base,
+        macroId: action.macroId ?? null,
+        verb: coerceNumber(action.verb),
+        verbLabel: action.verbLabel ?? (Number.isFinite(action.verb) ? formatVerbNoun(action.verb) : null),
+        noun: coerceNumber(action.noun),
+        nounLabel: action.nounLabel ?? (Number.isFinite(action.noun) ? formatVerbNoun(action.noun) : null),
+        program: action.program ?? null,
+        registers,
+        sequence,
+        note: action.note ?? null,
+      };
+    }
+    case 'panel_control':
+      return {
+        ...base,
+        panelId: action.panelId ?? null,
+        controlId: action.controlId ?? null,
+        stateId: action.stateId ?? null,
+        actor: action.actor ?? null,
+        note: action.note ?? null,
+      };
+    default:
+      return base;
+  }
+}
+
+function simplifyManualHistoryEntry(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const executedSeconds = coerceNumber(entry.executedAtSeconds ?? entry.executedAt);
+
+  return {
+    id: entry.id ?? null,
+    type: entry.type ?? null,
+    executedAtSeconds: executedSeconds,
+    executedAt: entry.executedAt ?? (Number.isFinite(executedSeconds) ? formatGET(executedSeconds) : null),
+    status: entry.status ?? null,
+    details: entry.details && typeof entry.details === 'object' ? { ...entry.details } : null,
   };
 }
 

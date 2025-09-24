@@ -1849,14 +1849,20 @@ export class UiFrameBuilder {
     augmented.pad = resolvePad ? resolvePad(entry.eventId) : null;
 
     const checklist = this.uiChecklists?.get(entry.checklistId);
+    const rawSteps = Array.isArray(entry.steps) ? entry.steps : [];
     if (checklist) {
       augmented.definition = this.#buildChecklistDefinition(checklist);
+      augmented.steps = rawSteps
+        .map((step) => this.#mergeChecklistStep(step, checklist, entry.nextStepNumber))
+        .filter(Boolean);
       if (entry.nextStepNumber != null) {
         const stepDefinition = this.#lookupChecklistStep(checklist, entry.nextStepNumber);
         if (stepDefinition) {
           augmented.nextStepDefinition = this.#summarizeChecklistStep(stepDefinition);
         }
       }
+    } else {
+      augmented.steps = rawSteps.map((step) => ({ ...step }));
     }
 
     return augmented;
@@ -1880,6 +1886,53 @@ export class UiFrameBuilder {
     }
     if (Array.isArray(checklist.tags) && checklist.tags.length > 0) {
       summary.tags = checklist.tags.slice();
+    }
+
+    return summary;
+  }
+
+  #mergeChecklistStep(step, checklist, nextStepNumber) {
+    if (!step || typeof step !== 'object') {
+      return null;
+    }
+
+    const summary = { ...step };
+    const stepNumber = Number.isFinite(step.stepNumber)
+      ? step.stepNumber
+      : Number.isFinite(step.order)
+        ? step.order
+        : null;
+    summary.stepNumber = stepNumber;
+
+    if (summary.acknowledgedAtSeconds == null && Number.isFinite(step.acknowledgedAt)) {
+      summary.acknowledgedAtSeconds = step.acknowledgedAt;
+    }
+    if (summary.acknowledged == null && typeof step.acknowledged === 'boolean') {
+      summary.acknowledged = step.acknowledged;
+    }
+    if (summary.isNext == null && Number.isFinite(nextStepNumber)) {
+      summary.isNext = stepNumber === nextStepNumber;
+    }
+
+    const definition = checklist ? this.#lookupChecklistStep(checklist, stepNumber) : null;
+    if (definition) {
+      const definitionSummary = this.#summarizeChecklistStep(definition);
+      summary.definition = definitionSummary;
+      if (!summary.action && definitionSummary.callout) {
+        summary.action = definitionSummary.callout;
+      }
+      if (!summary.reference && definitionSummary.notes) {
+        summary.reference = definitionSummary.notes;
+      }
+      if (definitionSummary.dskyMacro && !summary.dskyMacro) {
+        summary.dskyMacro = definitionSummary.dskyMacro;
+      }
+      if (definitionSummary.manualOnly != null && summary.manualOnly == null) {
+        summary.manualOnly = definitionSummary.manualOnly;
+      }
+      if (definitionSummary.tags && (!summary.tags || summary.tags.length === 0)) {
+        summary.tags = definitionSummary.tags.slice();
+      }
     }
 
     return summary;

@@ -246,7 +246,22 @@ export class ChecklistManager {
   stats() {
     const active = [];
     for (const state of this.active.values()) {
-      const nextStep = state.steps.find((step) => !step.acknowledged) ?? null;
+      const nextStepIndex = state.steps.findIndex((step) => !step.acknowledged);
+      const nextStep = nextStepIndex >= 0 ? state.steps[nextStepIndex] : null;
+      const steps = state.steps.map((step, index) => ({
+        stepNumber: step.stepNumber,
+        action: step.action ?? null,
+        expectedResponse: step.expectedResponse ?? null,
+        reference: step.reference ?? null,
+        acknowledged: Boolean(step.acknowledged),
+        acknowledgedAtSeconds: Number.isFinite(step.acknowledgedAt) ? step.acknowledgedAt : null,
+        actor: step.actor ?? null,
+        note: step.note ?? null,
+        audioCueComplete: step.audioCueComplete ?? null,
+        manualOnly: Boolean(step.manualOnly),
+        tags: Array.isArray(step.tags) ? step.tags.slice() : undefined,
+        isNext: index === nextStepIndex,
+      }));
       active.push({
         eventId: state.eventId,
         checklistId: state.checklistId,
@@ -258,6 +273,7 @@ export class ChecklistManager {
         nextStepAction: nextStep?.action ?? null,
         autoAdvancePending: Boolean(state.nextAutoAckTime && nextStep),
         stepDurationSeconds: state.stepDurationSeconds,
+        steps,
       });
     }
 

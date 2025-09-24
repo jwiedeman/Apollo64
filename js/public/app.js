@@ -5,36 +5,36 @@ const SPEED_OPTIONS = [
     key: 'real',
     label: '1× (baseline)',
     intervalMs: 100,
-    sampleSeconds: 3,
-    description: 'Nominal pacing with 10 Hz UI refresh (≈6.5 h full mission).',
+    sampleSeconds: 1.5,
+    description: 'Nominal pacing with 10 Hz UI refresh (≈13 h full mission).',
   },
   {
     key: '2x',
     label: '2×',
     intervalMs: 100,
-    sampleSeconds: 6,
-    description: 'Double-speed playback (≈3.3 h full mission).',
+    sampleSeconds: 3,
+    description: 'Double-speed playback (≈6.5 h full mission).',
   },
   {
     key: '4x',
     label: '4×',
     intervalMs: 100,
-    sampleSeconds: 12,
-    description: 'Mission tour in about 98 minutes.',
+    sampleSeconds: 6,
+    description: 'Mission tour in about 3¼ hours.',
   },
   {
     key: '8x',
     label: '8×',
     intervalMs: 100,
-    sampleSeconds: 24,
-    description: 'Full mission in under an hour.',
+    sampleSeconds: 12,
+    description: 'Full mission in roughly 98 minutes.',
   },
   {
     key: '16x',
     label: '16×',
     intervalMs: 100,
-    sampleSeconds: 48,
-    description: 'Sprint through the mission in ~25 minutes.',
+    sampleSeconds: 24,
+    description: 'Sprint through the mission in ~49 minutes.',
   },
   {
     key: 'fast',
@@ -1256,26 +1256,462 @@ function renderChecklists(checklists) {
       }
     }
 
-    const title = document.createElement('strong');
-    title.textContent = entry.title ?? entry.checklistId ?? 'Checklist';
-    card.appendChild(title);
+    card.appendChild(renderChecklistHeader(entry));
+    card.appendChild(renderChecklistProgress(entry));
 
-    const steps = document.createElement('div');
-    const completed = entry.completedSteps ?? 0;
-    const total = entry.totalSteps ?? '—';
-    steps.className = 'checklist-steps';
-    steps.textContent = `Step ${entry.nextStepNumber ?? completed + 1} • ${completed}/${total}`;
-    card.appendChild(steps);
-
-    if (entry.nextStepAction) {
-      card.appendChild(createParagraph(entry.nextStepAction));
+    if (Array.isArray(entry.tags) && entry.tags.length > 0) {
+      card.appendChild(renderTagList(entry.tags));
     }
-    if (entry.pad?.tig) {
-      card.appendChild(createParagraph(`TIG ${entry.pad.tig}`));
+
+    const steps = Array.isArray(entry.steps) ? entry.steps : [];
+    if (steps.length > 0) {
+      card.appendChild(renderChecklistSteps(steps));
+    } else if (entry.nextStepAction) {
+      const detail = document.createElement('div');
+      detail.className = 'checklist-step-list empty';
+      detail.appendChild(createParagraph(entry.nextStepAction));
+      card.appendChild(detail);
     }
     fragment.appendChild(card);
   });
   container.appendChild(fragment);
+}
+
+function renderChecklistHeader(entry) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'checklist-header';
+
+  const title = document.createElement('strong');
+  title.textContent = entry.title ?? entry.checklistId ?? 'Checklist';
+  wrapper.appendChild(title);
+
+  const metaParts = [];
+  if (entry.definition?.phase) {
+    metaParts.push(entry.definition.phase);
+  }
+  if (entry.crewRole) {
+    metaParts.push(entry.crewRole);
+  }
+  if (entry.definition?.nominalGet) {
+    metaParts.push(`Nominal ${entry.definition.nominalGet}`);
+  }
+  if (entry.pad?.tig) {
+    metaParts.push(`TIG ${entry.pad.tig}`);
+  }
+  if (metaParts.length > 0) {
+    const meta = document.createElement('div');
+    meta.className = 'checklist-meta';
+    meta.textContent = metaParts.join(' · ');
+    wrapper.appendChild(meta);
+  }
+
+  return wrapper;
+}
+
+function renderChecklistProgress(entry) {
+  const progress = document.createElement('div');
+  progress.className = 'checklist-progress';
+  const completed = entry.completedSteps ?? 0;
+  const total = entry.totalSteps ?? '—';
+  const nextStep = entry.nextStepNumber ?? completed + 1;
+  progress.textContent = `Step ${nextStep} • ${completed}/${total}`;
+  if (entry.autoAdvancePending) {
+    const badge = document.createElement('span');
+    badge.className = 'checklist-auto';
+    badge.textContent = 'Auto crew';
+    progress.appendChild(badge);
+  }
+  return progress;
+}
+
+function renderTagList(tags) {
+  const list = document.createElement('ul');
+  list.className = 'checklist-tag-list';
+  tags.slice(0, 6).forEach((tag) => {
+    const item = document.createElement('li');
+    item.className = 'chip';
+    item.textContent = tag;
+    list.appendChild(item);
+  });
+  return list;
+}
+
+function renderChecklistSteps(steps) {
+  const list = document.createElement('ol');
+  list.className = 'checklist-step-list';
+
+  steps.forEach((step) => {
+    const item = document.createElement('li');
+    item.className = 'checklist-step';
+    if (step.acknowledged) {
+      item.classList.add('complete');
+    } else if (step.isNext) {
+      item.classList.add('active');
+    } else {
+      item.classList.add('pending');
+    }
+
+    if (Number.isFinite(step.stepNumber)) {
+      item.dataset.stepNumber = String(step.stepNumber);
+    }
+
+    const header = document.createElement('div');
+    header.className = 'checklist-step-header';
+
+    const title = document.createElement('div');
+    title.className = 'checklist-step-title';
+    const titleParts = [];
+    if (Number.isFinite(step.stepNumber)) {
+      titleParts.push(`Step ${step.stepNumber}`);
+    }
+    if (step.action) {
+      titleParts.push(step.action);
+    }
+    title.textContent = titleParts.join(' — ') || 'Checklist step';
+    header.appendChild(title);
+
+    const status = document.createElement('span');
+    status.className = 'checklist-step-status';
+    if (step.acknowledged) {
+      const actorLabel = step.actor ? ` · ${formatActorLabel(step.actor)}` : '';
+      const timeLabel = step.acknowledgedAtSeconds != null
+        ? ` @ ${formatGetFromSeconds(step.acknowledgedAtSeconds)}`
+        : '';
+      status.textContent = `Completed${actorLabel}${timeLabel}`;
+    } else if (step.isNext) {
+      status.textContent = 'Ready';
+    } else {
+      status.textContent = 'Pending';
+    }
+    header.appendChild(status);
+
+    item.appendChild(header);
+
+    if (step.expectedResponse) {
+      const response = document.createElement('p');
+      response.className = 'checklist-step-detail';
+      response.textContent = `Expected: ${step.expectedResponse}`;
+      item.appendChild(response);
+    }
+
+    if (step.reference && (!step.expectedResponse || step.reference !== step.expectedResponse)) {
+      const reference = document.createElement('p');
+      reference.className = 'checklist-step-detail';
+      reference.textContent = step.reference;
+      item.appendChild(reference);
+    }
+
+    if (Array.isArray(step.controls) && step.controls.length > 0) {
+      const controlList = document.createElement('ul');
+      controlList.className = 'checklist-step-controls';
+      step.controls.slice(0, 6).forEach((control) => {
+        const controlItem = document.createElement('li');
+        controlItem.className = 'checklist-step-control';
+        const labelParts = [];
+        if (control.control?.label) {
+          labelParts.push(control.control.label);
+        } else if (control.controlId) {
+          labelParts.push(control.controlId);
+        }
+        if (control.targetStateLabel) {
+          labelParts.push(`→ ${control.targetStateLabel}`);
+        } else if (control.targetState) {
+          labelParts.push(`→ ${control.targetState}`);
+        }
+        controlItem.textContent = labelParts.join(' ');
+        controlList.appendChild(controlItem);
+      });
+      item.appendChild(controlList);
+    }
+
+    if (Array.isArray(step.effects) && step.effects.length > 0) {
+      const effect = document.createElement('p');
+      effect.className = 'checklist-step-detail';
+      effect.textContent = `Effects: ${formatEffectSummary(step.effects)}`;
+      item.appendChild(effect);
+    }
+
+    if (step.dskyMacro) {
+      const macro = document.createElement('span');
+      macro.className = 'checklist-step-macro chip';
+      macro.textContent = `DSKY ${step.dskyMacro}`;
+      item.appendChild(macro);
+    }
+
+    if (step.manualOnly) {
+      const flag = document.createElement('span');
+      flag.className = 'checklist-step-manual chip';
+      flag.textContent = 'Manual only';
+      item.appendChild(flag);
+    }
+
+    if (Array.isArray(step.tags) && step.tags.length > 0) {
+      item.appendChild(renderTagList(step.tags));
+    }
+
+    list.appendChild(item);
+  });
+
+  return list;
+}
+
+function renderManualActionSection(title, actions, { emptyText, isHistory = false }) {
+  const section = document.createElement('section');
+  section.className = 'manual-queue-section';
+
+  const heading = document.createElement('h4');
+  heading.className = 'manual-section-title';
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  if (!Array.isArray(actions) || actions.length === 0) {
+    const placeholder = document.createElement('p');
+    placeholder.className = 'manual-placeholder';
+    placeholder.textContent = emptyText;
+    section.appendChild(placeholder);
+    return section;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'manual-action-list';
+  actions.forEach((action) => {
+    list.appendChild(createManualActionCard(action, { isHistory }));
+  });
+  section.appendChild(list);
+
+  return section;
+}
+
+function createManualActionCard(action, { isHistory = false } = {}) {
+  const card = document.createElement('article');
+  card.className = 'manual-action';
+
+  if (isHistory && action.status) {
+    card.classList.add(`status-${action.status.toLowerCase()}`);
+  }
+
+  const header = document.createElement('div');
+  header.className = 'manual-action-header';
+
+  const title = document.createElement('span');
+  title.className = 'manual-action-title';
+  title.textContent = formatManualActionLabel(action);
+  header.appendChild(title);
+
+  if (isHistory && action.status) {
+    const status = document.createElement('span');
+    status.className = 'manual-action-status';
+    status.textContent = formatManualStatus(action.status);
+    header.appendChild(status);
+  }
+
+  const timeLabel = isHistory
+    ? action.executedAt ?? (Number.isFinite(action.executedAtSeconds)
+      ? formatGetFromSeconds(action.executedAtSeconds)
+      : null)
+    : action.get ?? (Number.isFinite(action.getSeconds)
+      ? formatGetFromSeconds(action.getSeconds)
+      : null);
+  if (timeLabel) {
+    const meta = document.createElement('span');
+    meta.className = 'manual-action-meta';
+    meta.textContent = timeLabel;
+    header.appendChild(meta);
+  }
+
+  card.appendChild(header);
+
+  const details = describeManualAction(action, { isHistory });
+  if (details.length > 0) {
+    const detailList = document.createElement('ul');
+    detailList.className = 'manual-action-details';
+    details.forEach((line) => {
+      const item = document.createElement('li');
+      item.textContent = line;
+      detailList.appendChild(item);
+    });
+    card.appendChild(detailList);
+  }
+
+  return card;
+}
+
+function formatManualActionLabel(action) {
+  switch (action.type) {
+    case 'checklist_ack':
+      return 'Checklist acknowledgement';
+    case 'resource_delta':
+      return 'Resource delta';
+    case 'propellant_burn':
+      return 'Propellant burn';
+    case 'dsky_entry':
+      return 'DSKY macro';
+    case 'panel_control':
+      return 'Panel control';
+    default:
+      return action.type ? capitalize(action.type.replace(/_/g, ' ')) : 'Manual action';
+  }
+}
+
+function formatManualStatus(status) {
+  switch (status) {
+    case 'success':
+      return 'Success';
+    case 'failure':
+      return 'Failed';
+    case 'retry':
+      return 'Retried';
+    default:
+      return capitalize(status ?? 'complete');
+  }
+}
+
+function describeManualAction(action, { isHistory = false } = {}) {
+  const lines = [];
+
+  if (action.source && !isHistory) {
+    lines.push(`Source ${action.source}`);
+  }
+
+  if (action.type === 'checklist_ack') {
+    const parts = [];
+    if (action.eventId) {
+      parts.push(`Event ${action.eventId}`);
+    }
+    if (Number.isFinite(action.count)) {
+      parts.push(`Steps ${action.count}`);
+    }
+    if (parts.length > 0) {
+      lines.push(parts.join(' · '));
+    }
+    if (action.actor) {
+      lines.push(`Actor ${formatActorLabel(action.actor)}`);
+    }
+    if (action.note) {
+      lines.push(action.note);
+    }
+  } else if (action.type === 'resource_delta') {
+    const summary = action.effect ? formatEffectSummary(action.effect) : null;
+    if (summary) {
+      lines.push(summary);
+    }
+    if (action.note) {
+      lines.push(action.note);
+    }
+  } else if (action.type === 'propellant_burn') {
+    const parts = [];
+    if (action.tankKey) {
+      parts.push(action.tankKey);
+    }
+    if (Number.isFinite(action.amountKg)) {
+      parts.push(`${formatNumber(action.amountKg, { digits: 2 })} kg`);
+    }
+    if (parts.length > 0) {
+      lines.push(parts.join(' · '));
+    }
+    if (action.note) {
+      lines.push(action.note);
+    }
+  } else if (action.type === 'dsky_entry') {
+    const parts = [];
+    if (action.macroId) {
+      parts.push(`Macro ${action.macroId}`);
+    }
+    const verb = action.verbLabel ?? (Number.isFinite(action.verb) ? `V${String(action.verb).padStart(2, '0')}` : null);
+    const noun = action.nounLabel ?? (Number.isFinite(action.noun) ? `N${String(action.noun).padStart(2, '0')}` : null);
+    if (verb || noun) {
+      parts.push([verb, noun].filter(Boolean).join(' '));
+    }
+    if (action.program) {
+      parts.push(`Program ${action.program}`);
+    }
+    if (parts.length > 0) {
+      lines.push(parts.join(' · '));
+    }
+    if (Array.isArray(action.sequence) && action.sequence.length > 0) {
+      lines.push(`Sequence: ${action.sequence.join(' ')}`);
+    }
+    if (action.note) {
+      lines.push(action.note);
+    }
+  } else if (action.type === 'panel_control') {
+    const parts = [];
+    if (action.panelId) {
+      parts.push(action.panelId);
+    }
+    if (action.controlId) {
+      parts.push(action.controlId);
+    }
+    if (action.stateId) {
+      parts.push(`→ ${action.stateId}`);
+    }
+    if (parts.length > 0) {
+      lines.push(parts.join(' '));
+    }
+    if (action.actor) {
+      lines.push(`Actor ${formatActorLabel(action.actor)}`);
+    }
+    if (action.note) {
+      lines.push(action.note);
+    }
+  }
+
+  if (isHistory && action.details) {
+    const detailParts = Object.entries(action.details)
+      .map(([key, value]) => `${capitalize(key)} ${Array.isArray(value) ? value.join(', ') : value}`);
+    if (detailParts.length > 0) {
+      lines.push(detailParts.join(' · '));
+    }
+  }
+
+  return lines;
+}
+
+function formatActorLabel(actor) {
+  if (!actor) {
+    return 'Crew';
+  }
+  const normalized = String(actor).toUpperCase();
+  switch (normalized) {
+    case 'AUTO_CREW':
+      return 'Auto crew';
+    case 'MANUAL_CREW':
+      return 'Crew';
+    case 'GROUND':
+      return 'Ground';
+    default:
+      return capitalize(actor.replace(/_/g, ' '));
+  }
+}
+
+function formatEffectSummary(effect) {
+  if (!effect) {
+    return '';
+  }
+  if (Array.isArray(effect)) {
+    return effect
+      .map((entry) => formatEffectSummary(entry))
+      .filter((entry) => entry && entry.length > 0)
+      .join(' | ');
+  }
+  if (typeof effect !== 'object') {
+    return String(effect);
+  }
+
+  const parts = [];
+  for (const [key, value] of Object.entries(effect)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const inner = Object.entries(value)
+        .map(([innerKey, innerValue]) => `${innerKey} ${innerValue}`)
+        .join(', ');
+      parts.push(`${capitalize(key)} ${inner}`);
+    } else if (Array.isArray(value)) {
+      parts.push(`${capitalize(key)} ${value.join(', ')}`);
+    } else if (value != null) {
+      parts.push(`${capitalize(key)} ${value}`);
+    }
+  }
+  return parts.join(' · ');
 }
 
 function renderAgc(agc) {
@@ -1336,26 +1772,49 @@ function renderManualQueue(queue) {
     container.textContent = 'No manual actions queued.';
     return;
   }
+  const counts = queue.counts ?? queue;
   const metrics = [
-    `Pending ${queue.pending ?? 0}`,
-    `Executed ${queue.executed ?? 0}`,
-    `Failed ${queue.failed ?? 0}`,
+    `Pending ${counts.pending ?? 0}`,
+    `Executed ${counts.executed ?? 0}`,
   ];
+  if (counts.failed != null) {
+    metrics.push(`Failed ${counts.failed}`);
+  }
+  if (counts.retried != null && counts.retried > 0) {
+    metrics.push(`Retried ${counts.retried}`);
+  }
   container.appendChild(createParagraph(metrics.join(' · ')));
 
   const extras = [];
-  if (queue.acknowledgedSteps != null) {
-    extras.push(`Steps ${queue.acknowledgedSteps}`);
+  if (counts.acknowledgedSteps != null) {
+    extras.push(`Steps ${counts.acknowledgedSteps}`);
   }
-  if (queue.dskyEntries != null) {
-    extras.push(`DSKY ${queue.dskyEntries}`);
+  if (counts.resourceDeltas != null) {
+    extras.push(`Resource cmds ${counts.resourceDeltas}`);
   }
-  if (queue.panelControls != null) {
-    extras.push(`Panel cmds ${queue.panelControls}`);
+  if (counts.propellantBurns != null) {
+    extras.push(`Burns ${counts.propellantBurns}`);
+  }
+  if (counts.dskyEntries != null) {
+    extras.push(`DSKY ${counts.dskyEntries}`);
+  }
+  if (counts.panelControls != null) {
+    extras.push(`Panel cmds ${counts.panelControls}`);
   }
   if (extras.length > 0) {
     container.appendChild(createParagraph(extras.join(' · ')));
   }
+
+  const pendingActions = Array.isArray(queue.pendingActions) ? queue.pendingActions : [];
+  container.appendChild(renderManualActionSection('Pending actions', pendingActions, {
+    emptyText: 'No manual actions queued.',
+  }));
+
+  const history = Array.isArray(queue.history) ? queue.history : [];
+  container.appendChild(renderManualActionSection('Recent history', history, {
+    emptyText: 'No recent manual activity.',
+    isHistory: true,
+  }));
 }
 
 function renderSystemsView() {

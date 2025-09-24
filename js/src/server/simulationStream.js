@@ -10,37 +10,37 @@ const DEFAULT_SPEED_KEY = 'real';
 const SPEED_PRESETS = {
   real: {
     key: 'real',
-    label: 'Real time (1×)',
+    label: '1× (baseline)',
     intervalMs: 100,
-    sampleSeconds: 3,
+    sampleSeconds: 1.5,
     aliases: ['real', 'real-time', 'real_time', '1', '1x', '1×'],
   },
   '2x': {
     key: '2x',
     label: '2×',
     intervalMs: 100,
-    sampleSeconds: 6,
+    sampleSeconds: 3,
     aliases: ['2', '2x', '2×'],
   },
   '4x': {
     key: '4x',
     label: '4×',
     intervalMs: 100,
-    sampleSeconds: 12,
+    sampleSeconds: 6,
     aliases: ['4', '4x', '4×'],
   },
   '8x': {
     key: '8x',
     label: '8×',
     intervalMs: 100,
-    sampleSeconds: 24,
+    sampleSeconds: 12,
     aliases: ['8', '8x', '8×'],
   },
   '16x': {
     key: '16x',
     label: '16×',
     intervalMs: 100,
-    sampleSeconds: 48,
+    sampleSeconds: 24,
     aliases: ['16', '16x', '16×'],
   },
   fast: {
