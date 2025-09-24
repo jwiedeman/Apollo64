@@ -1,16 +1,45 @@
+const SPEED_OPTIONS = [
+  { key: 'real', label: '1× (real time)', intervalMs: 1000, description: 'Frames paced every second.' },
+  { key: '2x', label: '2×', intervalMs: 500, description: 'Frames paced every 0.5 s.' },
+  { key: '4x', label: '4×', intervalMs: 250, description: 'Frames paced every 0.25 s.' },
+  { key: '8x', label: '8×', intervalMs: 125, description: 'Frames paced every 0.125 s.' },
+  { key: '16x', label: '16×', intervalMs: 62.5, description: 'Frames paced every 0.063 s.' },
+  { key: 'fast', label: 'Fast (dev)', intervalMs: 0, description: 'No pacing; runs as fast as possible.' },
+];
+
+const SPEED_MAP = new Map(SPEED_OPTIONS.map((option) => [option.key, option]));
+const DEFAULT_SPEED_KEY = 'real';
+const DEFAULT_SAMPLE_SECONDS = 60;
+const HUD_TICK_INTERVAL_MS = 100;
+
 const state = {
   status: 'idle',
   targetSeconds: null,
-  sampleSeconds: 60,
+  sampleSeconds: DEFAULT_SAMPLE_SECONDS,
   frames: [],
   currentFrame: null,
   summary: null,
   activeView: 'navigation',
   highlightChecklistTarget: null,
+  requestedSampleSeconds: DEFAULT_SAMPLE_SECONDS,
+  settings: {
+    speed: DEFAULT_SPEED_KEY,
+  },
+  activeSpeed: DEFAULT_SPEED_KEY,
+  pacing: {
+    frameIntervalMs: SPEED_MAP.get(DEFAULT_SPEED_KEY)?.intervalMs ?? 0,
+  },
+  dynamicTime: {
+    displayGetSeconds: null,
+    lastFrameGetSeconds: null,
+    nextFrameEstimateSeconds: null,
+    lastUpdateMs: null,
+  },
 };
 
 let eventSource = null;
 let checklistHighlightTimer = null;
+let hudTickerId = null;
 
 const dom = {
   hud: {
@@ -56,12 +85,15 @@ const dom = {
   missionLog: document.getElementById('mission-log'),
   summary: document.getElementById('summary-panel'),
   restartButton: document.getElementById('restart-button'),
+  speedSelect: document.getElementById('speed-select'),
+  speedHint: document.getElementById('speed-hint'),
   viewTabs: document.querySelectorAll('.tab-button'),
   views: document.querySelectorAll('.view'),
 };
 
 function init() {
   setupViewTabs();
+  setupSpeedControl();
   if (dom.hud.checklistChip) {
     dom.hud.checklistChip.addEventListener('click', () => {
       if (!dom.hud.checklistChip.disabled) {
@@ -72,6 +104,8 @@ function init() {
   dom.restartButton?.addEventListener('click', () => {
     connectStream();
   });
+
+  startHudTicker();
 
   if (!('EventSource' in window)) {
     state.status = 'unsupported';
@@ -94,6 +128,43 @@ function setupViewTabs() {
     button.addEventListener('click', () => switchView(view));
   });
   updateViewVisibility();
+}
+
+function setupSpeedControl() {
+  if (!dom.speedSelect) {
+    return;
+  }
+
+  dom.speedSelect.innerHTML = '';
+  SPEED_OPTIONS.forEach((option) => {
+    const opt = document.createElement('option');
+    opt.value = option.key;
+    opt.textContent = option.label;
+    dom.speedSelect.appendChild(opt);
+  });
+
+  dom.speedSelect.value = state.settings.speed;
+  dom.speedSelect.addEventListener('change', () => {
+    const selected = dom.speedSelect?.value ?? DEFAULT_SPEED_KEY;
+    if (!SPEED_MAP.has(selected)) {
+      return;
+    }
+    state.settings.speed = selected;
+    updateSpeedMetadata();
+    connectStream();
+  });
+
+  updateSpeedMetadata();
+}
+
+function startHudTicker() {
+  if (hudTickerId != null) {
+    window.clearInterval(hudTickerId);
+  }
+  hudTickerId = window.setInterval(() => {
+    advanceDynamicClock();
+    renderHudTime();
+  }, HUD_TICK_INTERVAL_MS);
 }
 
 function switchView(view) {
@@ -169,10 +240,20 @@ function connectStream() {
   state.currentFrame = null;
   state.summary = null;
   state.targetSeconds = null;
+  state.activeSpeed = state.settings.speed;
+  resetDynamicClock();
   resetChecklistHighlight();
   render();
 
-  const streamUrl = '/api/stream?history=1';
+  const params = new URLSearchParams();
+  params.set('history', '1');
+  if (state.settings.speed) {
+    params.set('speed', state.settings.speed);
+  }
+  if (Number.isFinite(state.requestedSampleSeconds) && state.requestedSampleSeconds > 0) {
+    params.set('sample', String(state.requestedSampleSeconds));
+  }
+  const streamUrl = `/api/stream?${params.toString()}`;
   eventSource = new EventSource(streamUrl);
   eventSource.addEventListener('status', (event) => {
     const payload = safeParse(event.data);
@@ -184,6 +265,8 @@ function connectStream() {
     if (Number.isFinite(payload.untilGetSeconds)) {
       state.targetSeconds = payload.untilGetSeconds;
     }
+    updateSpeedMetadata(payload);
+    refreshDynamicEstimate();
     render();
   });
 
@@ -205,10 +288,22 @@ function connectStream() {
       return;
     }
     state.summary = payload;
+    if (Number.isFinite(payload.finalGetSeconds)) {
+      updateCompletionTime(payload.finalGetSeconds);
+    }
     render();
   });
   eventSource.addEventListener('complete', () => {
     state.status = 'complete';
+    const summarySeconds = Number(state.summary?.finalGetSeconds);
+    const frameSeconds = Number(state.currentFrame?.time?.getSeconds);
+    const fallbackSeconds = Number(state.targetSeconds);
+    const finalSeconds = Number.isFinite(summarySeconds)
+      ? summarySeconds
+      : Number.isFinite(frameSeconds)
+        ? frameSeconds
+        : fallbackSeconds;
+    updateCompletionTime(finalSeconds);
     render();
     cleanupStream();
   });
@@ -244,6 +339,196 @@ function appendFrame(frame) {
     state.frames.push(frame);
   }
   state.currentFrame = frame;
+  updateDynamicClock(frame);
+}
+
+function safeNow() {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+function resetDynamicClock() {
+  const now = safeNow();
+  state.dynamicTime.displayGetSeconds = null;
+  state.dynamicTime.lastFrameGetSeconds = null;
+  state.dynamicTime.nextFrameEstimateSeconds = null;
+  state.dynamicTime.lastUpdateMs = now;
+}
+
+function updateCompletionTime(seconds) {
+  const finalSeconds = Number(seconds);
+  if (!Number.isFinite(finalSeconds)) {
+    return;
+  }
+  const now = safeNow();
+  state.dynamicTime.displayGetSeconds = finalSeconds;
+  state.dynamicTime.lastFrameGetSeconds = finalSeconds;
+  state.dynamicTime.nextFrameEstimateSeconds = finalSeconds;
+  state.dynamicTime.lastUpdateMs = now;
+}
+
+function getSpeedConfig(key) {
+  if (SPEED_MAP.has(key)) {
+    return SPEED_MAP.get(key);
+  }
+  return SPEED_MAP.get(DEFAULT_SPEED_KEY);
+}
+
+function updateSpeedMetadata(payload = null) {
+  if (!SPEED_MAP.has(state.settings.speed)) {
+    state.settings.speed = DEFAULT_SPEED_KEY;
+  }
+
+  let activeKey = state.settings.speed;
+  const payloadSpeed = payload && typeof payload.speed === 'string' ? payload.speed : null;
+  if (payloadSpeed && SPEED_MAP.has(payloadSpeed)) {
+    activeKey = payloadSpeed;
+    state.settings.speed = activeKey;
+    if (dom.speedSelect && dom.speedSelect.value !== activeKey) {
+      dom.speedSelect.value = activeKey;
+    }
+  } else if (dom.speedSelect && dom.speedSelect.value !== state.settings.speed) {
+    dom.speedSelect.value = state.settings.speed;
+  }
+
+  state.activeSpeed = activeKey;
+  const activeConfig = getSpeedConfig(activeKey);
+
+  if (payload && Number.isFinite(Number(payload.frameIntervalMs)) && Number(payload.frameIntervalMs) >= 0) {
+    state.pacing.frameIntervalMs = Number(payload.frameIntervalMs);
+  } else {
+    state.pacing.frameIntervalMs = activeConfig.intervalMs;
+  }
+
+  updateSpeedHint(activeConfig);
+}
+
+function updateSpeedHint(config = null) {
+  if (!dom.speedHint) {
+    return;
+  }
+  const activeConfig = config ?? getSpeedConfig(state.activeSpeed);
+  const interval = Number(state.pacing.frameIntervalMs);
+  if (!Number.isFinite(interval) || interval <= 0) {
+    dom.speedHint.textContent = `${activeConfig.label} · Running at maximum speed.`;
+    return;
+  }
+  if (interval >= 1000) {
+    const seconds = interval / 1000;
+    const digits = seconds >= 10 ? 0 : 1;
+    dom.speedHint.textContent = `${activeConfig.label} · ${formatNumber(seconds, { digits })} s between frames`;
+    return;
+  }
+  const digits = interval >= 100 ? 0 : interval >= 10 ? 0 : 1;
+  dom.speedHint.textContent = `${activeConfig.label} · ${formatNumber(interval, { digits })} ms between frames`;
+}
+
+function refreshDynamicEstimate() {
+  const sample = Number(state.sampleSeconds);
+  if (!Number.isFinite(sample) || sample <= 0) {
+    return;
+  }
+  if (!Number.isFinite(state.dynamicTime.lastFrameGetSeconds)) {
+    return;
+  }
+  state.dynamicTime.nextFrameEstimateSeconds = state.dynamicTime.lastFrameGetSeconds + sample;
+  if (Number.isFinite(state.targetSeconds)) {
+    state.dynamicTime.nextFrameEstimateSeconds = Math.min(
+      state.dynamicTime.nextFrameEstimateSeconds,
+      state.targetSeconds,
+    );
+  }
+}
+
+function updateDynamicClock(frame) {
+  if (!frame || typeof frame !== 'object') {
+    return;
+  }
+  const getSeconds = Number(frame.time?.getSeconds);
+  if (!Number.isFinite(getSeconds)) {
+    return;
+  }
+  const now = safeNow();
+  state.dynamicTime.displayGetSeconds = getSeconds;
+  state.dynamicTime.lastFrameGetSeconds = getSeconds;
+  const sample = Number(state.sampleSeconds);
+  if (Number.isFinite(sample) && sample > 0) {
+    state.dynamicTime.nextFrameEstimateSeconds = getSeconds + sample;
+  } else {
+    state.dynamicTime.nextFrameEstimateSeconds = getSeconds;
+  }
+  if (Number.isFinite(state.targetSeconds)) {
+    state.dynamicTime.nextFrameEstimateSeconds = Math.min(
+      state.dynamicTime.nextFrameEstimateSeconds,
+      state.targetSeconds,
+    );
+  }
+  state.dynamicTime.lastUpdateMs = now;
+}
+
+function advanceDynamicClock() {
+  if (!Number.isFinite(state.dynamicTime.lastFrameGetSeconds)) {
+    return;
+  }
+  const interval = Number(state.pacing.frameIntervalMs);
+  const sample = Number(state.sampleSeconds);
+  const now = safeNow();
+  if (!Number.isFinite(interval) || interval <= 0 || !Number.isFinite(sample) || sample <= 0) {
+    state.dynamicTime.displayGetSeconds = state.dynamicTime.lastFrameGetSeconds;
+    state.dynamicTime.lastUpdateMs = now;
+    return;
+  }
+  const lastUpdate = state.dynamicTime.lastUpdateMs ?? now;
+  const deltaMs = now - lastUpdate;
+  if (!Number.isFinite(deltaMs) || deltaMs <= 0) {
+    state.dynamicTime.lastUpdateMs = now;
+    return;
+  }
+  const missionPerMs = sample / interval;
+  let projected = state.dynamicTime.lastFrameGetSeconds + missionPerMs * deltaMs;
+  if (Number.isFinite(state.dynamicTime.nextFrameEstimateSeconds)) {
+    projected = Math.min(projected, state.dynamicTime.nextFrameEstimateSeconds);
+  }
+  if (Number.isFinite(state.targetSeconds)) {
+    projected = Math.min(projected, state.targetSeconds);
+  }
+  state.dynamicTime.displayGetSeconds = projected;
+  state.dynamicTime.lastUpdateMs = now;
+}
+
+function getDisplayGetSeconds() {
+  const display = Number(state.dynamicTime.displayGetSeconds);
+  if (Number.isFinite(display)) {
+    return display;
+  }
+  const fallback = Number(state.currentFrame?.time?.getSeconds);
+  return Number.isFinite(fallback) ? fallback : null;
+}
+
+function renderHudTime() {
+  const displaySeconds = getDisplayGetSeconds();
+  if (Number.isFinite(displaySeconds)) {
+    setText(dom.hud.get, formatGetFromSeconds(displaySeconds));
+  } else {
+    setText(dom.hud.get, state.currentFrame?.time?.get ?? '--:--:--');
+  }
+
+  const progressSeconds = Number.isFinite(displaySeconds)
+    ? displaySeconds
+    : Number(state.currentFrame?.time?.getSeconds);
+  const progress = computeProgress(progressSeconds, state.targetSeconds);
+  if (progress != null) {
+    dom.hud.progress.style.width = `${progress}%`;
+    if (dom.hud.progressBar) {
+      dom.hud.progressBar.setAttribute('aria-valuenow', String(progress));
+    }
+  } else {
+    dom.hud.progress.style.width = '0%';
+    if (dom.hud.progressBar) {
+      dom.hud.progressBar.setAttribute('aria-valuenow', '0');
+    }
+  }
 }
 
 function safeParse(data) {
@@ -267,7 +552,7 @@ function render() {
 
 function renderHud() {
   const frame = state.currentFrame;
-  setText(dom.hud.get, frame?.time?.get ?? '--:--:--');
+  renderHudTime();
   setText(dom.hud.met, frame?.time?.met ? `MET ${frame.time.met}` : 'MET --:--:--');
 
   const next = frame?.events?.next;
@@ -354,20 +639,9 @@ function renderHud() {
   renderManeuver(frame);
 
   const statusLabel = mapStatus(state.status);
-  dom.hud.status.textContent = statusLabel;
-
-  const progress = computeProgress(frame?.time?.getSeconds, state.targetSeconds);
-  if (progress != null) {
-    dom.hud.progress.style.width = `${progress}%`;
-    if (dom.hud.progressBar) {
-      dom.hud.progressBar.setAttribute('aria-valuenow', String(progress));
-    }
-  } else {
-    dom.hud.progress.style.width = '0%';
-    if (dom.hud.progressBar) {
-      dom.hud.progressBar.setAttribute('aria-valuenow', '0');
-    }
-  }
+  const speedConfig = getSpeedConfig(state.activeSpeed ?? state.settings.speed);
+  const statusText = speedConfig ? `${statusLabel} · ${speedConfig.label}` : statusLabel;
+  dom.hud.status.textContent = statusText;
 }
 
 function updateChecklistChip(chip) {
