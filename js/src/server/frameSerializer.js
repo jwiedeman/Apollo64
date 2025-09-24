@@ -1,6 +1,8 @@
 import { formatGET } from '../utils/time.js';
 
 const PROP_TANK_ORDER = ['csm_sps', 'csm_rcs', 'lm_descent', 'lm_ascent', 'lm_rcs'];
+const RESOURCE_HISTORY_LIMIT = 120;
+const PROP_HISTORY_LIMIT = 60;
 
 export function createClientFrame(frame) {
   if (!frame || typeof frame !== 'object') {
@@ -11,6 +13,7 @@ export function createClientFrame(frame) {
     time: frame.time ?? null,
     events: simplifyEvents(frame.events),
     resources: simplifyResources(frame.resources),
+    resourceHistory: simplifyResourceHistory(frame.resourceHistory),
     autopilot: simplifyAutopilot(frame.autopilot),
     checklists: simplifyChecklists(frame.checklists),
     manualQueue: simplifyManualQueue(frame.manualQueue),
@@ -135,6 +138,114 @@ function simplifyResources(resources) {
     propellant: simplifyPropellant(resources.propellant),
     lifeSupport: resources.lifeSupport ?? null,
   };
+}
+
+function simplifyResourceHistory(history) {
+  if (!history || typeof history !== 'object') {
+    return null;
+  }
+
+  const metaRaw = history.meta ?? {};
+  const meta = {
+    enabled: metaRaw.enabled != null ? Boolean(metaRaw.enabled) : null,
+    sampleIntervalSeconds: coerceNumber(metaRaw.sampleIntervalSeconds ?? metaRaw.sample_interval_seconds),
+    durationSeconds: coerceNumber(metaRaw.durationSeconds ?? metaRaw.duration_seconds),
+    maxSamples: coerceNumber(metaRaw.maxSamples ?? metaRaw.max_samples),
+    lastSampleSeconds: coerceNumber(metaRaw.lastSampleSeconds ?? metaRaw.last_sample_seconds),
+  };
+
+  const power = mapRecentEntries(history.power, RESOURCE_HISTORY_LIMIT, (entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    return {
+      timeSeconds: coerceNumber(entry.timeSeconds ?? entry.seconds ?? entry.getSeconds),
+      powerMarginPct: coerceNumber(entry.powerMarginPct ?? entry.power_margin_pct, 1),
+      fuelCellLoadKw: coerceNumber(entry.fuelCellLoadKw ?? entry.fuel_cell_load_kw, 2),
+      fuelCellOutputKw: coerceNumber(entry.fuelCellOutputKw ?? entry.fuel_cell_output_kw, 2),
+      batteryChargePct: coerceNumber(entry.batteryChargePct ?? entry.battery_charge_pct, 1),
+      reactantMinutes: coerceNumber(entry.reactantMinutes ?? entry.reactant_minutes),
+    };
+  });
+
+  const thermal = mapRecentEntries(history.thermal, RESOURCE_HISTORY_LIMIT, (entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    return {
+      timeSeconds: coerceNumber(entry.timeSeconds ?? entry.seconds ?? entry.getSeconds),
+      cryoBoiloffRatePctPerHr: coerceNumber(entry.cryoBoiloffRatePctPerHr ?? entry.cryo_boiloff_rate_pct_per_hr, 2),
+      thermalState: entry.thermalState ?? entry.thermal_state ?? null,
+      ptcActive: entry.ptcActive ?? entry.ptc_active ?? null,
+    };
+  });
+
+  const communications = mapRecentEntries(history.communications, RESOURCE_HISTORY_LIMIT, (entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    return {
+      timeSeconds: coerceNumber(entry.timeSeconds ?? entry.seconds ?? entry.getSeconds),
+      active: entry.active != null ? Boolean(entry.active) : null,
+      currentPassId: entry.currentPassId ?? entry.current_pass_id ?? null,
+      currentStation: entry.currentStation ?? entry.current_station ?? null,
+      timeRemainingSeconds: coerceNumber(entry.timeRemainingSeconds ?? entry.time_remaining_seconds),
+      timeSinceOpenSeconds: coerceNumber(entry.timeSinceOpenSeconds ?? entry.time_since_open_seconds ?? entry.time_since_window_open_s),
+      progress: coerceNumber(entry.progress ?? entry.passProgress, 3),
+      nextPassId: entry.nextPassId ?? entry.next_pass_id ?? null,
+      timeUntilNextWindowSeconds: coerceNumber(entry.timeUntilNextWindowSeconds ?? entry.time_until_next_window_seconds ?? entry.time_until_next_window_s),
+      signalStrengthDb: coerceNumber(entry.signalStrengthDb ?? entry.signal_strength_db, 1),
+      downlinkRateKbps: coerceNumber(entry.downlinkRateKbps ?? entry.downlink_rate_kbps, 1),
+      powerLoadDeltaKw: coerceNumber(entry.powerLoadDeltaKw ?? entry.power_load_delta_kw, 2),
+    };
+  });
+
+  const propellant = {};
+  const propellantEntries = history.propellant && typeof history.propellant === 'object'
+    ? Object.entries(history.propellant)
+    : [];
+  for (const [tankId, samples] of propellantEntries) {
+    const mapped = mapRecentEntries(samples, PROP_HISTORY_LIMIT, (entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return null;
+      }
+      return {
+        timeSeconds: coerceNumber(entry.timeSeconds ?? entry.seconds ?? entry.getSeconds),
+        remainingKg: coerceNumber(entry.remainingKg ?? entry.remaining_kg),
+        initialKg: coerceNumber(entry.initialKg ?? entry.initial_kg),
+        reserveKg: coerceNumber(entry.reserveKg ?? entry.reserve_kg),
+        percentRemaining: coerceNumber(entry.percentRemaining ?? entry.percent_remaining, 1),
+        percentAboveReserve: coerceNumber(entry.percentAboveReserve ?? entry.percent_above_reserve, 1),
+      };
+    });
+    if (mapped.length > 0) {
+      propellant[tankId] = mapped;
+    }
+  }
+
+  return {
+    meta,
+    power,
+    thermal,
+    communications,
+    propellant,
+  };
+}
+
+function mapRecentEntries(entries, limit, mapper) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return [];
+  }
+  const maxEntries = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : entries.length;
+  const startIndex = entries.length > maxEntries ? entries.length - maxEntries : 0;
+  const result = [];
+  for (let i = startIndex; i < entries.length; i += 1) {
+    const mapped = mapper(entries[i], i);
+    if (mapped && typeof mapped === 'object') {
+      result.push(mapped);
+    }
+  }
+  return result;
 }
 
 function simplifyCommunications(communications) {
