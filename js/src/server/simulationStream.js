@@ -5,46 +5,54 @@ import { formatGET, parseGET } from '../utils/time.js';
 import { createClientFrame, createClientSummary } from './frameSerializer.js';
 
 const DEFAULT_UNTIL_GET = '196:00:00';
-const DEFAULT_SAMPLE_SECONDS = 30;
+const DEFAULT_SPEED_KEY = 'real';
 
 const SPEED_PRESETS = {
   real: {
     key: 'real',
     label: 'Real time (1×)',
-    intervalMs: 1000,
+    intervalMs: 100,
+    sampleSeconds: 3,
     aliases: ['real', 'real-time', 'real_time', '1', '1x', '1×'],
   },
   '2x': {
     key: '2x',
     label: '2×',
-    intervalMs: 500,
+    intervalMs: 100,
+    sampleSeconds: 6,
     aliases: ['2', '2x', '2×'],
   },
   '4x': {
     key: '4x',
     label: '4×',
-    intervalMs: 250,
+    intervalMs: 100,
+    sampleSeconds: 12,
     aliases: ['4', '4x', '4×'],
   },
   '8x': {
     key: '8x',
     label: '8×',
-    intervalMs: 125,
+    intervalMs: 100,
+    sampleSeconds: 24,
     aliases: ['8', '8x', '8×'],
   },
   '16x': {
     key: '16x',
     label: '16×',
-    intervalMs: 62.5,
+    intervalMs: 100,
+    sampleSeconds: 48,
     aliases: ['16', '16x', '16×'],
   },
   fast: {
     key: 'fast',
     label: 'Fast',
     intervalMs: 0,
+    sampleSeconds: 12,
     aliases: ['fast', 'max', 'maxspeed', 'unlimited', 'off', '0', 'instant'],
   },
 };
+
+const DEFAULT_SAMPLE_SECONDS = SPEED_PRESETS[DEFAULT_SPEED_KEY].sampleSeconds;
 
 function resolveSpeed(value) {
   if (typeof value === 'string' && value.trim().length > 0) {
@@ -58,7 +66,7 @@ function resolveSpeed(value) {
       return SPEED_PRESETS[normalized];
     }
   }
-  return SPEED_PRESETS.real;
+  return SPEED_PRESETS[DEFAULT_SPEED_KEY];
 }
 
 class FramePacer {
@@ -100,12 +108,14 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
 
   const requestedUntil = untilParam ? parseGET(untilParam) : null;
   const untilSeconds = Number.isFinite(requestedUntil) ? requestedUntil : parseGET(DEFAULT_UNTIL_GET);
+  const includeHistory = historyParam === '1' || historyParam === 'true';
+  const speed = resolveSpeed(speedParam);
   const sampleSecondsRaw = sampleParam ? Number(sampleParam) : NaN;
   const sampleSeconds = Number.isFinite(sampleSecondsRaw) && sampleSecondsRaw > 0
     ? sampleSecondsRaw
-    : DEFAULT_SAMPLE_SECONDS;
-  const includeHistory = historyParam === '1' || historyParam === 'true';
-  const speed = resolveSpeed(speedParam);
+    : Number.isFinite(speed.sampleSeconds) && speed.sampleSeconds > 0
+      ? speed.sampleSeconds
+      : DEFAULT_SAMPLE_SECONDS;
   const pacer = new FramePacer(speed.intervalMs);
 
   res.writeHead(200, {
@@ -151,6 +161,7 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         includeHistory,
         speed: speed.key,
         frameIntervalMs: pacer.intervalMs,
+        presetSampleSeconds: speed.sampleSeconds,
       })}\n\n`,
     );
     if (typeof res.flushHeaders === 'function') {

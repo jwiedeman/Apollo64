@@ -3,45 +3,45 @@ const DEFAULT_SPEED_KEY = 'real';
 const SPEED_OPTIONS = [
   {
     key: 'real',
-    label: '1× (real time)',
-    intervalMs: 1000,
-    sampleSeconds: 30,
-    description: 'Full-fidelity real-time pacing.',
+    label: '1× (baseline)',
+    intervalMs: 100,
+    sampleSeconds: 3,
+    description: 'Nominal pacing with 10 Hz UI refresh (≈6.5 h full mission).',
   },
   {
     key: '2x',
     label: '2×',
-    intervalMs: 500,
-    sampleSeconds: 20,
-    description: 'Comfortable time compression for reviews.',
+    intervalMs: 100,
+    sampleSeconds: 6,
+    description: 'Double-speed playback (≈3.3 h full mission).',
   },
   {
     key: '4x',
     label: '4×',
-    intervalMs: 250,
+    intervalMs: 100,
     sampleSeconds: 12,
-    description: 'Great for mission overviews.',
+    description: 'Mission tour in about 98 minutes.',
   },
   {
     key: '8x',
     label: '8×',
-    intervalMs: 125,
-    sampleSeconds: 8,
-    description: 'Rapid scrubbing through coast phases.',
+    intervalMs: 100,
+    sampleSeconds: 24,
+    description: 'Full mission in under an hour.',
   },
   {
     key: '16x',
     label: '16×',
-    intervalMs: 62.5,
-    sampleSeconds: 4,
-    description: 'High-speed review of long coast arcs.',
+    intervalMs: 100,
+    sampleSeconds: 48,
+    description: 'Sprint through the mission in ~25 minutes.',
   },
   {
     key: 'fast',
     label: 'Fast (dev)',
     intervalMs: 0,
-    sampleSeconds: 8,
-    description: 'Uncapped simulation speed for regression runs.',
+    sampleSeconds: 12,
+    description: 'Uncapped simulation speed for regression sweeps.',
   },
 ];
 
@@ -488,6 +488,14 @@ function updateSpeedHint(config = null) {
       parts.push(`~${formatNumber(missionSample, { digits })} s GET per frame`);
     } else {
       parts.push(`~${formatNumber(missionSample, { digits: 2 })} s GET per frame`);
+    }
+  }
+
+  const missionRate = computeMissionRate(missionSample, interval);
+  if (missionRate != null) {
+    const rateLabel = formatMissionRateLabel(missionRate);
+    if (rateLabel) {
+      parts.push(rateLabel);
     }
   }
 
@@ -1907,6 +1915,29 @@ function formatDuration(seconds) {
     parts.push(`${secs}s`);
   }
   return parts.join(' ');
+}
+
+function computeMissionRate(sampleSeconds, intervalMs) {
+  if (!Number.isFinite(sampleSeconds) || sampleSeconds <= 0) {
+    return null;
+  }
+  if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
+    return null;
+  }
+  return (sampleSeconds * 1000) / intervalMs;
+}
+
+function formatMissionRateLabel(rate) {
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return '';
+  }
+  let digits = 2;
+  if (rate >= 100) {
+    digits = 0;
+  } else if (rate >= 10) {
+    digits = 1;
+  }
+  return `Mission ≈ ${formatNumber(rate, { digits })}× real time`;
 }
 
 function formatRangeMeters(value) {
