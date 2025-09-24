@@ -1,45 +1,46 @@
 const DEFAULT_SPEED_KEY = 'real';
+const BASE_SAMPLE_SECONDS = 0.1;
 
 const SPEED_OPTIONS = [
   {
     key: 'real',
     label: '1× (baseline)',
-    sampleSeconds: 1.5,
+    sampleSeconds: BASE_SAMPLE_SECONDS,
     missionRate: 1,
     description: 'Historical pacing – matches real GET (≈8.2 day mission).',
   },
   {
     key: '2x',
     label: '2×',
-    sampleSeconds: 3,
+    sampleSeconds: BASE_SAMPLE_SECONDS * 2,
     missionRate: 2,
     description: 'Twice real time (≈4.1 day mission).',
   },
   {
     key: '4x',
     label: '4×',
-    sampleSeconds: 6,
+    sampleSeconds: BASE_SAMPLE_SECONDS * 4,
     missionRate: 4,
     description: 'Four times real time (≈49 hour mission).',
   },
   {
     key: '8x',
     label: '8×',
-    sampleSeconds: 12,
+    sampleSeconds: BASE_SAMPLE_SECONDS * 8,
     missionRate: 8,
     description: 'Eight times real time (≈24½ hour mission).',
   },
   {
     key: '16x',
     label: '16×',
-    sampleSeconds: 24,
+    sampleSeconds: BASE_SAMPLE_SECONDS * 16,
     missionRate: 16,
     description: 'Sixteen times real time (≈12¼ hour mission).',
   },
   {
     key: 'fast',
     label: 'Fast (dev)',
-    sampleSeconds: 12,
+    sampleSeconds: BASE_SAMPLE_SECONDS,
     missionRate: null,
     frameIntervalMs: 0,
     description: 'Uncapped simulation speed for regression sweeps.',

@@ -93,6 +93,8 @@ Use the “Restart Simulation” button to trigger a fresh full-mission run with
 
 The development server now replays the entire Apollo 11 timeline (to GET `196:00:00`) instead of stopping after the first coast segment. The footer playback selector throttles the stream at 1×, 2×, 4×, 8×, or 16× pacing, while the **Fast (dev)** option removes pacing for regression sweeps. Each preset keeps the HUD’s ~100 ms refresh loop while the simulator’s mission clock advances at the selected multiplier: 1× mirrors the historical GET (≈8.2 days of wall time), 2× halves that, 4× quarters it, and 16× lands in roughly 12¼ hours. Use the Fast preset when you need the simulation to sprint to splashdown as quickly as the host CPU allows.
 
+The UI stream now emits a mission frame every 0.1 GET seconds (or the equivalent at higher compression rates), so checklist micro-steps, switch throws, autopilot pulses, and resource deltas surface in the Navigation, Controls, and Systems panes without waiting for multi-second aggregation windows. The footer hint updates live to show the effective frame cadence for the active preset, making it easy to confirm that the feed is syncing to the backend.
+
 > **Tip:** The mission HUD binds to `0.0.0.0` by default. Pass `--host` and `--port` if you need to target a specific interface or port when running outside the container.
 
 ## Autopilot Burn Analyzer

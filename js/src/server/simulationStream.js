@@ -6,41 +6,42 @@ import { createClientFrame, createClientSummary } from './frameSerializer.js';
 
 const DEFAULT_UNTIL_GET = '196:00:00';
 const DEFAULT_SPEED_KEY = 'real';
+const BASE_FRAME_INTERVAL_SECONDS = 0.1;
 
 const SPEED_PRESETS = {
   real: {
     key: 'real',
     label: '1× (baseline)',
     missionRate: 1,
-    sampleSeconds: 1.5,
+    sampleSeconds: BASE_FRAME_INTERVAL_SECONDS,
     aliases: ['real', 'real-time', 'real_time', '1', '1x', '1×'],
   },
   '2x': {
     key: '2x',
     label: '2×',
     missionRate: 2,
-    sampleSeconds: 3,
+    sampleSeconds: BASE_FRAME_INTERVAL_SECONDS * 2,
     aliases: ['2', '2x', '2×'],
   },
   '4x': {
     key: '4x',
     label: '4×',
     missionRate: 4,
-    sampleSeconds: 6,
+    sampleSeconds: BASE_FRAME_INTERVAL_SECONDS * 4,
     aliases: ['4', '4x', '4×'],
   },
   '8x': {
     key: '8x',
     label: '8×',
     missionRate: 8,
-    sampleSeconds: 12,
+    sampleSeconds: BASE_FRAME_INTERVAL_SECONDS * 8,
     aliases: ['8', '8x', '8×'],
   },
   '16x': {
     key: '16x',
     label: '16×',
     missionRate: 16,
-    sampleSeconds: 24,
+    sampleSeconds: BASE_FRAME_INTERVAL_SECONDS * 16,
     aliases: ['16', '16x', '16×'],
   },
   fast: {
@@ -48,7 +49,7 @@ const SPEED_PRESETS = {
     label: 'Fast',
     missionRate: null,
     intervalMs: 0,
-    sampleSeconds: 12,
+    sampleSeconds: BASE_FRAME_INTERVAL_SECONDS,
     aliases: ['fast', 'max', 'maxspeed', 'unlimited', 'off', '0', 'instant'],
   },
 };
