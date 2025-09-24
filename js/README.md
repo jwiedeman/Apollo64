@@ -91,7 +91,7 @@ The server streams simulation frames to the UI via Server-Sent Events. Visit [`h
 
 Use the “Restart Simulation” button to trigger a fresh full-mission run without reloading the page. The CLI simulator remains available through `npm start` for text HUD and data exports.
 
-The development server now replays the entire Apollo 11 timeline (to GET `196:00:00`) instead of stopping after the first coast segment. The footer playback selector throttles the stream at 1×, 2×, 4×, 8×, or 16× pacing, while the **Fast (dev)** option removes pacing for regression sweeps. Higher-rate settings keep the HUD ticking with ~100 ms or faster refresh intervals so countdowns and resource bars remain responsive while the mission advances.
+The development server now replays the entire Apollo 11 timeline (to GET `196:00:00`) instead of stopping after the first coast segment. The footer playback selector throttles the stream at 1×, 2×, 4×, 8×, or 16× pacing, while the **Fast (dev)** option removes pacing for regression sweeps. Each preset now also tunes the mission sampling window so the HUD receives frequent state frames without overwhelming the browser, and higher-rate settings keep the HUD ticking with ~50 ms or faster refresh intervals so countdowns and resource bars remain responsive while the mission advances.
 
 > **Tip:** The mission HUD binds to `0.0.0.0` by default. Pass `--host` and `--port` if you need to target a specific interface or port when running outside the container.
 

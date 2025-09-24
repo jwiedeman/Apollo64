@@ -5,7 +5,7 @@ import { formatGET, parseGET } from '../utils/time.js';
 import { createClientFrame, createClientSummary } from './frameSerializer.js';
 
 const DEFAULT_UNTIL_GET = '196:00:00';
-const DEFAULT_SAMPLE_SECONDS = 60;
+const DEFAULT_SAMPLE_SECONDS = 30;
 
 const SPEED_PRESETS = {
   real: {
