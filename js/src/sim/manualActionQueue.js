@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { parseGET } from '../utils/time.js';
+import { parseGET, formatGET } from '../utils/time.js';
 
 const DEFAULT_OPTIONS = {
   epsilon: 1e-6,
@@ -165,7 +165,22 @@ export class ManualActionQueue {
     }
   }
 
-  stats() {
+  stats({ pendingLimit = 12, historyLimit = 20 } = {}) {
+    const pendingLimitClamped = Number.isFinite(pendingLimit) && pendingLimit > 0
+      ? Math.floor(pendingLimit)
+      : null;
+    const historyLimitClamped = Number.isFinite(historyLimit) && historyLimit > 0
+      ? Math.floor(historyLimit)
+      : null;
+
+    const pendingActions = pendingLimitClamped != null
+      ? this.queue.slice(0, pendingLimitClamped)
+      : this.queue.slice();
+
+    const historyEntries = historyLimitClamped != null && historyLimitClamped >= 0
+      ? this.history.slice(-historyLimitClamped)
+      : this.history.slice();
+
     return {
       scheduled: this.metrics.scheduled,
       pending: this.queue.length,
@@ -177,6 +192,8 @@ export class ManualActionQueue {
       propellantBurns: this.metrics.propellantBurns,
       dskyEntries: this.metrics.dskyEntries,
       panelControls: this.metrics.panelControls,
+      pendingActions: pendingActions.map(summarizeManualAction),
+      history: historyEntries.map(summarizeManualHistory),
     };
   }
 
@@ -752,6 +769,96 @@ function normalizeSequence(raw) {
     return [trimmed];
   }
   return [];
+}
+
+function summarizeManualAction(action) {
+  if (!action || typeof action !== 'object') {
+    return null;
+  }
+
+  const getSeconds = Number.isFinite(action.getSeconds) ? action.getSeconds : null;
+  const retryUntilSeconds = Number.isFinite(action.retryUntilSeconds) ? action.retryUntilSeconds : null;
+
+  const base = {
+    id: action.id ?? null,
+    type: action.type ?? null,
+    getSeconds,
+    get: getSeconds != null ? formatGET(getSeconds) : null,
+    retryUntilSeconds,
+    retryUntil: retryUntilSeconds != null ? formatGET(retryUntilSeconds) : null,
+    source: action.source ?? null,
+  };
+
+  switch (action.type) {
+    case 'checklist_ack':
+      return {
+        ...base,
+        eventId: action.eventId ?? null,
+        count: Number.isFinite(action.count) ? action.count : null,
+        actor: action.actor ?? null,
+        note: action.note ?? null,
+      };
+    case 'resource_delta':
+      return {
+        ...base,
+        effect: action.effect ? { ...action.effect } : null,
+        note: action.note ?? null,
+      };
+    case 'propellant_burn':
+      return {
+        ...base,
+        tankKey: action.tankKey ?? null,
+        amountKg: Number.isFinite(action.amountKg) ? action.amountKg : null,
+        note: action.note ?? null,
+      };
+    case 'dsky_entry': {
+      const registers = action.registers ? { ...action.registers } : {};
+      const sequence = Array.isArray(action.sequence) ? [...action.sequence] : [];
+      return {
+        ...base,
+        macroId: action.macroId ?? null,
+        verb: Number.isFinite(action.verb) ? action.verb : null,
+        verbLabel: formatVerbNoun(action.verb),
+        noun: Number.isFinite(action.noun) ? action.noun : null,
+        nounLabel: formatVerbNoun(action.noun),
+        program: action.program ?? null,
+        registers,
+        sequence,
+        note: action.note ?? null,
+      };
+    }
+    case 'panel_control':
+      return {
+        ...base,
+        panelId: action.panelId ?? null,
+        controlId: action.controlId ?? null,
+        stateId: action.stateId ?? null,
+        actor: action.actor ?? null,
+        note: action.note ?? null,
+      };
+    default:
+      return base;
+  }
+}
+
+function summarizeManualHistory(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const executedSeconds = Number.isFinite(entry.executedAt) ? entry.executedAt : null;
+  const details = entry.details && typeof entry.details === 'object'
+    ? { ...entry.details }
+    : null;
+
+  return {
+    id: entry.id ?? null,
+    type: entry.type ?? null,
+    executedAtSeconds: executedSeconds,
+    executedAt: executedSeconds != null ? formatGET(executedSeconds) : null,
+    status: entry.status ?? null,
+    details,
+  };
 }
 
 function formatVerbNoun(value) {
