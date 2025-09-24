@@ -1,16 +1,102 @@
+import { performance } from 'node:perf_hooks';
 import { MissionLogger } from '../logging/missionLogger.js';
 import { createSimulationContext } from '../sim/simulationContext.js';
 import { formatGET, parseGET } from '../utils/time.js';
 import { createClientFrame, createClientSummary } from './frameSerializer.js';
 
-const DEFAULT_UNTIL_GET = '015:00:00';
+const DEFAULT_UNTIL_GET = '196:00:00';
 const DEFAULT_SAMPLE_SECONDS = 60;
+
+const SPEED_PRESETS = {
+  real: {
+    key: 'real',
+    label: 'Real time (1×)',
+    intervalMs: 1000,
+    aliases: ['real', 'real-time', 'real_time', '1', '1x', '1×'],
+  },
+  '2x': {
+    key: '2x',
+    label: '2×',
+    intervalMs: 500,
+    aliases: ['2', '2x', '2×'],
+  },
+  '4x': {
+    key: '4x',
+    label: '4×',
+    intervalMs: 250,
+    aliases: ['4', '4x', '4×'],
+  },
+  '8x': {
+    key: '8x',
+    label: '8×',
+    intervalMs: 125,
+    aliases: ['8', '8x', '8×'],
+  },
+  '16x': {
+    key: '16x',
+    label: '16×',
+    intervalMs: 62.5,
+    aliases: ['16', '16x', '16×'],
+  },
+  fast: {
+    key: 'fast',
+    label: 'Fast',
+    intervalMs: 0,
+    aliases: ['fast', 'max', 'maxspeed', 'unlimited', 'off', '0', 'instant'],
+  },
+};
+
+function resolveSpeed(value) {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const normalized = value.trim().toLowerCase();
+    for (const preset of Object.values(SPEED_PRESETS)) {
+      if (preset.aliases.some((alias) => alias.toLowerCase() === normalized)) {
+        return preset;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(SPEED_PRESETS, normalized)) {
+      return SPEED_PRESETS[normalized];
+    }
+  }
+  return SPEED_PRESETS.real;
+}
+
+class FramePacer {
+  constructor(intervalMs) {
+    this.intervalMs = Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 0;
+    this.nextTimestamp = null;
+  }
+
+  consume() {
+    if (this.intervalMs <= 0) {
+      return 0;
+    }
+    const now = performance.now();
+    if (this.nextTimestamp == null) {
+      this.nextTimestamp = now + this.intervalMs;
+      return 0;
+    }
+
+    let waitMs = this.nextTimestamp - now;
+    this.nextTimestamp += this.intervalMs;
+
+    if (waitMs <= 0) {
+      if (waitMs < -this.intervalMs * 4) {
+        this.nextTimestamp = now + this.intervalMs;
+      }
+      return 0;
+    }
+
+    return waitMs;
+  }
+}
 
 export async function handleSimulationStream(req, res, { searchParams } = {}) {
   const params = searchParams ?? new URLSearchParams();
   const untilParam = params.get('until');
   const sampleParam = params.get('sample');
   const historyParam = params.get('history');
+  const speedParam = params.get('speed');
 
   const requestedUntil = untilParam ? parseGET(untilParam) : null;
   const untilSeconds = Number.isFinite(requestedUntil) ? requestedUntil : parseGET(DEFAULT_UNTIL_GET);
@@ -19,6 +105,8 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
     ? sampleSecondsRaw
     : DEFAULT_SAMPLE_SECONDS;
   const includeHistory = historyParam === '1' || historyParam === 'true';
+  const speed = resolveSpeed(speedParam);
+  const pacer = new FramePacer(speed.intervalMs);
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -61,6 +149,8 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         untilGet: formatGET(untilSeconds),
         sampleSeconds,
         includeHistory,
+        speed: speed.key,
+        frameIntervalMs: pacer.intervalMs,
       })}\n\n`,
     );
     if (typeof res.flushHeaders === 'function') {
@@ -111,6 +201,10 @@ export async function handleSimulationStream(req, res, { searchParams } = {}) {
         const payload = createClientFrame(frame);
         res.write(`event: frame\ndata: ${JSON.stringify(payload)}\n\n`);
         lastFrameSeconds = getSeconds;
+        const waitMs = pacer.consume();
+        if (waitMs > 0) {
+          return { yield: true, sleepMs: waitMs };
+        }
         return { yield: true };
       },
     });

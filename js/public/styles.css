@@ -537,6 +537,44 @@ body {
   line-height: 1.4;
 }
 
+.footer-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.control-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.control-select {
+  appearance: none;
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.3);
+  color: var(--text-primary);
+  padding: 0.45rem 1.2rem 0.45rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.control-select:focus-visible {
+  outline: 2px solid rgba(79, 195, 247, 0.5);
+  outline-offset: 2px;
+}
+
+.control-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .restart-button {
   background: linear-gradient(135deg, rgba(79, 195, 247, 0.3), rgba(0, 198, 255, 0.35));
   color: var(--text-primary);
@@ -705,6 +743,16 @@ body {
   }
 
   .restart-button {
+    width: 100%;
+  }
+
+  .footer-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+  }
+
+  .control-select {
     width: 100%;
   }
 }

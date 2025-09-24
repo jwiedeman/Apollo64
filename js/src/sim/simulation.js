@@ -75,13 +75,19 @@ export class Simulation {
         break;
       }
 
-      const { advanced, requestYield } = this.#processTick(dtSeconds, onTick);
+      const { advanced, requestYield, sleepMs } = this.#processTick(dtSeconds, onTick);
       if (!advanced) {
         break;
       }
 
       ticks += 1;
       ticksSinceYield += 1;
+
+      if (Number.isFinite(sleepMs) && sleepMs > 0) {
+        ticksSinceYield = 0;
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, Math.round(sleepMs))));
+        continue;
+      }
 
       if (requestYield) {
         ticksSinceYield = 0;
@@ -158,6 +164,7 @@ export class Simulation {
     }
 
     let requestYield = false;
+    let sleepMs = 0;
     if (typeof onTick === 'function') {
       const tickResult = onTick({
         getSeconds: currentGet,
@@ -193,6 +200,13 @@ export class Simulation {
         && typeof tickResult === 'object'
         && tickResult.yield,
       );
+
+      const requestedSleep = tickResult && typeof tickResult === 'object'
+        ? Number(tickResult.sleepMs ?? tickResult.sleep_ms)
+        : null;
+      if (Number.isFinite(requestedSleep) && requestedSleep > 0) {
+        sleepMs = requestedSleep;
+      }
     }
 
     if (this.performanceTracker && tickStart != null) {
@@ -203,7 +217,7 @@ export class Simulation {
 
     this.clock.advance();
 
-    return { advanced: true, requestYield };
+    return { advanced: true, requestYield, sleepMs };
   }
 
   #collectSummary({ ticks }) {

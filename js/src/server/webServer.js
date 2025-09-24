@@ -122,7 +122,7 @@ function resolveHost(host) {
   if (typeof host === 'string' && host.trim().length > 0) {
     return host.trim();
   }
-  const envHost = process.env.HOST ?? process.env.HOSTNAME ?? process.env.BIND_HOST;
+  const envHost = process.env.HOST ?? process.env.BIND_HOST ?? null;
   if (typeof envHost === 'string' && envHost.trim().length > 0) {
     return envHost.trim();
   }
