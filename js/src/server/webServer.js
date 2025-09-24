@@ -70,7 +70,20 @@ export function startServer({ port = null, host = null } = {}) {
 
     const handleListening = () => {
       server.removeListener('error', handleError);
-      resolve({ server, port: resolvedPort, host: resolvedHost });
+      const address = server.address();
+      let actualPort = resolvedPort;
+      let actualHost = resolvedHost;
+      if (address && typeof address === 'object') {
+        if (typeof address.port === 'number' && address.port > 0) {
+          actualPort = address.port;
+        }
+        if (typeof address.address === 'string' && address.address.length > 0) {
+          actualHost = address.address;
+        }
+      } else if (typeof address === 'string' && address.length > 0) {
+        actualHost = address;
+      }
+      resolve({ server, port: actualPort, host: actualHost });
     };
 
     server.once('error', handleError);
