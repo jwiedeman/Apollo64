@@ -732,6 +732,824 @@
           "crewRole": "CDR"
         }
       ]
+    },
+    {
+      "id": "PROC_STAY_NO_STAY",
+      "name": "Post-Landing Stay/No Stay",
+      "phase": "LM Surface",
+      "getStartSeconds": 370020,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 370020,
+          "type": "SWITCH",
+          "commandId": "ABORT_STAGE_SAFE",
+          "description": "ABORT STAGE - SAFE",
+          "panel": "LM_DESCENT_PANELS",
+          "control": "ABORT_STAGE",
+          "expectedState": "SAFE"
+        },
+        {
+          "getSeconds": 370040,
+          "type": "VERIFY",
+          "commandId": "VERIFY_T1_STAY",
+          "description": "T1 Stay/No Stay - GO",
+          "expectedValue": "GO"
+        },
+        {
+          "getSeconds": 370100,
+          "type": "DSKY",
+          "commandId": "DSKY_V37E00E_IDLE",
+          "description": "V37E00E - Idle program",
+          "verb": 37,
+          "noun": 0,
+          "panel": "LM_DSKY"
+        },
+        {
+          "getSeconds": 370140,
+          "type": "VERIFY",
+          "commandId": "VERIFY_T2_STAY",
+          "description": "T2 Stay/No Stay - GO",
+          "expectedValue": "GO"
+        }
+      ]
+    },
+    {
+      "id": "PROC_EVA_PREP",
+      "name": "EVA Preparation",
+      "phase": "EVA",
+      "getStartSeconds": 377700,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 377700,
+          "type": "SWITCH",
+          "commandId": "ECS_CABIN_REPRESS_CLOSE",
+          "description": "ECS CABIN REPRESS - CLOSE",
+          "panel": "LM_ECS",
+          "control": "CABIN_REPRESS",
+          "expectedState": "CLOSE"
+        },
+        {
+          "getSeconds": 377760,
+          "type": "SWITCH",
+          "commandId": "SUIT_FAN_1",
+          "description": "SUIT FAN - 1",
+          "panel": "LM_ECS",
+          "control": "SUIT_FAN",
+          "expectedState": "1"
+        },
+        {
+          "getSeconds": 377820,
+          "type": "VERIFY",
+          "commandId": "VERIFY_PLSS_DONNED",
+          "description": "PLSS donned and checked",
+          "expectedValue": "donned"
+        },
+        {
+          "getSeconds": 378000,
+          "type": "SWITCH",
+          "commandId": "PLSS_O2_ON",
+          "description": "PLSS O2 - ON",
+          "panel": "PLSS",
+          "control": "O2_SUPPLY",
+          "expectedState": "ON"
+        },
+        {
+          "getSeconds": 378060,
+          "type": "VERIFY",
+          "commandId": "VERIFY_PLSS_PRESSURE",
+          "description": "PLSS suit pressure nominal",
+          "expectedValue": "3.7 psia"
+        },
+        {
+          "getSeconds": 378300,
+          "type": "SWITCH",
+          "commandId": "CABIN_DEPRESS",
+          "description": "Cabin depressurization",
+          "panel": "LM_ECS",
+          "control": "CABIN_DUMP",
+          "expectedState": "OPEN"
+        },
+        {
+          "getSeconds": 378600,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CABIN_VACUUM",
+          "description": "Cabin at vacuum",
+          "expectedValue": "0.0 psia"
+        }
+      ]
+    },
+    {
+      "id": "PROC_EVA_EGRESS",
+      "name": "EVA Egress",
+      "phase": "EVA",
+      "getStartSeconds": 378900,
+      "crewRole": "CDR",
+      "commands": [
+        {
+          "getSeconds": 378900,
+          "type": "SWITCH",
+          "commandId": "FORWARD_HATCH_OPEN",
+          "description": "Forward hatch - OPEN",
+          "panel": "LM_HATCH",
+          "control": "FWD_HATCH",
+          "expectedState": "OPEN"
+        },
+        {
+          "getSeconds": 378938,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_EVA_START",
+          "description": "\"EVA has started\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 379200,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CDR_ON_PORCH",
+          "description": "CDR on porch",
+          "expectedValue": "confirmed"
+        },
+        {
+          "getSeconds": 379500,
+          "type": "SWITCH",
+          "commandId": "TV_CAMERA_DEPLOY",
+          "description": "Deploy TV camera",
+          "panel": "MESA",
+          "control": "TV_DEPLOY",
+          "expectedState": "DEPLOYED"
+        },
+        {
+          "getSeconds": 379788,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_FIRST_STEP",
+          "description": "\"That's one small step for man, one giant leap for mankind.\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 380400,
+          "type": "VERIFY",
+          "commandId": "VERIFY_LMP_EGRESS",
+          "description": "LMP egress confirmed",
+          "expectedValue": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "PROC_EVA_ACTIVITIES",
+      "name": "EVA Surface Activities",
+      "phase": "EVA",
+      "getStartSeconds": 380700,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 380700,
+          "type": "VERIFY",
+          "commandId": "VERIFY_FLAG_DEPLOY",
+          "description": "Flag deployment",
+          "expectedValue": "deployed"
+        },
+        {
+          "getSeconds": 381600,
+          "type": "COMM",
+          "commandId": "COMM_NIXON_CALL",
+          "description": "Presidential phone call",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 382800,
+          "type": "VERIFY",
+          "commandId": "VERIFY_SAMPLE_COLLECTION",
+          "description": "Sample collection in progress",
+          "expectedValue": "collecting"
+        },
+        {
+          "getSeconds": 384600,
+          "type": "VERIFY",
+          "commandId": "VERIFY_ALSEP_DEPLOY",
+          "description": "ALSEP deployment (EASEP)",
+          "expectedValue": "deployed"
+        },
+        {
+          "getSeconds": 386400,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_EVA_END_PREP",
+          "description": "\"Prepare for EVA termination\"",
+          "crewRole": "CAPCOM"
+        }
+      ]
+    },
+    {
+      "id": "PROC_EVA_INGRESS",
+      "name": "EVA Ingress",
+      "phase": "EVA",
+      "getStartSeconds": 387000,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 387000,
+          "type": "VERIFY",
+          "commandId": "VERIFY_SAMPLES_STOWED",
+          "description": "Sample boxes stowed",
+          "expectedValue": "stowed"
+        },
+        {
+          "getSeconds": 387300,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CDR_INGRESS",
+          "description": "CDR ingress",
+          "expectedValue": "confirmed"
+        },
+        {
+          "getSeconds": 387600,
+          "type": "VERIFY",
+          "commandId": "VERIFY_LMP_INGRESS",
+          "description": "LMP ingress",
+          "expectedValue": "confirmed"
+        },
+        {
+          "getSeconds": 387900,
+          "type": "SWITCH",
+          "commandId": "FORWARD_HATCH_CLOSE",
+          "description": "Forward hatch - CLOSE",
+          "panel": "LM_HATCH",
+          "control": "FWD_HATCH",
+          "expectedState": "CLOSED"
+        },
+        {
+          "getSeconds": 388200,
+          "type": "SWITCH",
+          "commandId": "CABIN_REPRESS",
+          "description": "Cabin repressurization",
+          "panel": "LM_ECS",
+          "control": "CABIN_REPRESS",
+          "expectedState": "OPEN"
+        },
+        {
+          "getSeconds": 388500,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CABIN_PRESS_5",
+          "description": "Cabin pressure 5.0 psia",
+          "expectedValue": "5.0 psia"
+        }
+      ]
+    },
+    {
+      "id": "PROC_ASCENT_PREP",
+      "name": "Ascent Preparation",
+      "phase": "LM Ascent",
+      "getStartSeconds": 408600,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 408600,
+          "type": "SWITCH",
+          "commandId": "APS_FUEL_PRESS",
+          "description": "APS FUEL - PRESS",
+          "panel": "LM_ASCENT_PANELS",
+          "control": "APS_FUEL",
+          "expectedState": "PRESS"
+        },
+        {
+          "getSeconds": 408660,
+          "type": "SWITCH",
+          "commandId": "APS_OXID_PRESS",
+          "description": "APS OXID - PRESS",
+          "panel": "LM_ASCENT_PANELS",
+          "control": "APS_OXID",
+          "expectedState": "PRESS"
+        },
+        {
+          "getSeconds": 408720,
+          "type": "DSKY",
+          "commandId": "DSKY_P12_ASCENT",
+          "description": "V37E12E - Ascent",
+          "verb": 37,
+          "noun": 12,
+          "panel": "LM_DSKY"
+        },
+        {
+          "getSeconds": 408900,
+          "type": "SWITCH",
+          "commandId": "ASCENT_ENGINE_ARM",
+          "description": "ASCENT ENGINE ARM - ARM",
+          "panel": "LM_ASCENT_PANELS",
+          "control": "APS_ENGINE_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 408960,
+          "type": "VERIFY",
+          "commandId": "VERIFY_ABORT_STAGE_ARM",
+          "description": "ABORT STAGE - ARM",
+          "expectedValue": "ARM"
+        },
+        {
+          "getSeconds": 409140,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_30_SEC_LIFTOFF",
+          "description": "\"30 seconds to liftoff\"",
+          "crewRole": "LMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_ASCENT_LIFTOFF",
+      "name": "Lunar Liftoff",
+      "phase": "LM Ascent",
+      "getStartSeconds": 409165,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 409165,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_5_SEC_LIFTOFF",
+          "description": "\"5, 4, 3, 2, 1\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 409170,
+          "type": "STAGING",
+          "commandId": "STAGING_ASCENT",
+          "description": "Stage separation - Liftoff!",
+          "panel": "LM_ASCENT_PANELS"
+        },
+        {
+          "getSeconds": 409171,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_LIFTOFF_MOON",
+          "description": "\"We're off!\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 409180,
+          "type": "VERIFY",
+          "commandId": "VERIFY_ASCENT_ENGINE",
+          "description": "Ascent engine nominal",
+          "expectedValue": "nominal"
+        },
+        {
+          "getSeconds": 409590,
+          "type": "BURN",
+          "commandId": "BURN_ASCENT_CUTOFF",
+          "description": "Ascent engine cutoff",
+          "panel": "LM_ASCENT_PANELS"
+        },
+        {
+          "getSeconds": 409600,
+          "type": "VERIFY",
+          "commandId": "VERIFY_ORBIT_INSERTION",
+          "description": "Lunar orbit insertion confirmed",
+          "expectedValue": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "PROC_RENDEZVOUS",
+      "name": "LM/CSM Rendezvous",
+      "phase": "Rendezvous",
+      "getStartSeconds": 411600,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 411600,
+          "type": "DSKY",
+          "commandId": "DSKY_P20_RENDEZVOUS",
+          "description": "V37E20E - Rendezvous nav",
+          "verb": 37,
+          "noun": 20,
+          "panel": "LM_DSKY"
+        },
+        {
+          "getSeconds": 411900,
+          "type": "RCS",
+          "commandId": "RCS_TPI_BURN",
+          "description": "TPI burn",
+          "axis": "X",
+          "magnitude": 8.0
+        },
+        {
+          "getSeconds": 412050,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CSM_VISUAL",
+          "description": "CSM visual contact",
+          "expectedValue": "visual"
+        },
+        {
+          "getSeconds": 412100,
+          "type": "RCS",
+          "commandId": "RCS_BRAKING",
+          "description": "Braking burn",
+          "axis": "-X",
+          "magnitude": 2.0
+        },
+        {
+          "getSeconds": 412150,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_STATION_KEEPING",
+          "description": "\"Station keeping\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 412170,
+          "type": "VERIFY",
+          "commandId": "VERIFY_DOCKING_COMPLETE",
+          "description": "Docking complete",
+          "expectedValue": "docked"
+        },
+        {
+          "getSeconds": 412175,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_DOCKED_REUNION",
+          "description": "\"Docked\"",
+          "crewRole": "CMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_LM_JETTISON",
+      "name": "LM Jettison",
+      "phase": "Lunar Orbit",
+      "getStartSeconds": 421100,
+      "crewRole": "CMP",
+      "commands": [
+        {
+          "getSeconds": 421100,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CREW_TRANSFER",
+          "description": "Crew and samples transferred",
+          "expectedValue": "complete"
+        },
+        {
+          "getSeconds": 421150,
+          "type": "SWITCH",
+          "commandId": "TUNNEL_HATCH_CLOSE",
+          "description": "Tunnel hatch - CLOSE",
+          "panel": "CSM_DOCKING",
+          "control": "TUNNEL_HATCH",
+          "expectedState": "CLOSED"
+        },
+        {
+          "getSeconds": 421180,
+          "type": "SWITCH",
+          "commandId": "LM_SEP_ARM",
+          "description": "LM SEP - ARM",
+          "panel": "CSM_SCS_DAP",
+          "control": "LM_SEP",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 421200,
+          "type": "BUTTON",
+          "commandId": "LM_JETTISON_FIRE",
+          "description": "LM JETTISON",
+          "panel": "CSM_SCS_DAP"
+        },
+        {
+          "getSeconds": 421205,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_LM_JETTISON",
+          "description": "\"Eagle jettisoned\"",
+          "crewRole": "CMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_TEI_PREP",
+      "name": "TEI Preparation",
+      "phase": "TEI",
+      "getStartSeconds": 440000,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 440000,
+          "type": "DSKY",
+          "commandId": "DSKY_P30_TEI",
+          "description": "V37E30E - External Δv for TEI",
+          "verb": 37,
+          "noun": 30,
+          "panel": "DSKY"
+        },
+        {
+          "getSeconds": 440100,
+          "type": "SWITCH",
+          "commandId": "SPS_BANK_A_TEI",
+          "description": "SPS BANK A - ARM",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_BANK_A_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 440110,
+          "type": "SWITCH",
+          "commandId": "SPS_BANK_B_TEI",
+          "description": "SPS BANK B - ARM",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_BANK_B_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 440200,
+          "type": "VERIFY",
+          "commandId": "VERIFY_TEI_ATTITUDE",
+          "description": "TEI burn attitude",
+          "expectedValue": "achieved"
+        },
+        {
+          "getSeconds": 440500,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_TEI_30_SEC",
+          "description": "\"30 seconds to TEI\"",
+          "crewRole": "CMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_TEI_BURN",
+      "name": "Trans-Earth Injection",
+      "phase": "TEI",
+      "getStartSeconds": 440520,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 440520,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_TEI_10_SEC",
+          "description": "\"10 seconds\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 440535,
+          "type": "BURN",
+          "commandId": "BURN_TEI_START",
+          "description": "TEI ignition",
+          "panel": "CSM_SPS_PROPULSION"
+        },
+        {
+          "getSeconds": 440536,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_TEI_IGNITION",
+          "description": "\"Ignition\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 440690,
+          "type": "BURN",
+          "commandId": "BURN_TEI_CUTOFF",
+          "description": "TEI cutoff",
+          "panel": "CSM_SPS_PROPULSION"
+        },
+        {
+          "getSeconds": 440695,
+          "type": "VERIFY",
+          "commandId": "VERIFY_TEI_COMPLETE",
+          "description": "TEI complete - on trajectory",
+          "expectedValue": "nominal"
+        },
+        {
+          "getSeconds": 440700,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_HEADED_HOME",
+          "description": "\"We're on our way home\"",
+          "crewRole": "CDR"
+        }
+      ]
+    },
+    {
+      "id": "PROC_TRANSEARTH_PTC",
+      "name": "Trans-Earth PTC",
+      "phase": "Trans-Earth",
+      "getStartSeconds": 445000,
+      "crewRole": "CMP",
+      "commands": [
+        {
+          "getSeconds": 445000,
+          "type": "DSKY",
+          "commandId": "DSKY_V49_TE_PTC",
+          "description": "V49E - PTC attitude",
+          "verb": 49,
+          "noun": 0,
+          "panel": "DSKY"
+        },
+        {
+          "getSeconds": 445100,
+          "type": "RCS",
+          "commandId": "RCS_PTC_TE_SPIN",
+          "description": "Initiate PTC roll",
+          "axis": "roll",
+          "magnitude": 0.3
+        },
+        {
+          "getSeconds": 445150,
+          "type": "VERIFY",
+          "commandId": "VERIFY_PTC_TE_STABLE",
+          "description": "PTC stable",
+          "expectedValue": "0.3°/s"
+        },
+        {
+          "getSeconds": 445160,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_PTC_TE_INIT",
+          "description": "\"PTC initiated\"",
+          "crewRole": "CMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_ENTRY_PREP",
+      "name": "Entry Preparation",
+      "phase": "Entry",
+      "getStartSeconds": 680000,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 680000,
+          "type": "SWITCH",
+          "commandId": "PTC_STOP_ENTRY",
+          "description": "PTC - STOP",
+          "panel": "CSM_RCS_MANAGEMENT",
+          "control": "PTC_TRIM_RATE",
+          "expectedState": "OFF"
+        },
+        {
+          "getSeconds": 680100,
+          "type": "DSKY",
+          "commandId": "DSKY_P61_ENTRY",
+          "description": "V37E61E - Entry prep",
+          "verb": 37,
+          "noun": 61,
+          "panel": "DSKY"
+        },
+        {
+          "getSeconds": 680400,
+          "type": "SWITCH",
+          "commandId": "CM_RCS_ARM",
+          "description": "CM RCS - ARM",
+          "panel": "CSM_RCS_MANAGEMENT",
+          "control": "CM_RCS",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 680700,
+          "type": "SWITCH",
+          "commandId": "ELS_ARM",
+          "description": "ELS - ARM",
+          "panel": "CSM_ELS",
+          "control": "ELS_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 681000,
+          "type": "VERIFY",
+          "commandId": "VERIFY_ENTRY_ATTITUDE",
+          "description": "Entry attitude achieved",
+          "expectedValue": "achieved"
+        }
+      ]
+    },
+    {
+      "id": "PROC_CM_SEP",
+      "name": "CM/SM Separation",
+      "phase": "Entry",
+      "getStartSeconds": 681600,
+      "crewRole": "CMP",
+      "commands": [
+        {
+          "getSeconds": 681600,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_CM_SEP_30",
+          "description": "\"30 seconds to CM/SM sep\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 681900,
+          "type": "SWITCH",
+          "commandId": "CM_SM_SEP_ARM",
+          "description": "CM/SM SEP - ARM",
+          "panel": "CSM_SCS_DAP",
+          "control": "CM_SM_SEP",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 681905,
+          "type": "STAGING",
+          "commandId": "STAGING_CM_SM_SEP",
+          "description": "CM/SM separation",
+          "panel": "CSM_SCS_DAP"
+        },
+        {
+          "getSeconds": 681910,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_SEP_CONFIRMED",
+          "description": "\"Separation confirmed\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 682000,
+          "type": "RCS",
+          "commandId": "RCS_CM_ATTITUDE",
+          "description": "CM attitude trim",
+          "axis": "pitch",
+          "magnitude": -1.0
+        }
+      ]
+    },
+    {
+      "id": "PROC_ENTRY_INTERFACE",
+      "name": "Entry Interface",
+      "phase": "Entry",
+      "getStartSeconds": 682400,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 682400,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_EI_1_MIN",
+          "description": "\"1 minute to entry interface\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 682470,
+          "type": "VERIFY",
+          "commandId": "VERIFY_ENTRY_INTERFACE",
+          "description": "Entry interface (400,000 ft)",
+          "expectedValue": "EI"
+        },
+        {
+          "getSeconds": 682500,
+          "type": "VERIFY",
+          "commandId": "VERIFY_G_ONSET",
+          "description": "Initial G onset",
+          "expectedValue": "confirmed"
+        },
+        {
+          "getSeconds": 682800,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_BLACKOUT_START",
+          "description": "\"Blackout\"",
+          "crewRole": "CDR"
+        }
+      ]
+    },
+    {
+      "id": "PROC_RECOVERY",
+      "name": "Parachute and Recovery",
+      "phase": "Entry",
+      "getStartSeconds": 688200,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 688200,
+          "type": "VERIFY",
+          "commandId": "VERIFY_DROGUE_DEPLOY",
+          "description": "Drogue chute deploy (24,000 ft)",
+          "expectedValue": "deployed"
+        },
+        {
+          "getSeconds": 688500,
+          "type": "VERIFY",
+          "commandId": "VERIFY_MAIN_DEPLOY",
+          "description": "Main chutes deploy (10,000 ft)",
+          "expectedValue": "3 good"
+        },
+        {
+          "getSeconds": 688800,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_CHUTES_GOOD",
+          "description": "\"3 good chutes\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 689000,
+          "type": "SWITCH",
+          "commandId": "ELS_AUTO",
+          "description": "ELS - AUTO",
+          "panel": "CSM_ELS",
+          "control": "ELS_MODE",
+          "expectedState": "AUTO"
+        },
+        {
+          "getSeconds": 689100,
+          "type": "VERIFY",
+          "commandId": "VERIFY_SPLASHDOWN",
+          "description": "Splashdown",
+          "expectedValue": "splash"
+        },
+        {
+          "getSeconds": 689105,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_SPLASHDOWN",
+          "description": "\"Splashdown!\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 689110,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_MISSION_COMPLETE",
+          "description": "\"Mission accomplished. Welcome home.\"",
+          "crewRole": "CAPCOM"
+        }
+      ]
     }
   ]
 }

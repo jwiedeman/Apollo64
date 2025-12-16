@@ -1,28 +1,34 @@
 /**
  * Command Timing System for Apollo64
  *
- * DDR/Guitar Hero style command input system.
- * Commands appear on a timeline and must be executed within timing windows.
- * Missing or late commands cause drift from nominal mission timeline.
+ * DDR/Guitar Hero style command input system for purist Apollo simulation.
+ * Commands scroll down the timeline and must be executed within precise windows.
+ * Missing or late commands cause mission drift - real consequences, no game-y shortcuts.
  *
- * This creates the core "gameplay" for the purist Apollo simulation -
- * you must execute every switch flip, DSKY entry, and procedure step
- * at the correct time, or the mission drifts from nominal.
+ * Philosophy: This is NOT an incremental game. This is a real-time simulation
+ * of the Apollo mission where every switch flip, every callout, every DSKY entry
+ * happens at the historically accurate time. You're not "progressing" - you're
+ * reliving the mission moment by moment.
+ *
+ * Timing windows are based on actual crew response times from Apollo transcripts.
+ * Critical commands (burns, staging events) have tighter windows.
  */
 
 import { formatGET } from '../utils/time.js';
 
-// Timing window grades (like DDR)
+// Timing window grades calibrated to real crew performance
+// Apollo astronauts typically responded within 2-3 seconds to calls
 const TIMING_GRADES = {
-  PERFECT: { id: 'PERFECT', name: 'Perfect', windowMs: 500, driftFactor: 0, scoreMult: 1.0 },
-  GREAT: { id: 'GREAT', name: 'Great', windowMs: 1500, driftFactor: 0.1, scoreMult: 0.9 },
-  GOOD: { id: 'GOOD', name: 'Good', windowMs: 3000, driftFactor: 0.3, scoreMult: 0.7 },
-  OK: { id: 'OK', name: 'OK', windowMs: 6000, driftFactor: 0.5, scoreMult: 0.5 },
-  LATE: { id: 'LATE', name: 'Late', windowMs: 12000, driftFactor: 0.8, scoreMult: 0.2 },
-  MISS: { id: 'MISS', name: 'Miss', windowMs: Infinity, driftFactor: 1.0, scoreMult: 0 },
+  PERFECT: { id: 'PERFECT', name: 'Perfect', windowMs: 250, driftFactor: 0, scoreMult: 1.0, feedback: 'Nominal' },
+  GREAT: { id: 'GREAT', name: 'Great', windowMs: 750, driftFactor: 0.05, scoreMult: 0.95, feedback: 'On time' },
+  GOOD: { id: 'GOOD', name: 'Good', windowMs: 1500, driftFactor: 0.15, scoreMult: 0.85, feedback: 'Acceptable' },
+  OK: { id: 'OK', name: 'OK', windowMs: 3000, driftFactor: 0.35, scoreMult: 0.6, feedback: 'Delayed' },
+  LATE: { id: 'LATE', name: 'Late', windowMs: 6000, driftFactor: 0.6, scoreMult: 0.3, feedback: 'Behind schedule' },
+  MISS: { id: 'MISS', name: 'Miss', windowMs: Infinity, driftFactor: 1.0, scoreMult: 0, feedback: 'Missed' },
 };
 
-// Command types with their visual representation
+// Command types with visual representation and criticality
+// Criticality affects timing window strictness
 const COMMAND_TYPES = {
   SWITCH: {
     id: 'SWITCH',
@@ -30,6 +36,8 @@ const COMMAND_TYPES = {
     icon: '▢',
     color: '#4a9eff',
     description: 'Toggle switch or circuit breaker',
+    criticality: 'normal',
+    defaultWindowMult: 1.0,
   },
   BUTTON: {
     id: 'BUTTON',
@@ -37,6 +45,8 @@ const COMMAND_TYPES = {
     icon: '●',
     color: '#ff6b4a',
     description: 'Momentary pushbutton',
+    criticality: 'high',
+    defaultWindowMult: 0.8,
   },
   DSKY: {
     id: 'DSKY',
@@ -44,6 +54,8 @@ const COMMAND_TYPES = {
     icon: '▣',
     color: '#4aff6b',
     description: 'DSKY Verb/Noun entry',
+    criticality: 'high',
+    defaultWindowMult: 0.9,
   },
   DIAL: {
     id: 'DIAL',
@@ -51,6 +63,8 @@ const COMMAND_TYPES = {
     icon: '◎',
     color: '#ffc04a',
     description: 'Rotary control adjustment',
+    criticality: 'normal',
+    defaultWindowMult: 1.2,
   },
   THROTTLE: {
     id: 'THROTTLE',
@@ -58,20 +72,26 @@ const COMMAND_TYPES = {
     icon: '▲',
     color: '#ff4aff',
     description: 'Engine throttle control',
+    criticality: 'critical',
+    defaultWindowMult: 0.5,
   },
   RCS: {
     id: 'RCS',
     name: 'RCS',
     icon: '✦',
     color: '#4affff',
-    description: 'RCS translation/rotation',
+    description: 'RCS translation/rotation input',
+    criticality: 'high',
+    defaultWindowMult: 0.7,
   },
   CALLOUT: {
     id: 'CALLOUT',
     name: 'Callout',
     icon: '◇',
     color: '#ffffff',
-    description: 'Voice callout confirmation',
+    description: 'Voice callout - acknowledge',
+    criticality: 'low',
+    defaultWindowMult: 1.5,
   },
   VERIFY: {
     id: 'VERIFY',
@@ -79,16 +99,84 @@ const COMMAND_TYPES = {
     icon: '✓',
     color: '#aaffaa',
     description: 'Monitor and confirm status',
+    criticality: 'normal',
+    defaultWindowMult: 1.3,
+  },
+  ABORT: {
+    id: 'ABORT',
+    name: 'Abort',
+    icon: '⚠',
+    color: '#ff0000',
+    description: 'Abort system actuation',
+    criticality: 'critical',
+    defaultWindowMult: 0.3,
+  },
+  STAGING: {
+    id: 'STAGING',
+    name: 'Staging',
+    icon: '◆',
+    color: '#ff8800',
+    description: 'Stage separation sequence',
+    criticality: 'critical',
+    defaultWindowMult: 0.4,
+  },
+  BURN: {
+    id: 'BURN',
+    name: 'Burn',
+    icon: '▲',
+    color: '#ff4400',
+    description: 'Engine ignition/cutoff',
+    criticality: 'critical',
+    defaultWindowMult: 0.3,
+  },
+  COMM: {
+    id: 'COMM',
+    name: 'Comm',
+    icon: '◈',
+    color: '#88ff88',
+    description: 'Communications check/response',
+    criticality: 'low',
+    defaultWindowMult: 2.0,
   },
 };
 
-// Command lane positions (for multi-lane display like Guitar Hero)
+// Command lane positions mapped to crew stations
+// Like Guitar Hero frets - commands scroll into these lanes
 const COMMAND_LANES = {
-  PILOT_LEFT: 0,    // CDR side
-  PILOT_CENTER: 1,  // Shared/center console
-  PILOT_RIGHT: 2,   // CMP side
-  LM_LEFT: 3,       // LMP side (when in LM)
-  LM_RIGHT: 4,      // CDR side in LM
+  CDR: 0,           // Commander (left couch / LM left)
+  CMP: 1,           // Command Module Pilot (center couch)
+  LMP: 2,           // Lunar Module Pilot (right couch / LM right)
+  JOINT: 3,         // Shared commands (any crew member)
+  CAPCOM: 4,        // CapCom callouts to acknowledge
+};
+
+// Map crew roles to lanes for visual display
+const CREW_ROLE_TO_LANE = {
+  CDR: COMMAND_LANES.CDR,
+  CMP: COMMAND_LANES.CMP,
+  LMP: COMMAND_LANES.LMP,
+  Joint: COMMAND_LANES.JOINT,
+  JOINT: COMMAND_LANES.JOINT,
+  CAPCOM: COMMAND_LANES.CAPCOM,
+  Houston: COMMAND_LANES.CAPCOM,
+};
+
+// Mission phases for context-aware timing
+const MISSION_PHASES = {
+  PRELAUNCH: { id: 'PRELAUNCH', windowMult: 1.5, description: 'Pre-launch checks' },
+  LAUNCH: { id: 'LAUNCH', windowMult: 0.5, description: 'Launch to orbit' },
+  EARTH_ORBIT: { id: 'EARTH_ORBIT', windowMult: 1.0, description: 'Earth orbit checkout' },
+  TLI: { id: 'TLI', windowMult: 0.6, description: 'Trans-Lunar Injection' },
+  TRANSLUNAR: { id: 'TRANSLUNAR', windowMult: 1.5, description: 'Coast to Moon' },
+  LOI: { id: 'LOI', windowMult: 0.6, description: 'Lunar Orbit Insertion' },
+  LUNAR_ORBIT: { id: 'LUNAR_ORBIT', windowMult: 1.0, description: 'Lunar orbit operations' },
+  DESCENT: { id: 'DESCENT', windowMult: 0.4, description: 'Powered descent' },
+  SURFACE: { id: 'SURFACE', windowMult: 1.2, description: 'Lunar surface EVA' },
+  ASCENT: { id: 'ASCENT', windowMult: 0.5, description: 'Lunar ascent' },
+  RENDEZVOUS: { id: 'RENDEZVOUS', windowMult: 0.7, description: 'LM/CSM rendezvous' },
+  TEI: { id: 'TEI', windowMult: 0.6, description: 'Trans-Earth Injection' },
+  TRANSEARTH: { id: 'TRANSEARTH', windowMult: 1.5, description: 'Coast to Earth' },
+  ENTRY: { id: 'ENTRY', windowMult: 0.5, description: 'Atmospheric entry' },
 };
 
 function deepClone(value) {
@@ -101,16 +189,24 @@ export class CommandTimingSystem {
     onCommandHit = null,
     onCommandMiss = null,
     onDriftChange = null,
+    onCommandApproaching = null,
+    onComboAchieved = null,
     lookAheadSeconds = 30,
     autoMode = false,
+    puristMode = true,
+    missionPhase = 'EARTH_ORBIT',
   } = {}) {
     this.logger = logger;
     this.onCommandHit = typeof onCommandHit === 'function' ? onCommandHit : null;
     this.onCommandMiss = typeof onCommandMiss === 'function' ? onCommandMiss : null;
     this.onDriftChange = typeof onDriftChange === 'function' ? onDriftChange : null;
+    this.onCommandApproaching = typeof onCommandApproaching === 'function' ? onCommandApproaching : null;
+    this.onComboAchieved = typeof onComboAchieved === 'function' ? onComboAchieved : null;
 
     this.lookAheadSeconds = lookAheadSeconds;
     this.autoMode = autoMode;
+    this.puristMode = puristMode; // In purist mode, every command matters
+    this.missionPhase = missionPhase;
 
     // Command queue - commands waiting to be executed
     this.pendingCommands = [];
@@ -126,9 +222,18 @@ export class CommandTimingSystem {
 
     // Current mission drift (0 = nominal, positive = behind schedule)
     this.driftSeconds = 0;
-    this.maxDriftSeconds = 300; // 5 minutes max drift before mission is "off nominal"
+    this.maxDriftSeconds = 120; // 2 minutes max drift - tighter for purist mode
 
-    // Scoring
+    // Combo system (for visual feedback, not gamification)
+    this.combo = {
+      current: 0,
+      best: 0,
+      perfectStreak: 0,
+      lastGrade: null,
+      multiplier: 1.0,
+    };
+
+    // Scoring - historical accuracy tracking
     this.stats = {
       totalCommands: 0,
       perfect: 0,
@@ -140,10 +245,47 @@ export class CommandTimingSystem {
       currentStreak: 0,
       maxStreak: 0,
       totalDriftAccumulated: 0,
+      criticalCommandsHit: 0,
+      criticalCommandsMissed: 0,
+      avgResponseMs: 0,
+      responseTimes: [],
+    };
+
+    // Real-time visual state for DDR-style display
+    this.visualState = {
+      hitZoneFlash: 0,
+      lastHitGrade: null,
+      lastHitTime: 0,
+      comboBreak: false,
+      approachingCount: 0,
     };
 
     // Internal ID counter
     this._nextId = 0;
+  }
+
+  /**
+   * Set current mission phase - affects timing strictness
+   */
+  setMissionPhase(phase) {
+    if (MISSION_PHASES[phase]) {
+      this.missionPhase = phase;
+      this.logger?.log(0, `Mission phase: ${MISSION_PHASES[phase].description}`, {
+        logSource: 'sim',
+        logCategory: 'timing',
+        logSeverity: 'notice',
+        phase,
+      });
+    }
+  }
+
+  /**
+   * Get phase-adjusted timing window
+   */
+  getAdjustedWindow(baseWindowMs, commandType) {
+    const phaseMult = MISSION_PHASES[this.missionPhase]?.windowMult ?? 1.0;
+    const typeMult = COMMAND_TYPES[commandType]?.defaultWindowMult ?? 1.0;
+    return baseWindowMs * phaseMult * typeMult;
   }
 
   /**
@@ -479,24 +621,48 @@ export class CommandTimingSystem {
   #normalizeCommand(raw) {
     const id = raw.id ?? `cmd_${this._nextId++}`;
     const targetSeconds = this.#parseGetSeconds(raw.get ?? raw.getSeconds ?? raw.targetGetSeconds ?? 0);
+    const crewRole = raw.crewRole ?? raw.crew_role ?? 'Joint';
+    const commandType = raw.type ?? 'SWITCH';
+    const typeInfo = COMMAND_TYPES[commandType] ?? COMMAND_TYPES.SWITCH;
 
     return {
       id,
       commandId: raw.commandId ?? raw.command_id ?? raw.controlId ?? id,
-      type: raw.type ?? 'SWITCH',
-      lane: raw.lane ?? COMMAND_LANES.PILOT_CENTER,
+      type: commandType,
+      lane: raw.lane ?? CREW_ROLE_TO_LANE[crewRole] ?? COMMAND_LANES.JOINT,
       description: raw.description ?? raw.action ?? '',
       targetGetSeconds: targetSeconds,
       windowOverrideMs: raw.windowMs ?? raw.window_ms ?? null,
       panel: raw.panel ?? raw.panelId ?? null,
       control: raw.control ?? raw.controlId ?? null,
       expectedState: raw.expectedState ?? raw.expected_state ?? raw.stateId ?? null,
-      crewRole: raw.crewRole ?? raw.crew_role ?? 'Joint',
+      expectedValue: raw.expectedValue ?? raw.expected_value ?? null,
+      crewRole,
       priority: raw.priority ?? 'normal',
-      driftWeight: raw.driftWeight ?? raw.drift_weight ?? 1.0,
+      criticality: raw.criticality ?? typeInfo.criticality ?? 'normal',
+      driftWeight: raw.driftWeight ?? raw.drift_weight ?? this.#getCriticalityWeight(typeInfo.criticality),
       audioHint: raw.audioHint ?? raw.audio_hint ?? null,
       prerequisites: raw.prerequisites ?? [],
+      // DSKY-specific fields
+      verb: raw.verb ?? null,
+      noun: raw.noun ?? null,
+      // RCS-specific fields
+      axis: raw.axis ?? null,
+      magnitude: raw.magnitude ?? null,
+      // Visual fields
+      typeIcon: typeInfo.icon,
+      typeColor: typeInfo.color,
     };
+  }
+
+  #getCriticalityWeight(criticality) {
+    switch (criticality) {
+      case 'critical': return 3.0;
+      case 'high': return 2.0;
+      case 'normal': return 1.0;
+      case 'low': return 0.5;
+      default: return 1.0;
+    }
   }
 
   #parseGetSeconds(value) {
@@ -597,13 +763,23 @@ export class CommandTimingSystem {
   #calculateGrade(command, currentGetSeconds) {
     const deltaMs = Math.abs(currentGetSeconds - command.targetGetSeconds) * 1000;
 
-    // Use custom window if specified
+    // Get phase and type multipliers
+    const phaseMult = MISSION_PHASES[this.missionPhase]?.windowMult ?? 1.0;
+    const typeInfo = COMMAND_TYPES[command.type];
+    const typeMult = typeInfo?.defaultWindowMult ?? 1.0;
+
+    // Use custom window if specified, otherwise apply multipliers
     const windowOverride = command.windowOverrideMs;
 
     for (const grade of Object.values(TIMING_GRADES)) {
-      const window = windowOverride
-        ? windowOverride * (grade.windowMs / TIMING_GRADES.PERFECT.windowMs)
-        : grade.windowMs;
+      let window;
+      if (windowOverride) {
+        window = windowOverride * (grade.windowMs / TIMING_GRADES.PERFECT.windowMs);
+      } else {
+        // Purist mode uses tighter windows, non-purist relaxes them
+        const puristMult = this.puristMode ? 1.0 : 1.5;
+        window = grade.windowMs * phaseMult * typeMult * puristMult;
+      }
 
       if (deltaMs <= window) {
         return grade;
@@ -673,4 +849,4 @@ export class CommandTimingSystem {
   }
 }
 
-export { TIMING_GRADES, COMMAND_TYPES, COMMAND_LANES };
+export { TIMING_GRADES, COMMAND_TYPES, COMMAND_LANES, CREW_ROLE_TO_LANE, MISSION_PHASES };
