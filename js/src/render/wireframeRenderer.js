@@ -651,9 +651,314 @@ export class WireframeRenderer {
   }
 
   /**
-   * Draw command timeline (DDR-style)
+   * Draw command timeline (DDR-style with multi-lane display)
+   * Commands scroll down into the hit zone, organized by crew role
    */
   drawCommandTimeline(timeline) {
+    const laneCount = 5; // CDR, CMP, LMP, JOINT, CAPCOM
+    const laneWidth = 30 * this.pixelScale;
+    const timelineWidth = laneWidth * laneCount + 20 * this.pixelScale;
+    const timelineX = this.width - timelineWidth - 10 * this.pixelScale;
+    const timelineTop = 40 * this.pixelScale;
+    const timelineBottom = this.height - 40 * this.pixelScale;
+    const timelineHeight = timelineBottom - timelineTop;
+
+    // Draw timeline background with lane dividers
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    this.ctx.fillRect(timelineX, timelineTop, timelineWidth, timelineHeight);
+
+    // Draw lane dividers
+    this.ctx.strokeStyle = COLORS.PANEL_BORDER;
+    this.ctx.lineWidth = 1;
+    for (let i = 1; i < laneCount; i++) {
+      const laneX = timelineX + 10 * this.pixelScale + i * laneWidth;
+      this.ctx.beginPath();
+      this.ctx.moveTo(laneX, timelineTop);
+      this.ctx.lineTo(laneX, timelineBottom);
+      this.ctx.stroke();
+    }
+
+    // Draw border
+    this.ctx.strokeStyle = COLORS.WIREFRAME_DIM;
+    this.ctx.lineWidth = this.pixelScale;
+    this.ctx.strokeRect(timelineX, timelineTop, timelineWidth, timelineHeight);
+
+    // Draw "hit zone" - the area where commands should be executed
+    const hitZoneTop = timelineBottom - 50 * this.pixelScale;
+    const hitZoneBottom = timelineBottom - 20 * this.pixelScale;
+    const hitLineY = (hitZoneTop + hitZoneBottom) / 2;
+
+    // Hit zone glow effect
+    const gradient = this.ctx.createLinearGradient(timelineX, hitZoneTop, timelineX, hitZoneBottom);
+    gradient.addColorStop(0, 'rgba(0, 255, 0, 0)');
+    gradient.addColorStop(0.5, 'rgba(0, 255, 0, 0.3)');
+    gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(timelineX, hitZoneTop, timelineWidth, hitZoneBottom - hitZoneTop);
+
+    // Hit zone line
+    this.ctx.strokeStyle = COLORS.WIREFRAME_BRIGHT;
+    this.ctx.lineWidth = 2 * this.pixelScale;
+    this.ctx.beginPath();
+    this.ctx.moveTo(timelineX, hitLineY);
+    this.ctx.lineTo(timelineX + timelineWidth, hitLineY);
+    this.ctx.stroke();
+
+    // Draw timing window indicators (Perfect, Great, Good zones)
+    this.#drawTimingZones(timelineX, timelineWidth, hitLineY, timeline);
+
+    // Draw lane labels at bottom
+    const laneLabels = ['CDR', 'CMP', 'LMP', 'ALL', 'COM'];
+    this.ctx.fillStyle = COLORS.TEXT_SECONDARY;
+    this.ctx.font = `${8 * this.pixelScale}px monospace`;
+    this.ctx.textAlign = 'center';
+    for (let i = 0; i < laneCount; i++) {
+      const laneCenter = timelineX + 10 * this.pixelScale + i * laneWidth + laneWidth / 2;
+      this.ctx.fillText(laneLabels[i], laneCenter, timelineBottom + 12 * this.pixelScale);
+    }
+
+    // Draw commands
+    if (timeline?.commands) {
+      // Sort by time so closer commands render on top
+      const sortedCommands = [...timeline.commands].sort((a, b) =>
+        Math.abs(b.secondsFromNow ?? 0) - Math.abs(a.secondsFromNow ?? 0)
+      );
+
+      for (const cmd of sortedCommands) {
+        this.#drawCommand(cmd, {
+          timelineX,
+          timelineTop,
+          hitLineY,
+          timelineHeight,
+          laneWidth,
+          windowEnd: timeline.windowEnd,
+          currentGet: timeline.currentGetSeconds,
+        });
+      }
+    }
+
+    // Draw header with drift and stats
+    this.#drawTimelineHeader(timelineX, timelineWidth, timelineTop, timeline);
+  }
+
+  /**
+   * Draw timing zone indicators
+   */
+  #drawTimingZones(timelineX, timelineWidth, hitLineY, timeline) {
+    const zones = [
+      { name: 'PERFECT', color: 'rgba(0, 255, 0, 0.1)', size: 5 },
+      { name: 'GREAT', color: 'rgba(136, 255, 0, 0.08)', size: 15 },
+      { name: 'GOOD', color: 'rgba(255, 255, 0, 0.05)', size: 30 },
+    ];
+
+    for (const zone of zones) {
+      this.ctx.fillStyle = zone.color;
+      this.ctx.fillRect(
+        timelineX,
+        hitLineY - zone.size * this.pixelScale,
+        timelineWidth,
+        zone.size * 2 * this.pixelScale
+      );
+    }
+  }
+
+  /**
+   * Draw a single command note on the timeline
+   */
+  #drawCommand(cmd, opts) {
+    const { timelineX, timelineTop, hitLineY, timelineHeight, laneWidth, windowEnd, currentGet } = opts;
+    const relativeTime = cmd.secondsFromNow ?? 0;
+
+    // Calculate Y position - commands scroll from top to hit zone
+    const scrollRange = hitLineY - timelineTop - 20 * this.pixelScale;
+    const maxLookahead = windowEnd - currentGet;
+    const normalizedTime = Math.max(0, Math.min(1, relativeTime / maxLookahead));
+    const y = hitLineY - normalizedTime * scrollRange;
+
+    // Don't draw if off screen
+    if (y < timelineTop - 10 * this.pixelScale) return;
+
+    // Determine lane based on crew role
+    const lane = cmd.lane ?? 3; // Default to JOINT lane
+    const laneCenter = timelineX + 10 * this.pixelScale + lane * laneWidth + laneWidth / 2;
+
+    // Command note size (larger when closer to hit zone)
+    const proximity = 1 - normalizedTime;
+    const baseSize = 10 * this.pixelScale;
+    const noteSize = baseSize * (0.7 + 0.3 * proximity);
+
+    // Get color based on status
+    const cmdColor = this.#getCommandColor(cmd.status, cmd.grade);
+
+    // Draw note shape based on command type
+    this.#drawNoteShape(laneCenter, y, noteSize, cmd.type, cmdColor, cmd.status);
+
+    // Draw command icon
+    this.ctx.fillStyle = cmd.status === 'active' ? COLORS.BACKGROUND : COLORS.TEXT_PRIMARY;
+    this.ctx.font = `${8 * this.pixelScale}px monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(cmd.typeIcon ?? '●', laneCenter, y + 3 * this.pixelScale);
+
+    // Draw description for active/upcoming commands
+    if (cmd.status === 'active' || (cmd.status === 'pending' && relativeTime < 5)) {
+      this.ctx.fillStyle = COLORS.TEXT_PRIMARY;
+      this.ctx.font = `${6 * this.pixelScale}px monospace`;
+      this.ctx.textAlign = 'left';
+
+      // Truncate description
+      const desc = (cmd.description ?? '').substring(0, 20);
+      this.ctx.fillText(desc, timelineX - 120 * this.pixelScale, y + 3 * this.pixelScale);
+    }
+  }
+
+  /**
+   * Draw the shape for a command note (like DDR arrows)
+   */
+  #drawNoteShape(x, y, size, type, color, status) {
+    this.ctx.fillStyle = color;
+    this.ctx.strokeStyle = status === 'active' ? COLORS.WIREFRAME_BRIGHT : color;
+    this.ctx.lineWidth = status === 'active' ? 2 * this.pixelScale : 1;
+
+    this.ctx.beginPath();
+
+    switch (type) {
+      case 'SWITCH':
+      case 'BUTTON':
+        // Square
+        this.ctx.rect(x - size / 2, y - size / 2, size, size);
+        break;
+
+      case 'DSKY':
+        // Rounded rectangle
+        this.#roundRect(x - size / 2, y - size / 2, size, size, size / 4);
+        break;
+
+      case 'THROTTLE':
+      case 'BURN':
+        // Triangle pointing up
+        this.ctx.moveTo(x, y - size / 2);
+        this.ctx.lineTo(x + size / 2, y + size / 2);
+        this.ctx.lineTo(x - size / 2, y + size / 2);
+        this.ctx.closePath();
+        break;
+
+      case 'RCS':
+        // Diamond
+        this.ctx.moveTo(x, y - size / 2);
+        this.ctx.lineTo(x + size / 2, y);
+        this.ctx.lineTo(x, y + size / 2);
+        this.ctx.lineTo(x - size / 2, y);
+        this.ctx.closePath();
+        break;
+
+      case 'CALLOUT':
+      case 'COMM':
+        // Hexagon
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3 - Math.PI / 2;
+          const px = x + (size / 2) * Math.cos(angle);
+          const py = y + (size / 2) * Math.sin(angle);
+          if (i === 0) this.ctx.moveTo(px, py);
+          else this.ctx.lineTo(px, py);
+        }
+        this.ctx.closePath();
+        break;
+
+      case 'STAGING':
+      case 'ABORT':
+        // Octagon
+        for (let i = 0; i < 8; i++) {
+          const angle = (i * Math.PI) / 4 - Math.PI / 8;
+          const px = x + (size / 2) * Math.cos(angle);
+          const py = y + (size / 2) * Math.sin(angle);
+          if (i === 0) this.ctx.moveTo(px, py);
+          else this.ctx.lineTo(px, py);
+        }
+        this.ctx.closePath();
+        break;
+
+      default:
+        // Circle
+        this.ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+        break;
+    }
+
+    if (status === 'completed' || status === 'missed') {
+      this.ctx.globalAlpha = 0.5;
+    }
+
+    this.ctx.fill();
+    if (status === 'active') {
+      this.ctx.stroke();
+    }
+
+    this.ctx.globalAlpha = 1.0;
+  }
+
+  /**
+   * Draw rounded rectangle helper
+   */
+  #roundRect(x, y, w, h, r) {
+    this.ctx.moveTo(x + r, y);
+    this.ctx.lineTo(x + w - r, y);
+    this.ctx.arcTo(x + w, y, x + w, y + r, r);
+    this.ctx.lineTo(x + w, y + h - r);
+    this.ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    this.ctx.lineTo(x + r, y + h);
+    this.ctx.arcTo(x, y + h, x, y + h - r, r);
+    this.ctx.lineTo(x, y + r);
+    this.ctx.arcTo(x, y, x + r, y, r);
+  }
+
+  /**
+   * Draw timeline header with stats and drift indicator
+   */
+  #drawTimelineHeader(timelineX, timelineWidth, timelineTop, timeline) {
+    const headerY = timelineTop - 5 * this.pixelScale;
+
+    // Title
+    this.ctx.fillStyle = COLORS.TEXT_PRIMARY;
+    this.ctx.font = `${9 * this.pixelScale}px monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('COMMAND TIMELINE', timelineX + timelineWidth / 2, headerY - 15 * this.pixelScale);
+
+    // Drift indicator
+    if (timeline?.drift) {
+      const driftColor = this.#getDriftColor(timeline.drift.severity);
+      this.ctx.fillStyle = driftColor;
+      this.ctx.font = `${8 * this.pixelScale}px monospace`;
+      this.ctx.fillText(
+        `DRIFT: ${timeline.drift.formatted}`,
+        timelineX + timelineWidth / 2,
+        headerY - 5 * this.pixelScale
+      );
+    }
+
+    // Stats (streak, accuracy)
+    if (timeline?.stats) {
+      this.ctx.fillStyle = COLORS.TEXT_SECONDARY;
+      this.ctx.font = `${7 * this.pixelScale}px monospace`;
+      this.ctx.textAlign = 'left';
+      this.ctx.fillText(
+        `Streak: ${timeline.stats.currentStreak}`,
+        timelineX,
+        timelineTop + 15 * this.pixelScale
+      );
+
+      const accuracy = ((timeline.stats.accuracy ?? 1) * 100).toFixed(0);
+      this.ctx.textAlign = 'right';
+      this.ctx.fillText(
+        `${accuracy}%`,
+        timelineX + timelineWidth,
+        timelineTop + 15 * this.pixelScale
+      );
+    }
+  }
+
+  /**
+   * Draw command timeline (DDR-style) - legacy simple version
+   */
+  drawCommandTimelineSimple(timeline) {
     const timelineWidth = 80 * this.pixelScale;
     const timelineX = this.width - timelineWidth - 10 * this.pixelScale;
     const timelineTop = 60 * this.pixelScale;

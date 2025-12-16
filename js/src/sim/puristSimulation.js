@@ -1,17 +1,26 @@
 /**
  * Purist Apollo Simulation Integration
  *
- * Integrates the DDR-style command timing system, drift mechanics,
- * and micro-procedural accuracy into the Apollo64 simulation.
+ * This is NOT a game. This is a simulation.
  *
- * This creates the authentic Apollo mission experience:
- * - Every switch flip matters
- * - Commands must be executed at the right time
- * - Miss your timing and the mission drifts
- * - Full 7+ day real-time simulation possible
+ * Philosophy:
+ * - No shortcuts. Every switch flip, every callout, every DSKY entry.
+ * - Real-time by default. The full mission takes ~8 days.
+ * - Commands arrive DDR-style. Miss them, and you drift from nominal.
+ * - Historical playback shows exactly what the crew did.
+ * - Interactive mode lets you try to match or beat their timing.
+ *
+ * The goal is authenticity, not progression. There are no unlocks,
+ * no achievements, no power-ups. There is only the mission.
+ *
+ * References:
+ * - Apollo 11 Flight Plan (NASA document)
+ * - Apollo 11 Flight Journal
+ * - Apollo 11 Surface Journal
+ * - AS-506 Mission Operations Report
  */
 
-import { CommandTimingSystem } from './commandTimingSystem.js';
+import { CommandTimingSystem, MISSION_PHASES } from './commandTimingSystem.js';
 import { MissionDriftSystem } from './missionDriftSystem.js';
 import { formatGET, parseGET } from '../utils/time.js';
 
@@ -19,25 +28,66 @@ import { formatGET, parseGET } from '../utils/time.js';
  * Mode constants
  */
 const SIMULATION_MODES = {
-  REALTIME: 'realtime',           // 1:1 real time (7+ days for full mission)
-  COMPRESSED_2X: 'compressed_2x',  // 2x speed
-  COMPRESSED_4X: 'compressed_4x',  // 4x speed
-  COMPRESSED_8X: 'compressed_8x',  // 8x speed
-  AUTO_CREW: 'auto_crew',         // Autopilot handles everything
-  PLAYBACK: 'playback',           // Pre-recorded mission replay
+  REALTIME: 'realtime',           // 1:1 real time (195+ hours for full mission)
+  COMPRESSED_2X: 'compressed_2x',  // 2x speed (~4 days)
+  COMPRESSED_4X: 'compressed_4x',  // 4x speed (~2 days)
+  COMPRESSED_8X: 'compressed_8x',  // 8x speed (~1 day)
+  COMPRESSED_60X: 'compressed_60x', // 1 minute = 1 hour (~3 hours)
+  AUTO_CREW: 'auto_crew',         // Watch mode - see the mission unfold
+  PLAYBACK: 'playback',           // Historical playback with crew actions
+  INTERACTIVE: 'interactive',     // You are the crew - execute all commands
 };
 
 const PLAYBACK_SOURCES = {
-  APOLLO_11_NOMINAL: 'apollo_11_nominal',
-  APOLLO_11_HISTORICAL: 'apollo_11_historical',
+  APOLLO_11_NOMINAL: 'apollo_11_nominal',   // Planned timeline
+  APOLLO_11_HISTORICAL: 'apollo_11_historical', // What actually happened
+  APOLLO_12_NOMINAL: 'apollo_12_nominal',
+  APOLLO_13_NOMINAL: 'apollo_13_nominal',   // With abort scenario
   CUSTOM: 'custom',
+};
+
+// Time markers for the Apollo 11 mission (GET in seconds)
+const APOLLO_11_EVENTS = {
+  LAUNCH: 0,
+  MECO: 162,                      // Main Engine Cutoff (S-IC)
+  S2_IGNITION: 164,
+  S2_CUTOFF: 549,
+  S_IVB_IGNITION: 554,
+  S_IVB_CUTOFF_1: 700,            // Earth orbit insertion
+  TLI_START: 9834,                // 002:44:16 GET
+  TLI_CUTOFF: 10178,              // S-IVB cutoff for TLI
+  CSM_SEP: 11400,                 // CSM/S-IVB separation
+  TD_E: 12300,                    // Transposition & docking
+  LM_EXTRACTION: 14700,
+  MCC_1: 41400,                   // Midcourse correction 1
+  LOI_1: 272949,                  // 075:49:50 GET
+  LOI_2: 284529,                  // 079:02:09 GET
+  DOI: 353769,                    // 098:16:09 GET - Descent orbit insertion
+  PDI: 369180,                    // 102:33:00 GET - Powered descent
+  LANDING: 370014,                // 102:45:40 GET
+  EVA_START: 378938,              // 105:14:38 GET
+  FIRST_STEP: 379788,             // 109:24:48 GET
+  EVA_END: 387900,                // 107:45:00 GET (approx)
+  LIFTOFF_MOON: 409170,           // 124:22:00 GET
+  DOCKING: 412170,                // 128:03:00 GET
+  LM_JETTISON: 421200,            // 130:09:31 GET
+  TEI: 440535,                    // 135:23:42 GET
+  MCC_5: 517320,                  // Midcourse correction 5
+  ENTRY_INTERFACE: 682470,        // 195:03:05 GET
+  SPLASHDOWN: 689100,             // 195:18:35 GET
 };
 
 /**
  * PuristSimulation class
  *
- * Wraps the standard Simulation with DDR-style command input
- * and drift consequences for missed/late commands.
+ * This is the heart of the Apollo simulator. It wraps the standard
+ * simulation engine with DDR-style command timing, creating an
+ * experience where every action matters.
+ *
+ * Three primary modes:
+ * 1. INTERACTIVE - You execute commands as they arrive (default)
+ * 2. PLAYBACK - Watch historical crew actions
+ * 3. AUTO_CREW - Autopilot handles everything, you observe
  */
 export class PuristSimulation {
   constructor({
@@ -48,7 +98,10 @@ export class PuristSimulation {
     onCommandResult = null,
     onDriftUpdate = null,
     onMissionStatus = null,
-    mode = SIMULATION_MODES.REALTIME,
+    onPhaseChange = null,
+    onMilestone = null,
+    mode = SIMULATION_MODES.INTERACTIVE,
+    puristMode = true,
   } = {}) {
     this.simulation = simulation;
     this.logger = logger;
@@ -56,23 +109,30 @@ export class PuristSimulation {
     // Mode settings
     this.mode = mode;
     this.timeScale = this.#getTimeScale(mode);
-    this.isPaused = false;
+    this.isPaused = true; // Start paused, waiting for launch
+    this.puristMode = puristMode;
 
-    // Command timing system
+    // Current mission phase
+    this.currentPhase = 'PRELAUNCH';
+
+    // Command timing system - the DDR engine
     this.commandTiming = new CommandTimingSystem({
       logger,
-      autoMode: mode === SIMULATION_MODES.AUTO_CREW,
+      autoMode: mode === SIMULATION_MODES.AUTO_CREW || mode === SIMULATION_MODES.PLAYBACK,
+      puristMode,
       lookAheadSeconds: 30,
+      missionPhase: this.currentPhase,
       onCommandHit: (data) => this.#onCommandHit(data),
       onCommandMiss: (data) => this.#onCommandMiss(data),
       onDriftChange: (data) => this.#onDriftFromTiming(data),
+      onCommandApproaching: (data) => this.#onCommandApproaching(data),
     });
 
-    // Mission drift system
+    // Mission drift system - consequences of missed commands
     this.missionDrift = new MissionDriftSystem({
       logger,
-      resourceSystem: simulation.resourceSystem,
-      eventScheduler: simulation.scheduler,
+      resourceSystem: simulation?.resourceSystem,
+      eventScheduler: simulation?.scheduler,
       onDriftUpdate: (data) => this.#onDriftUpdate(data),
       onSeverityChange: (data) => this.#onSeverityChange(data),
       onRecoveryNeeded: (data) => this.#onRecoveryNeeded(data),
@@ -83,6 +143,8 @@ export class PuristSimulation {
     this.onCommandResult = typeof onCommandResult === 'function' ? onCommandResult : null;
     this.onDriftUpdate = typeof onDriftUpdate === 'function' ? onDriftUpdate : null;
     this.onMissionStatus = typeof onMissionStatus === 'function' ? onMissionStatus : null;
+    this.onPhaseChange = typeof onPhaseChange === 'function' ? onPhaseChange : null;
+    this.onMilestone = typeof onMilestone === 'function' ? onMilestone : null;
 
     // Procedure data
     this.procedures = new Map();
@@ -91,6 +153,9 @@ export class PuristSimulation {
     if (procedureData) {
       this.loadProcedures(procedureData);
     }
+
+    // Mission milestones achieved
+    this.milestones = new Set();
 
     // Session statistics
     this.sessionStats = {
@@ -102,11 +167,98 @@ export class PuristSimulation {
       maxDrift: 0,
       recoveriesInitiated: 0,
       missionStatus: 'nominal',
+      phaseChanges: 0,
+      milestonesReached: 0,
     };
 
     // Real-time tracking
     this.lastRealTime = null;
     this.accumulatedRealTime = 0;
+  }
+
+  /**
+   * Determine mission phase from GET seconds
+   */
+  #getMissionPhaseFromGet(getSeconds) {
+    if (getSeconds < 0) return 'PRELAUNCH';
+    if (getSeconds < APOLLO_11_EVENTS.S_IVB_CUTOFF_1) return 'LAUNCH';
+    if (getSeconds < APOLLO_11_EVENTS.TLI_START) return 'EARTH_ORBIT';
+    if (getSeconds < APOLLO_11_EVENTS.TLI_CUTOFF) return 'TLI';
+    if (getSeconds < APOLLO_11_EVENTS.LOI_1) return 'TRANSLUNAR';
+    if (getSeconds < APOLLO_11_EVENTS.LOI_2 + 3600) return 'LOI';
+    if (getSeconds < APOLLO_11_EVENTS.PDI) return 'LUNAR_ORBIT';
+    if (getSeconds < APOLLO_11_EVENTS.LANDING) return 'DESCENT';
+    if (getSeconds < APOLLO_11_EVENTS.LIFTOFF_MOON) return 'SURFACE';
+    if (getSeconds < APOLLO_11_EVENTS.DOCKING) return 'ASCENT';
+    if (getSeconds < APOLLO_11_EVENTS.TEI) return 'RENDEZVOUS';
+    if (getSeconds < APOLLO_11_EVENTS.TEI + 600) return 'TEI';
+    if (getSeconds < APOLLO_11_EVENTS.ENTRY_INTERFACE) return 'TRANSEARTH';
+    return 'ENTRY';
+  }
+
+  /**
+   * Check and update mission phase
+   */
+  #updateMissionPhase(getSeconds) {
+    const newPhase = this.#getMissionPhaseFromGet(getSeconds);
+    if (newPhase !== this.currentPhase) {
+      const oldPhase = this.currentPhase;
+      this.currentPhase = newPhase;
+      this.sessionStats.phaseChanges += 1;
+
+      // Update command timing system
+      this.commandTiming.setMissionPhase(newPhase);
+
+      // Log phase change
+      this.logger?.log(getSeconds, `Phase: ${MISSION_PHASES[newPhase]?.description ?? newPhase}`, {
+        logSource: 'sim',
+        logCategory: 'phase',
+        logSeverity: 'notice',
+        previousPhase: oldPhase,
+        newPhase,
+      });
+
+      // Callback
+      if (this.onPhaseChange) {
+        this.onPhaseChange({
+          previous: oldPhase,
+          current: newPhase,
+          getSeconds,
+          description: MISSION_PHASES[newPhase]?.description,
+        });
+      }
+    }
+  }
+
+  /**
+   * Check for mission milestones
+   */
+  #checkMilestones(getSeconds) {
+    for (const [name, time] of Object.entries(APOLLO_11_EVENTS)) {
+      if (!this.milestones.has(name) && getSeconds >= time) {
+        this.milestones.add(name);
+        this.sessionStats.milestonesReached += 1;
+
+        this.logger?.log(getSeconds, `Milestone: ${name}`, {
+          logSource: 'sim',
+          logCategory: 'milestone',
+          logSeverity: 'notice',
+          milestone: name,
+          plannedGet: time,
+          actualGet: getSeconds,
+          delta: getSeconds - time,
+        });
+
+        if (this.onMilestone) {
+          this.onMilestone({
+            name,
+            plannedGet: time,
+            actualGet: getSeconds,
+            delta: getSeconds - time,
+          });
+        }
+      }
+    }
   }
 
   /**
@@ -159,6 +311,7 @@ export class PuristSimulation {
 
   /**
    * Main update loop - call this each frame
+   * This is where the DDR magic happens
    */
   update(realDeltaMs = null) {
     if (this.isPaused) return;
@@ -179,10 +332,16 @@ export class PuristSimulation {
     const simDeltaSeconds = (realDeltaMs / 1000) * this.timeScale;
     const currentGet = this.getCurrentGet();
 
-    // Update command timing system
+    // Update mission phase (affects timing strictness)
+    this.#updateMissionPhase(currentGet);
+
+    // Check for milestones
+    this.#checkMilestones(currentGet);
+
+    // Update command timing system - the DDR engine
     this.commandTiming.update(currentGet, simDeltaSeconds);
 
-    // Update drift system
+    // Update drift system - consequences of missed commands
     this.missionDrift.update(currentGet, simDeltaSeconds);
 
     // Check for upcoming procedures that need to be loaded
@@ -365,9 +524,23 @@ export class PuristSimulation {
       case SIMULATION_MODES.COMPRESSED_2X: return 2;
       case SIMULATION_MODES.COMPRESSED_4X: return 4;
       case SIMULATION_MODES.COMPRESSED_8X: return 8;
+      case SIMULATION_MODES.COMPRESSED_60X: return 60;
       case SIMULATION_MODES.AUTO_CREW: return 1;
       case SIMULATION_MODES.PLAYBACK: return 1;
+      case SIMULATION_MODES.INTERACTIVE: return 1;
       default: return 1;
+    }
+  }
+
+  #onCommandApproaching(data) {
+    // Called when a command is about to enter the hit zone
+    if (this.onCommandRequired) {
+      this.onCommandRequired({
+        warning: 'approaching',
+        command: data.command,
+        secondsUntil: data.secondsUntil,
+        getSeconds: this.getCurrentGet(),
+      });
     }
   }
 
@@ -563,20 +736,51 @@ export class PuristSimulation {
   }
 
   #getCurrentPhase(getSeconds) {
-    // Determine mission phase based on GET
-    if (getSeconds < 700) return 'Launch';
-    if (getSeconds < 10000) return 'Earth Orbit';
-    if (getSeconds < 12000) return 'Translunar Injection';
-    if (getSeconds < 270000) return 'Translunar Coast';
-    if (getSeconds < 290000) return 'Lunar Orbit Insertion';
-    if (getSeconds < 360000) return 'Lunar Orbit';
-    if (getSeconds < 370000) return 'LM Descent';
-    if (getSeconds < 450000) return 'Lunar Surface';
-    if (getSeconds < 470000) return 'LM Ascent';
-    if (getSeconds < 500000) return 'Trans-Earth Injection';
-    if (getSeconds < 700000) return 'Trans-Earth Coast';
-    return 'Entry & Recovery';
+    // Return human-readable phase name
+    const phaseId = this.#getMissionPhaseFromGet(getSeconds);
+    return MISSION_PHASES[phaseId]?.description ?? phaseId;
+  }
+
+  /**
+   * Get estimated mission completion time
+   */
+  getEstimatedCompletion() {
+    const currentGet = this.getCurrentGet();
+    const remaining = APOLLO_11_EVENTS.SPLASHDOWN - currentGet;
+    const realTimeRemaining = remaining / this.timeScale;
+
+    return {
+      missionSecondsRemaining: remaining,
+      realSecondsRemaining: realTimeRemaining,
+      percentComplete: (currentGet / APOLLO_11_EVENTS.SPLASHDOWN) * 100,
+      estimatedRealHours: realTimeRemaining / 3600,
+    };
+  }
+
+  /**
+   * Skip to a specific mission event (for testing/demo)
+   */
+  skipToEvent(eventName) {
+    const eventTime = APOLLO_11_EVENTS[eventName];
+    if (eventTime !== undefined && this.simulation?.clock) {
+      this.simulation.clock.setCurrent?.(eventTime);
+      this.loadedProcedures.clear(); // Reset loaded procedures
+      return { success: true, getSeconds: eventTime };
+    }
+    return { success: false, reason: 'unknown_event' };
+  }
+
+  /**
+   * Get list of available events for skipping
+   */
+  getAvailableEvents() {
+    return Object.entries(APOLLO_11_EVENTS).map(([name, time]) => ({
+      name,
+      getSeconds: time,
+      get: formatGET(time),
+      phase: this.#getMissionPhaseFromGet(time),
+    }));
   }
 }
 
-export { SIMULATION_MODES, PLAYBACK_SOURCES };
+export { SIMULATION_MODES, PLAYBACK_SOURCES, APOLLO_11_EVENTS };
