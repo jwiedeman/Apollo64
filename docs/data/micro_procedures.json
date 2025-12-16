@@ -1,0 +1,737 @@
+{
+  "version": 1,
+  "description": "Micro-level procedural commands - every switch, every button, every action",
+  "notes": "Based on Apollo 11 Flight Plan and Crew Checklist. Each macro step is broken into individual control actuations.",
+  "procedures": [
+    {
+      "id": "PROC_LAUNCH_T_MINUS_5",
+      "name": "Launch T-5 Minutes",
+      "phase": "Launch",
+      "getStartSeconds": -300,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": -300,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CABIN_PRESS",
+          "description": "Verify cabin pressure 5.0 psia",
+          "panel": "CSM_CRYO_ECS",
+          "expectedValue": "5.0 psia"
+        },
+        {
+          "getSeconds": -295,
+          "type": "SWITCH",
+          "commandId": "SEQ_EVENTS_CTRL",
+          "description": "SEQ EVENTS CTRL - ARM",
+          "panel": "CSM_CB_LEFT",
+          "control": "CB_CMC",
+          "expectedState": "CLOSED"
+        },
+        {
+          "getSeconds": -290,
+          "type": "VERIFY",
+          "commandId": "VERIFY_FC_CURRENT",
+          "description": "Verify fuel cell current balanced",
+          "panel": "CSM_ELECTRICAL_POWER",
+          "expectedValue": "balanced"
+        },
+        {
+          "getSeconds": -280,
+          "type": "SWITCH",
+          "commandId": "FDAI_POWER_ON",
+          "description": "FDAI 1 - POWER ON",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "control": "FDAI_SOURCE",
+          "expectedState": "CMC"
+        },
+        {
+          "getSeconds": -270,
+          "type": "SWITCH",
+          "commandId": "ATT_SET_GDC",
+          "description": "ATT SET - GDC",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "control": "ATTITUDE_HOLD",
+          "expectedState": "CMC"
+        },
+        {
+          "getSeconds": -260,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_GUIDANCE_GO",
+          "description": "\"Guidance is go\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": -240,
+          "type": "DSKY",
+          "commandId": "DSKY_V37E00E",
+          "description": "V37E00E - Idle program",
+          "verb": 37,
+          "noun": 0,
+          "panel": "DSKY"
+        },
+        {
+          "getSeconds": -200,
+          "type": "VERIFY",
+          "commandId": "VERIFY_PYRO_ARM",
+          "description": "Verify pyro buses armed",
+          "panel": "CSM_SCS_DAP",
+          "expectedValue": "armed"
+        },
+        {
+          "getSeconds": -180,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_T3_MIN",
+          "description": "\"T minus 3 minutes\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": -120,
+          "type": "SWITCH",
+          "commandId": "SUIT_FLOW_CABIN",
+          "description": "SUIT FLOW - SUIT",
+          "panel": "CSM_CRYO_ECS",
+          "control": "SUIT_FAN_SELECT",
+          "expectedState": "A"
+        },
+        {
+          "getSeconds": -60,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_T1_MIN",
+          "description": "\"T minus 1 minute\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": -30,
+          "type": "VERIFY",
+          "commandId": "VERIFY_RANGE_SAFETY",
+          "description": "Range safety GO",
+          "expectedValue": "GO"
+        },
+        {
+          "getSeconds": -15,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_GUIDANCE_REL",
+          "description": "\"Guidance release\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": -9,
+          "type": "VERIFY",
+          "commandId": "VERIFY_IGN_SEQ",
+          "description": "Ignition sequence start",
+          "expectedValue": "started"
+        }
+      ]
+    },
+    {
+      "id": "PROC_LAUNCH_LIFTOFF",
+      "name": "Liftoff Sequence",
+      "phase": "Launch",
+      "getStartSeconds": 0,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 0.0,
+          "type": "VERIFY",
+          "commandId": "VERIFY_THRUST_COMMIT",
+          "description": "All engines thrust commit",
+          "expectedValue": "COMMIT"
+        },
+        {
+          "getSeconds": 0.1,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_LIFTOFF",
+          "description": "\"Liftoff!\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 1.0,
+          "type": "VERIFY",
+          "commandId": "VERIFY_CLOCK_START",
+          "description": "Event timer started",
+          "expectedValue": "running"
+        },
+        {
+          "getSeconds": 10.0,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_ROLL_PROGRAM",
+          "description": "\"Roll program\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 13.2,
+          "type": "VERIFY",
+          "commandId": "VERIFY_ROLL_COMPLETE",
+          "description": "Roll complete, pitch program",
+          "expectedValue": "complete"
+        },
+        {
+          "getSeconds": 40.0,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_MACH_1",
+          "description": "\"Mach 1\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 60.0,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_MAX_Q",
+          "description": "\"Max Q\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 75.0,
+          "type": "VERIFY",
+          "commandId": "VERIFY_THROTTLE_DOWN",
+          "description": "Throttle down confirmed",
+          "expectedValue": "throttled"
+        },
+        {
+          "getSeconds": 95.0,
+          "type": "VERIFY",
+          "commandId": "VERIFY_THROTTLE_UP",
+          "description": "Throttle back up",
+          "expectedValue": "full"
+        },
+        {
+          "getSeconds": 135.6,
+          "type": "VERIFY",
+          "commandId": "VERIFY_INBOARD_CUTOFF",
+          "description": "Inboard engine cutoff",
+          "expectedValue": "cutoff"
+        },
+        {
+          "getSeconds": 162.0,
+          "type": "VERIFY",
+          "commandId": "VERIFY_S1C_CUTOFF",
+          "description": "S-IC outboard cutoff",
+          "expectedValue": "cutoff"
+        },
+        {
+          "getSeconds": 162.5,
+          "type": "VERIFY",
+          "commandId": "VERIFY_S1C_SEP",
+          "description": "S-IC separation",
+          "expectedValue": "separated"
+        },
+        {
+          "getSeconds": 163.0,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_STAGING",
+          "description": "\"Staging\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 163.5,
+          "type": "VERIFY",
+          "commandId": "VERIFY_S2_IGN",
+          "description": "S-II ignition",
+          "expectedValue": "ignition"
+        }
+      ]
+    },
+    {
+      "id": "PROC_TLI_PREP",
+      "name": "TLI Preparation",
+      "phase": "Translunar",
+      "getStartSeconds": 9000,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 9000,
+          "type": "DSKY",
+          "commandId": "DSKY_P06_SELECT",
+          "description": "V37E06E - Select P06 (TLI)",
+          "verb": 37,
+          "noun": 6,
+          "panel": "DSKY"
+        },
+        {
+          "getSeconds": 9030,
+          "type": "VERIFY",
+          "commandId": "VERIFY_SIVB_TANKS",
+          "description": "S-IVB tank pressures nominal",
+          "expectedValue": "nominal"
+        },
+        {
+          "getSeconds": 9060,
+          "type": "SWITCH",
+          "commandId": "SIVB_CRYOS_ARM",
+          "description": "S-IVB cryo arm",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_HEL_PRESS",
+          "expectedState": "OPEN"
+        },
+        {
+          "getSeconds": 9120,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_GO_TLI",
+          "description": "\"Go for TLI\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 9150,
+          "type": "SWITCH",
+          "commandId": "CMC_FREE",
+          "description": "CMC MODE - FREE",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "control": "CMC_MODE",
+          "expectedState": "FREE"
+        },
+        {
+          "getSeconds": 9180,
+          "type": "VERIFY",
+          "commandId": "VERIFY_BURN_ATTITUDE",
+          "description": "Burn attitude achieved",
+          "expectedValue": "achieved"
+        },
+        {
+          "getSeconds": 9810,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_TLI_30_SEC",
+          "description": "\"30 seconds to TLI\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 9824,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_TLI_10_SEC",
+          "description": "\"10 seconds\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 9834,
+          "type": "VERIFY",
+          "commandId": "VERIFY_TLI_IGNITION",
+          "description": "TLI ignition",
+          "expectedValue": "ignition"
+        }
+      ]
+    },
+    {
+      "id": "PROC_TD_E",
+      "name": "Transposition, Docking, Extraction",
+      "phase": "Translunar",
+      "getStartSeconds": 11400,
+      "crewRole": "CMP",
+      "commands": [
+        {
+          "getSeconds": 11400,
+          "type": "SWITCH",
+          "commandId": "CSM_SEP_ARM",
+          "description": "CSM/LV SEP - ARM",
+          "panel": "CSM_SCS_DAP",
+          "control": "SCS_ENG_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 11410,
+          "type": "BUTTON",
+          "commandId": "CSM_SEP_FIRE",
+          "description": "CSM/LV SEP - FIRE",
+          "panel": "CSM_SCS_DAP"
+        },
+        {
+          "getSeconds": 11415,
+          "type": "RCS",
+          "commandId": "RCS_SEP_BURN",
+          "description": "+X translation 1 fps",
+          "axis": "X",
+          "magnitude": 0.3
+        },
+        {
+          "getSeconds": 11430,
+          "type": "RCS",
+          "commandId": "RCS_PITCH_OVER",
+          "description": "Pitch over 180°",
+          "axis": "pitch",
+          "magnitude": 3.0
+        },
+        {
+          "getSeconds": 11500,
+          "type": "VERIFY",
+          "commandId": "VERIFY_LM_VISUAL",
+          "description": "LM visual acquisition",
+          "expectedValue": "acquired"
+        },
+        {
+          "getSeconds": 11550,
+          "type": "RCS",
+          "commandId": "RCS_APPROACH",
+          "description": "Approach velocity 0.5 fps",
+          "axis": "-X",
+          "magnitude": 0.15
+        },
+        {
+          "getSeconds": 11700,
+          "type": "SWITCH",
+          "commandId": "DOCK_PROBE_EXT",
+          "description": "DOCK PROBE - EXTEND",
+          "panel": "CSM_CB_RIGHT",
+          "control": "CB_DOCKING_LIGHTS",
+          "expectedState": "CLOSED"
+        },
+        {
+          "getSeconds": 11800,
+          "type": "VERIFY",
+          "commandId": "VERIFY_SOFT_DOCK",
+          "description": "Soft dock - capture latches",
+          "expectedValue": "captured"
+        },
+        {
+          "getSeconds": 11810,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_CAPTURE",
+          "description": "\"Capture\"",
+          "crewRole": "CMP"
+        },
+        {
+          "getSeconds": 11850,
+          "type": "SWITCH",
+          "commandId": "DOCK_PROBE_RET",
+          "description": "DOCK PROBE - RETRACT",
+          "panel": "CSM_CB_RIGHT"
+        },
+        {
+          "getSeconds": 11900,
+          "type": "VERIFY",
+          "commandId": "VERIFY_HARD_DOCK",
+          "description": "Hard dock verified",
+          "expectedValue": "docked"
+        },
+        {
+          "getSeconds": 11910,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_DOCKED",
+          "description": "\"Docked\"",
+          "crewRole": "CMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_PTC_INIT",
+      "name": "PTC Initiation",
+      "phase": "Translunar",
+      "getStartSeconds": 16200,
+      "crewRole": "CMP",
+      "commands": [
+        {
+          "getSeconds": 16200,
+          "type": "DSKY",
+          "commandId": "DSKY_V49_CREW_ATT",
+          "description": "V49E - Crew defined attitude",
+          "verb": 49,
+          "noun": 0,
+          "panel": "DSKY"
+        },
+        {
+          "getSeconds": 16260,
+          "type": "SWITCH",
+          "commandId": "PTC_RATE_SET",
+          "description": "PTC RATE - 0.3°/s",
+          "panel": "CSM_RCS_MANAGEMENT",
+          "control": "PTC_TRIM_RATE",
+          "expectedState": "RATE_0_3"
+        },
+        {
+          "getSeconds": 16300,
+          "type": "RCS",
+          "commandId": "RCS_PTC_SPIN",
+          "description": "Initiate roll rate 0.3°/s",
+          "axis": "roll",
+          "magnitude": 0.3
+        },
+        {
+          "getSeconds": 16320,
+          "type": "SWITCH",
+          "commandId": "CMC_AUTO",
+          "description": "CMC MODE - AUTO",
+          "panel": "CSM_FLIGHT_CONTROL",
+          "control": "CMC_MODE",
+          "expectedState": "AUTO"
+        },
+        {
+          "getSeconds": 16350,
+          "type": "VERIFY",
+          "commandId": "VERIFY_PTC_STABLE",
+          "description": "PTC roll rate stable",
+          "expectedValue": "0.3°/s"
+        },
+        {
+          "getSeconds": 16360,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_PTC_INIT",
+          "description": "\"PTC initiated\"",
+          "crewRole": "CMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_LOI_PREP",
+      "name": "LOI Preparation",
+      "phase": "Lunar Orbit",
+      "getStartSeconds": 273000,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 273000,
+          "type": "SWITCH",
+          "commandId": "PTC_STOP",
+          "description": "PTC RATE - OFF",
+          "panel": "CSM_RCS_MANAGEMENT",
+          "control": "PTC_TRIM_RATE",
+          "expectedState": "OFF"
+        },
+        {
+          "getSeconds": 273060,
+          "type": "DSKY",
+          "commandId": "DSKY_P30_LOI",
+          "description": "V37E30E - External Δv",
+          "verb": 37,
+          "noun": 30,
+          "panel": "DSKY"
+        },
+        {
+          "getSeconds": 273120,
+          "type": "SWITCH",
+          "commandId": "SPS_BANK_A_ARM",
+          "description": "SPS BANK A - ARM",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_BANK_A_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 273130,
+          "type": "SWITCH",
+          "commandId": "SPS_BANK_B_ARM",
+          "description": "SPS BANK B - ARM",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_BANK_B_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 273140,
+          "type": "SWITCH",
+          "commandId": "SPS_HE_PRESS_OPEN",
+          "description": "SPS HELIUM - OPEN",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_HEL_PRESS",
+          "expectedState": "OPEN"
+        },
+        {
+          "getSeconds": 273160,
+          "type": "SWITCH",
+          "commandId": "SPS_GIMBAL_A_AUTO",
+          "description": "SPS GIMBAL A - AUTO",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_GIMBAL_A",
+          "expectedState": "AUTO"
+        },
+        {
+          "getSeconds": 273170,
+          "type": "SWITCH",
+          "commandId": "SPS_GIMBAL_B_AUTO",
+          "description": "SPS GIMBAL B - AUTO",
+          "panel": "CSM_SPS_PROPULSION",
+          "control": "SPS_GIMBAL_B",
+          "expectedState": "AUTO"
+        },
+        {
+          "getSeconds": 273200,
+          "type": "VERIFY",
+          "commandId": "VERIFY_SPS_READY",
+          "description": "SPS ready for burn",
+          "expectedValue": "ready"
+        },
+        {
+          "getSeconds": 273250,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_LOI_2_MIN",
+          "description": "\"2 minutes to LOI\"",
+          "crewRole": "CMP"
+        }
+      ]
+    },
+    {
+      "id": "PROC_PDI",
+      "name": "Powered Descent Initiation",
+      "phase": "LM Descent",
+      "getStartSeconds": 369180,
+      "crewRole": "Joint",
+      "commands": [
+        {
+          "getSeconds": 369180,
+          "type": "SWITCH",
+          "commandId": "DPS_ARM",
+          "description": "DESCENT ENGINE ARM - ARM",
+          "panel": "LM_DESCENT_PANELS",
+          "control": "DPS_ENGINE_ARM",
+          "expectedState": "ARM"
+        },
+        {
+          "getSeconds": 369190,
+          "type": "SWITCH",
+          "commandId": "ABORT_STAGE_DESC",
+          "description": "ABORT STAGE - DESCENT",
+          "panel": "LM_DESCENT_PANELS",
+          "control": "ABORT_STAGE",
+          "expectedState": "DESCENT"
+        },
+        {
+          "getSeconds": 369200,
+          "type": "SWITCH",
+          "commandId": "LM_MODE_AUTO",
+          "description": "MODE CONTROL - AUTO",
+          "panel": "LM_DESCENT_PANELS",
+          "control": "MODE_CONTROL",
+          "expectedState": "AUTO"
+        },
+        {
+          "getSeconds": 369210,
+          "type": "DSKY",
+          "commandId": "DSKY_P63",
+          "description": "V37E63E - Braking Phase",
+          "verb": 37,
+          "noun": 63,
+          "panel": "LM_DSKY"
+        },
+        {
+          "getSeconds": 369250,
+          "type": "VERIFY",
+          "commandId": "VERIFY_PDI_IGN",
+          "description": "PDI ignition confirmed",
+          "expectedValue": "ignition"
+        },
+        {
+          "getSeconds": 369255,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_IGNITION",
+          "description": "\"Ignition\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 369280,
+          "type": "VERIFY",
+          "commandId": "VERIFY_THROTTLE_UP",
+          "description": "Throttle up to 100%",
+          "expectedValue": "100%"
+        },
+        {
+          "getSeconds": 369500,
+          "type": "SWITCH",
+          "commandId": "LANDING_RADAR_AUTO",
+          "description": "LANDING RADAR - AUTO",
+          "panel": "LM_DESCENT_PANELS",
+          "control": "LANDING_RADAR",
+          "expectedState": "AUTO"
+        }
+      ]
+    },
+    {
+      "id": "PROC_LANDING",
+      "name": "Final Approach and Landing",
+      "phase": "LM Descent",
+      "getStartSeconds": 369860,
+      "crewRole": "CDR",
+      "commands": [
+        {
+          "getSeconds": 369860,
+          "type": "DSKY",
+          "commandId": "DSKY_P64",
+          "description": "V37E64E - Approach Phase",
+          "verb": 37,
+          "noun": 64,
+          "panel": "LM_DSKY"
+        },
+        {
+          "getSeconds": 369890,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_PITCHOVER",
+          "description": "\"Pitchover\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 369920,
+          "type": "DSKY",
+          "commandId": "DSKY_P66",
+          "description": "V37E66E - Rate of Descent",
+          "verb": 37,
+          "noun": 66,
+          "panel": "LM_DSKY"
+        },
+        {
+          "getSeconds": 369930,
+          "type": "THROTTLE",
+          "commandId": "THROTTLE_MANUAL",
+          "description": "Manual throttle control",
+          "panel": "LM_DESCENT_PANELS"
+        },
+        {
+          "getSeconds": 369960,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_100_FT",
+          "description": "\"100 feet\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 369970,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_75_FT",
+          "description": "\"75 feet\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 369980,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_60_SEC_FUEL",
+          "description": "\"60 seconds fuel\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 369990,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_40_FT",
+          "description": "\"40 feet\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 370000,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_30_SEC_FUEL",
+          "description": "\"30 seconds fuel\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 370010,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_CONTACT",
+          "description": "\"Contact light!\"",
+          "crewRole": "LMP"
+        },
+        {
+          "getSeconds": 370011,
+          "type": "SWITCH",
+          "commandId": "ENGINE_STOP",
+          "description": "DESCENT ENGINE - STOP",
+          "panel": "LM_DESCENT_PANELS",
+          "control": "DPS_ENGINE_ARM",
+          "expectedState": "SAFE"
+        },
+        {
+          "getSeconds": 370012,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_ENGINE_STOP",
+          "description": "\"Engine stop\"",
+          "crewRole": "CDR"
+        },
+        {
+          "getSeconds": 370015,
+          "type": "CALLOUT",
+          "commandId": "CALLOUT_TRANQUILITY",
+          "description": "\"Houston, Tranquility Base here. The Eagle has landed.\"",
+          "crewRole": "CDR"
+        }
+      ]
+    }
+  ]
+}
